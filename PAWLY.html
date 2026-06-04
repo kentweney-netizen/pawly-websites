@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAWLY 生态中心</title>
+  <style>
+    body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
+    .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+    .nav button { background:transparent; color:#00ff9d; border:1px solid #00ff9d; padding:10px 16px; border-radius:20px; cursor:pointer; transition:0.3s; font-size:0.95em; }
+    .nav button.active { background:#00ff9d; color:black; }
+    .tab { display:none; padding:25px; }
+    .tab.active { display:block; }
+    .container { max-width:720px; margin:20px auto; background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:25px; padding:30px; box-shadow:0 0 30px rgba(0,255,150,0.2); }
+    h1 { text-shadow:0 0 20px #00ff9d; margin-bottom:10px; }
+    input, button { padding:15px; margin:12px; width:85%; border-radius:12px; font-size:1.1em; }
+    input { background:#1a0033; color:white; border:1px solid #00ff9d; }
+    button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; }
+    .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
+    .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; font-size:1.55em; font-weight:bold; }
+    .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
+  </style>
+</head>
+<body>
+
+  <div class="nav">
+    <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
+    <button onclick="showTab(1)" id="nav1">我的仪表盘 / Dashboard</button>
+    <button onclick="showTab(2)" id="nav2">质押挖矿 / Staking</button>
+    <button onclick="showTab(3)" id="nav3">宠物支付 / Pet Payment</button>
+    <button onclick="showTab(4)" id="nav4">慈善基金 / Charity</button>
+    <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
+  </div>
+
+  <!-- 签到页面 -->
+  <div class="tab active" id="tab0">
+    <div class="container">
+      <div class="warning">
+        <strong>⚠️ 重要提示 / Important Notice</strong><br><br>
+        <strong>中文：</strong> 这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭，奖励会通过官方钱包统一空投发放。<br><br>
+        <strong>English：</strong> This is the PAWLY pre-mining check-in page. After official launch, the web check-in function will be closed, and rewards will be airdropped from the official wallet.
+      </div>
+      <h1>🐾 签到挖矿 / Check-in Mining</h1>
+      <input type="text" id="wallet" placeholder="输入你的钱包地址 / Enter your wallet address" />
+      <br>
+      <button onclick="checkIn()">🚀 立即签到 / Check-in Now</button>
+    </div>
+  </div>
+
+  <!-- 仪表盘 -->
+  <div class="tab" id="tab1">
+    <div class="container">
+      <h1>📊 我的仪表盘 / My Dashboard</h1>
+      <p id="walletDisplay">钱包地址：未连接 / Wallet: Not connected</p>
+      <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
+      <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
+
+      <div class="countdown">
+        <div>距离下次签到 / Time until next check-in:</div>
+        <div id="countdown" style="color:#ff8800;">计算中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 质押挖矿 -->
+  <div class="tab" id="tab2">
+    <div class="container">
+      <h1>🔥 质押挖矿 / Staking</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div class="cn"><strong>当前阶段（Pre-Staking）：</strong><br>
+          目前处于预质押签到奖励阶段。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
+          <strong>正式 Staking 功能：</strong><br>
+          当 PAWLY 用户数量超过 10 万时，我们将正式开启链上质押挖矿功能。持有者可将 PAWLY 质押，获得持续奖励。</div>
+          
+          <div class="en"><strong>Current Phase (Pre-Staking)：</strong><br>
+          We are currently in the pre-staking check-in reward phase. PAWLY accumulated through web check-ins will be airdropped from the official wallet after official launch.<br><br>
+          <strong>Official Staking Function：</strong><br>
+          When the number of PAWLY users exceeds 100,000, we will officially launch on-chain staking. Holders can stake their PAWLY to earn ongoing rewards.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 宠物支付 -->
+  <div class="tab" id="tab3">
+    <div class="container">
+      <h1>🐶 宠物支付 / Pet Payment</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div class="cn"><strong>未来愿景：</strong><br>
+          PAWLY 将逐步发展成为宠物爱好者的日常支付工具。未来用户可以在合作宠物店、兽医诊所、线上宠物商城等场景，直接使用 PAWLY 支付宠物粮、玩具、医疗服务等费用，让爱宠生活更加便捷。</div>
+          
+          <div class="en"><strong>Future Vision：</strong><br>
+          PAWLY aims to become a daily payment tool for pet lovers. In the future, users will be able to use PAWLY directly at partner pet stores, veterinary clinics, and online pet shops to pay for pet food, toys, medical services, and more.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 慈善基金 -->
+  <div class="tab" id="tab4">
+    <div class="container">
+      <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div class="cn"><strong>我们的承诺：</strong><br>
+          PAWLY 将把部分交易费用和代币分配用于宠物慈善事业。每季度我们会公开捐款给马来西亚及全球的动物收容所和流浪动物救援组织。社区可参与投票决定捐款方向，真正实现透明、公开的公益。</div>
+          
+          <div class="en"><strong>Our Commitment：</strong><br>
+          PAWLY will allocate part of transaction fees and tokens to pet charity. Every quarter, we will make public donations to animal shelters and rescue organizations in Malaysia and worldwide. The community can vote on donation directions to achieve truly transparent philanthropy.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关于 PAWLY（已移除 Website 链接） -->
+  <div class="tab" id="tab5">
+    <div class="container">
+      <h1>🌟 关于 PAWLY / About PAWLY</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div class="cn">PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统 —— 结合签到挖矿、宠物支付、慈善公益，让每一位爱宠人士都能参与并从中受益。</div>
+          
+          <div class="en">PAWLY was born from the creator's years of seeing more and more people caring for animals with love. We hope to evolve from a cute pet meme coin into an ecosystem with real value — combining check-in mining, pet payments, and charity, so every pet lover can participate and benefit.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>🎥 宣传视频 / Promo Videos</h3>
+        <p>
+          <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：宣传片 / Video 1: Promo</a><br>
+          <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常 / Video 2: Daily Life</a><br>
+          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事 / Video 3: Community Story</a>
+        </p>
+      </div>
+
+      <div class="section">
+        <h3>官方链接 / Official Links</h3>
+        <p>
+          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> | 
+          <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> | 
+          <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> | 
+          <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let streak = 0;
+    let totalPAWLY = 0;
+
+    function showTab(n) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab' + n).classList.add('active');
+      document.querySelectorAll('.nav button').forEach((btn, i) => btn.classList.toggle('active', i === n));
+    }
+
+    function startPersonalCountdown(lastSignInTime) {
+      const el = document.getElementById("countdown");
+      setInterval(() => {
+        const dist = (lastSignInTime + 86400000) - Date.now();
+        if (dist < 0) {
+          el.innerHTML = "✅ 可以再次签到！ / Ready to check-in again!";
+          return;
+        }
+        const h = Math.floor(dist / 3600000);
+        const m = Math.floor((dist % 3600000) / 60000);
+        const s = Math.floor((dist % 60000) / 1000);
+        el.innerHTML = `${h.toString().padStart(2,'0')}小时 ${m.toString().padStart(2,'0')}分 ${s.toString().padStart(2,'0')}秒`;
+      }, 1000);
+    }
+
+    function updateDashboard(wallet) {
+      document.getElementById("walletDisplay").innerHTML = `钱包地址：${wallet.substring(0,8)}... / Wallet: ${wallet.substring(0,8)}...`;
+      document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
+      document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
+    }
+
+    async function checkIn() {
+      const wallet = document.getElementById('wallet').value.trim();
+      if (!wallet) return alert("请输入钱包地址！");
+
+      const today = new Date().toISOString().split('T')[0];
+      const lastSignInDate = localStorage.getItem('lastSignIn_' + wallet);
+
+      if (lastSignInDate === today) {
+        streak = parseInt(localStorage.getItem('streak_' + wallet) || 0);
+        totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + wallet) || 0);
+        const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + wallet));
+
+        alert("今天已签到！显示当前状态。");
+        showTab(1);
+        updateDashboard(wallet);
+        startPersonalCountdown(lastTime);
+        return;
+      }
+
+      await submitToWeb3Forms(wallet);
+
+      streak = (parseInt(localStorage.getItem('streak_' + wallet) || 0)) + 1;
+      totalPAWLY = (parseInt(localStorage.getItem('totalPAWLY_' + wallet) || 0)) + 10;
+      const now = Date.now();
+
+      localStorage.setItem('lastSignIn_' + wallet, today);
+      localStorage.setItem('lastSignInTime_' + wallet, now);
+      localStorage.setItem('streak_' + wallet, streak);
+      localStorage.setItem('totalPAWLY_' + wallet, totalPAWLY);
+
+      alert(`✅ 签到成功！\n连续签到：${streak} 天\n总计：${totalPAWLY} PAWLY`);
+
+      showTab(1);
+      updateDashboard(wallet);
+      startPersonalCountdown(now);
+    }
+
+    async function submitToWeb3Forms(walletAddress) {
+      const formData = new FormData();
+      formData.append("access_key", "43436864-9437-4f9b-82a5-5b9d219f911f");
+      formData.append("wallet_address", walletAddress);
+      formData.append("subject", "PAWLY 新签到用户");
+      try {
+        await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
+      } catch (e) {}
+    }
+
+    window.onload = () => showTab(0);
+  </script>
+</body>
+</html>
