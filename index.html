@@ -254,20 +254,37 @@
       }
     }
 
-    // ==================== 绑定钱包 ====================
-    async function bindWallet() {
-      const wallet = document.getElementById('bind-wallet').value.trim();
-      if (!wallet || !currentUser) return alert("请输入钱包地址");
+  // ==================== 绑定钱包（加强版 - 推荐使用） ====================
+async function bindWallet() {
+  const wallet = document.getElementById('bind-wallet').value.trim();
+  if (!wallet || !currentUser) {
+    alert("请输入钱包地址！");
+    return;
+  }
 
-      const { error } = await supabaseClient.from('USERS')
-        .update({ wallet_address: wallet })
-        .eq('id', currentUser.id);
+  try {
+    // 使用 upsert：记录不存在就创建，存在就更新
+    const { error } = await supabaseClient
+      .from('USERS')
+      .upsert({
+        id: currentUser.id,
+        email: currentUser.email,
+        wallet_address: wallet,
+        email_verified: currentUser.email_confirmed_at ? true : false
+      }, { 
+        onConflict: 'id' 
+      });
 
-      if (error) return alert("绑定失败: " + error.message);
+    if (error) throw error;
 
-      alert("钱包绑定成功！");
-      document.getElementById('bind-wallet').disabled = true;
-    }
+    alert("钱包绑定成功！");
+    document.getElementById('bind-wallet').disabled = true;
+
+  } catch (error) {
+    console.error("绑定失败:", error);
+    alert("绑定失败: " + error.message);
+  }
+}
 
     // ==================== 签到功能 ====================
     async function checkIn() {
