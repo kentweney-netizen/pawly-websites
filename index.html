@@ -18,8 +18,8 @@
     input { background:#1a0033; color:white; border:1px solid #00ff9d; }
     button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; }
     .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
-    .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; font-size:1.55em; font-weight:bold; }
-    .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
+    .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
+    #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
     .auth-box { background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0; }
   </style>
 </head>
@@ -40,14 +40,12 @@
     <div class="container">
       <div class="warning">
         <strong>⚠️ 重要提示 / Important Notice</strong><br><br>
-        <strong>中文：</strong> 这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭，奖励会通过官方钱包统一空投发放。<br>
-        目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。一个邮箱只能绑定一个钱包地址。<br><br>
-        <strong>English：</strong> This is the PAWLY pre-mining check-in page. After official launch, the web check-in function will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before you can check in. One email can only be bound to one wallet address.
+        <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭，奖励会通过官方钱包统一空投发放。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。<br><br>
+        <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before checking in.
       </div>
-
       <h1>🐾 签到挖矿 / Check-in Mining</h1>
 
-      <!-- 未登录状态 -->
+      <!-- 未登录 -->
       <div id="auth-section">
         <div class="auth-box">
           <h3>邮箱注册 / Register</h3>
@@ -55,7 +53,6 @@
           <input type="password" id="reg-password" placeholder="设置密码">
           <button onclick="registerUser()">注册并发送验证邮件</button>
         </div>
-
         <div class="auth-box">
           <h3>登录 / Login</h3>
           <input type="email" id="login-email" placeholder="输入邮箱地址">
@@ -64,17 +61,17 @@
         </div>
       </div>
 
-      <!-- 已登录状态 -->
+      <!-- 已登录 -->
       <div id="logged-in-section" style="display:none;">
         <p id="user-email-display" style="font-weight:bold; margin-bottom:20px;"></p>
-
+        
         <div class="auth-box">
           <h3>绑定 Solana 钱包 / Bind Wallet</h3>
           <input type="text" id="bind-wallet" placeholder="输入你的 Solana 钱包地址">
           <button onclick="bindWallet()">绑定钱包</button>
         </div>
 
-        <button onclick="checkIn()" style="width:60%; font-size:1.3em; padding:18px; margin-top:20px;">
+        <button onclick="checkIn()" style="width:60%; font-size:1.3em; padding:18px; margin-top:20px; background:#00ff9d; color:black;">
           🚀 立即签到 / Check-in Now
         </button>
       </div>
@@ -85,276 +82,166 @@
   <div class="tab" id="tab1">
     <div class="container">
       <h1>📊 我的仪表盘 / My Dashboard</h1>
-      <p id="walletDisplay">钱包地址：未连接 / Wallet: Not connected</p>
+      
+      <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
+      
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
-      
-      <!-- ==================== 实时倒数区域 ==================== -->
-<div id="countdownBox" style="margin:25px 0; padding:18px; background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; font-size:1.25em; font-weight:bold;">
-  <div style="margin-bottom:8px;">距离下次可签到 / Time until next check-in:</div>
-  <div id="countdownTimer" style="color:#ff8800; font-size:1.8em; margin:10px 0;">--:--:--</div>
-  <div id="countdownStatus" style="font-size:1em; color:#aaa;"></div>
-</div>
 
-      <!-- 登出按钮 -->
+      <!-- 倒数计时器 -->
+      <div class="countdown">
+        <h3>距离下次可签到 / Time until next check-in:</h3>
+        <div id="countdownTimer">23:59:59</div>
+        <div id="countdownStatus">签到冷却中...</div>
+      </div>
+
       <button onclick="logout()" 
-              style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:30px; cursor:pointer;">
+              style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:20px; cursor:pointer;">
         🚪 登出 / Logout
       </button>
     </div>
   </div>
 
-  <!-- 其他页面保持不变 -->
-  <div class="tab" id="tab2">
-    <div class="container">
-      <h1>🔥 质押挖矿 / Staking</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div class="cn"><strong>当前阶段（Pre-Staking）：</strong><br>
-          目前处于预质押签到奖励阶段。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
-          <strong>正式 Staking 功能：</strong><br>
-          当 PAWLY 用户数量超过 1 万时，我们将正式开启链上质押挖矿功能。</div>
-       
-          <div class="en"><strong>Current Phase (Pre-Staking)：</strong><br>
-          We are currently in the pre-staking check-in reward phase. PAWLY accumulated through web check-ins will be airdropped after official launch.<br><br>
-          <strong>Official Staking Function：</strong><br>
-          When PAWLY reaches 10,000 users, we will officially launch on-chain staking.</div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- 其他页面 -->
+  <div class="tab" id="tab2"><div class="container"><h1>🔥 质押挖矿 / Staking</h1><p>当用户超过 1 万时正式开放链上质押。</p></div></div>
+  <div class="tab" id="tab3"><div class="container"><h1>🐶 宠物支付 / Pet Payment</h1><p>未来将在合作宠物店、兽医诊所支持 PAWLY 支付。</p></div></div>
+  <div class="tab" id="tab4"><div class="container"><h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1><p>部分交易费用将用于宠物慈善，每季度公开捐款。</p></div></div>
+  <div class="tab" id="tab5"><div class="container"><h1>🌟 关于 PAWLY</h1><p>从可爱宠物 meme 币，逐步发展成有实际价值的宠物生态系统。</p></div></div>
 
-  <div class="tab" id="tab3">
-    <div class="container">
-      <h1>🐶 宠物支付 / Pet Payment</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div class="cn"><strong>未来愿景：</strong><br>
-          PAWLY 将逐步发展成为宠物爱好者的日常支付工具。未来可在合作宠物店、兽医诊所、线上宠物商城直接使用 PAWLY 支付。</div>
-       
-          <div class="en"><strong>Future Vision：</strong><br>
-          PAWLY aims to become a daily payment tool for pet lovers. Users will be able to use PAWLY directly at partner pet stores and clinics.</div>
-        </div>
-      </div>
-    </div>
-  </div>
+<script>
+const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  <div class="tab" id="tab4">
-    <div class="container">
-      <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div class="cn"><strong>我们的承诺：</strong><br>
-          PAWLY 将把部分交易费用用于宠物慈善。每季度公开捐款给马来西亚及全球的动物收容所，社区可参与投票决定捐款方向。</div>
-       
-          <div class="en"><strong>Our Commitment：</strong><br>
-          PAWLY will allocate part of transaction fees to pet charity. Quarterly public donations to animal shelters in Malaysia and worldwide. Community can vote on donation directions.</div>
-        </div>
-      </div>
-    </div>
-  </div>
+let currentUser = null;
+let countdownInterval = null;
 
-  <div class="tab" id="tab5">
-    <div class="container">
-      <h1>🌟 关于 PAWLY / About PAWLY</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div class="cn">PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。</div>
-       
-          <div class="en">PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.</div>
-        </div>
-      </div>
-      <div class="section">
-        <h3>🎥 宣传视频 / Promo Videos</h3>
-        <p>
-          <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：宣传片</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事</a>
-        </p>
-      </div>
-      <div class="section">
-        <h3>官方链接 / Official Links</h3>
-        <p>
-          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> |
-          <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> |
-          <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> |
-          <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a>
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    let currentUser = null;
-    let streak = 0;
-    let totalPAWLY = 0;
-
-    function showTab(n) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.getElementById('tab' + n).classList.add('active');
-      document.querySelectorAll('.nav button').forEach((btn, i) => btn.classList.toggle('active', i === n));
-    }
-
-    async function registerUser() {
-      const email = document.getElementById('reg-email').value;
-      const password = document.getElementById('reg-password').value;
-      if (!email || !password) return alert("请输入邮箱和密码");
-
-      const { error } = await supabaseClient.auth.signUp({ email, password });
-      if (error) return alert("注册失败: " + error.message);
-      alert("注册成功！请去邮箱点击验证链接后再登录。");
-    }
-
-    // ==================== 登录 + 自动创建 USERS 表记录 ====================
-    async function loginUser() {
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) return alert("登录失败: " + error.message);
-
-      currentUser = data.user;
-
-      // 关键修复：登录后自动确保 USERS 表里有这条记录
-      await ensureUserRowExists(currentUser.id, email);
-      updateDashboardWithCountdown();
-
-      document.getElementById('auth-section').style.display = 'none';
-      document.getElementById('logged-in-section').style.display = 'block';
-      document.getElementById('user-email-display').innerText = `已登录: ${email}`;
-
-      await checkUserStatus();
-    }
-
-   // 登录成功后加载钱包地址和仪表盘数据
-const { data: userData } = await supabaseClient
-  .from('USERS')
-  .select('wallet_address')
-  .eq('id', currentUser.id)
-  .single();
-
-if (userData?.wallet_address) {
-  const walletDisplay = document.getElementById('walletDisplay') || 
-                        document.getElementById('walletAddress');
-  if (walletDisplay) {
-    walletDisplay.innerText = userData.wallet_address;
-  }
+// ==================== 工具函数 ====================
+function showTab(n) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab' + n).classList.add('active');
+  document.querySelectorAll('.nav button').forEach((btn, i) => btn.classList.toggle('active', i === n));
 }
 
-// 加载 streak 和 total 并刷新仪表盘
-updateDashboard();
-        });
-      }
-    }
-
-    async function checkUserStatus() {
-      if (!currentUser) return;
-      const { data } = await supabaseClient.from('USERS')
-        .select('wallet_address')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (data?.wallet_address) {
-        document.getElementById('bind-wallet').value = data.wallet_address;
-        document.getElementById('bind-wallet').disabled = true;
-      }
-    }
-
-  // ==================== 绑定钱包（加强版 - 推荐使用） ====================
-async function bindWallet() {
-  if (!currentUser) {
-    alert("请先登录！");
-    return;
-  }
-
-  const walletInput = document.getElementById('bind-wallet');
-  const wallet = walletInput.value.trim();
-
-  if (!wallet) {
-    alert("请输入钱包地址！");
-    return;
-  }
-
-  // 更新 Supabase
-  const { error } = await supabaseClient
-    .from('USERS')
-    .update({ wallet_address: wallet })
-    .eq('id', currentUser.id);
-
-  if (error) {
-    console.error("绑定钱包失败:", error);
-    alert("绑定失败: " + error.message);
-    return;
-  }
-
-  // ==================== 关键修复：立即更新页面显示 ====================
-  // 更新 dashboard 上的钱包地址显示
-  const walletDisplay = document.getElementById('walletDisplay') || 
-                        document.getElementById('walletAddress');
-  if (walletDisplay) {
-    walletDisplay.innerText = wallet;
-  }
-
-  // 同时更新输入框状态
-  walletInput.disabled = true;
-  walletInput.placeholder = "已绑定";
-
-  alert("✅ 钱包绑定成功！");
-  
-  // 刷新仪表盘数据
-  updateDashboard();
+// ==================== 注册 ====================
+async function registerUser() {
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  if (!email || !password) return alert("请输入邮箱和密码");
+  const { error } = await supabaseClient.auth.signUp({ email, password });
+  if (error) return alert("注册失败: " + error.message);
+  alert("注册成功！请去邮箱点击验证链接后再登录。");
 }
-   // ==================== 签到功能 ====================
-async function checkIn() {
-  if (!currentUser) {
-    alert("请先登录！");
-    return;
-  }
 
-  const today = new Date().toISOString().split('T')[0];
-  const lastSignIn = localStorage.getItem('lastSignIn_' + currentUser.id);
+// ==================== 登录 ====================
+async function loginUser() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) return alert("登录失败: " + error.message);
 
-  // 防止同一天重复签到
-  if (lastSignIn === today) {
-    alert("今天已经签到过了！请明天再来。");
-    return;
-  }
+  currentUser = data.user;
+  await ensureUserRowExists(currentUser.id, currentUser.email);
 
-  // 检查钱包是否已绑定
-  const { data: userData, error: userError } = await supabaseClient
+  // 加载钱包地址
+  const { data: userData } = await supabaseClient
     .from('USERS')
     .select('wallet_address')
     .eq('id', currentUser.id)
     .single();
 
-  if (userError || !userData?.wallet_address) {
-    alert("请先绑定钱包地址！");
-    return;
+  if (userData?.wallet_address) {
+    document.getElementById('bind-wallet').value = userData.wallet_address;
+    document.getElementById('bind-wallet').disabled = true;
+    document.getElementById('walletDisplay').innerText = userData.wallet_address;
   }
 
-  // 执行签到记录
-  const { error } = await supabaseClient
-    .from('checkins')
-    .insert({
-      user_id: currentUser.id,
-      checkin_date: today
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('logged-in-section').style.display = 'block';
+  document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email}`;
+
+  updateDashboard();
+  updateDashboardWithCountdown();
+}
+
+// ==================== 确保用户记录存在 ====================
+async function ensureUserRowExists(userId, email) {
+  const { data } = await supabaseClient.from('USERS').select('id').eq('id', userId).single();
+  if (!data) {
+    await supabaseClient.from('USERS').insert({
+      id: userId,
+      email: email,
+      email_verified: false,
+      wallet_address: null
     });
+  }
+}
 
-  if (error) {
-    console.error("签到失败:", error);
-    alert("签到失败: " + error.message);
+// ==================== 最强绑定钱包版本（你验证过的版本） ====================
+async function bindWallet() {
+  const wallet = document.getElementById('bind-wallet').value.trim();
+  if (!wallet || !currentUser) {
+    alert("请输入钱包地址！");
+    return;
+  }
+  try {
+    const { error } = await supabaseClient
+      .from('USERS')
+      .upsert({
+        id: currentUser.id,
+        email: currentUser.email,
+        wallet_address: wallet,
+        email_verified: currentUser.email_confirmed_at ? true : false
+      }, {
+        onConflict: 'id'
+      });
+    if (error) throw error;
+
+    alert("✅ 钱包绑定成功！");
+    document.getElementById('bind-wallet').disabled = true;
+
+    // 立即更新仪表盘显示
+    const walletDisplay = document.getElementById('walletDisplay');
+    if (walletDisplay) walletDisplay.innerText = wallet;
+
+  } catch (error) {
+    console.error("绑定失败:", error);
+    alert("绑定失败: " + error.message);
+  }
+}
+
+// ==================== 签到功能 ====================
+async function checkIn() {
+  if (!currentUser) return alert("请先登录");
+
+  const { data: userData } = await supabaseClient.from('USERS')
+    .select('wallet_address')
+    .eq('id', currentUser.id)
+    .single();
+
+  if (!userData?.wallet_address) {
+    return alert("请先绑定钱包地址！");
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const lastSignIn = localStorage.getItem('lastSignIn_' + currentUser.id);
+
+  if (lastSignIn === today) {
+    alert("今天已经签到过了！请明天再来。");
+    showTab(1);
     return;
   }
 
-  // 更新 streak 和 total
+  const { error } = await supabaseClient.from('checkins').insert({
+    user_id: currentUser.id,
+    checkin_date: today
+  });
+
+  if (error) return alert("签到失败: " + error.message);
+
   let streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0) + 1;
   let totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0) + 10;
 
-  // ==================== 关键修复 ====================
   const now = Date.now();
   localStorage.setItem('lastSignIn_' + currentUser.id, today);
   localStorage.setItem('lastSignInTime_' + currentUser.id, now);
@@ -363,15 +250,13 @@ async function checkIn() {
 
   alert(`✅ 签到成功！\n连续签到：${streak} 天\n总计：${totalPAWLY} PAWLY`);
 
-  // 立即启动新的 24 小时倒数
   startCountdown(now);
-  updateDashboardWithCountdown();   
-
-  showTab(1);
   updateDashboard();
+  showTab(1);
 }
 
-  function updateDashboard() {
+// ==================== 更新仪表盘 ====================
+function updateDashboard() {
   if (!currentUser) return;
 
   const streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
@@ -380,29 +265,11 @@ async function checkIn() {
   const streakEl = document.getElementById("streakText");
   const totalEl = document.getElementById("totalText");
 
-  if (streakEl) {
-    streakEl.innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
-  }
-  if (totalEl) {
-    totalEl.innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
-  }
+  if (streakEl) streakEl.innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
+  if (totalEl) totalEl.innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
 }
 
-    // ==================== 登出 ====================
-    async function logout() {
-      if (!confirm("确定要登出吗？")) return;
-      await supabaseClient.auth.signOut();
-      localStorage.clear();
-      document.getElementById('auth-section').style.display = 'block';
-      document.getElementById('logged-in-section').style.display = 'none';
-      document.getElementById('bind-wallet').disabled = false;
-      document.getElementById('bind-wallet').value = '';
-      alert("已成功登出！");
-      showTab(0);
-    }
-   // ==================== 实时 24 小时倒数功能 ====================
-let countdownInterval = null;
-
+// ==================== 倒数计时器 ====================
 function startCountdown(lastSignInTime) {
   if (countdownInterval) clearInterval(countdownInterval);
 
@@ -410,8 +277,8 @@ function startCountdown(lastSignInTime) {
   const statusEl = document.getElementById('countdownStatus');
 
   if (!lastSignInTime) {
-    timerEl.innerText = "尚未签到";
-    statusEl.innerText = "请先完成第一次签到";
+    timerEl.innerText = "00:00:00";
+    statusEl.innerHTML = `<span style="color:#00ff9d;">✅ 可以签到了！</span>`;
     return;
   }
 
@@ -428,32 +295,58 @@ function startCountdown(lastSignInTime) {
       const hours = Math.floor(remaining / (1000 * 60 * 60));
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-
-      timerEl.innerText = 
-        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      statusEl.innerText = "签到冷却中...";
+      timerEl.innerText = `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+      statusEl.innerHTML = "签到冷却中...";
     }
   }, 1000);
 }
 
-// 更新仪表盘并启动倒数
 function updateDashboardWithCountdown() {
   if (!currentUser) return;
   const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
   startCountdown(lastTime);
 }
-    // 页面加载检查登录状态
-    window.onload = async function() {
-      showTab(0);
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
-        currentUser = session.user;
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('logged-in-section').style.display = 'block';
-        document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email}`;
-        await checkUserStatus();
-      }
+
+// ==================== 登出 ====================
+async function logout() {
+  if (!confirm("确定要登出吗？")) return;
+  await supabaseClient.auth.signOut();
+  localStorage.clear();
+  currentUser = null;
+  document.getElementById('auth-section').style.display = 'block';
+  document.getElementById('logged-in-section').style.display = 'none';
+  document.getElementById('bind-wallet').disabled = false;
+  document.getElementById('bind-wallet').value = '';
+  alert("已成功登出！");
+  showTab(0);
+}
+
+// ==================== 页面加载 ====================
+window.onload = async function() {
+  showTab(0);
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    document.getElementById('auth-section').style.display = 'none';
+    document.getElementById('logged-in-section').style.display = 'block';
+    document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email}`;
+
+    const { data: userData } = await supabaseClient.from('USERS')
+      .select('wallet_address')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (userData?.wallet_address) {
+      document.getElementById('bind-wallet').value = userData.wallet_address;
+      document.getElementById('bind-wallet').disabled = true;
+      document.getElementById('walletDisplay').innerText = userData.wallet_address;
     }
-  </script>
+
+    updateDashboard();
+    updateDashboardWithCountdown();
+  }
+};
+</script>
+
 </body>
 </html>
