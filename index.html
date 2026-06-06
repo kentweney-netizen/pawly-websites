@@ -21,6 +21,8 @@
     .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
     #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
     .auth-box { background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0; }
+    .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
+    .bilingual { display:flex; flex-direction:column; gap:15px; }
   </style>
 </head>
 <body>
@@ -40,12 +42,11 @@
     <div class="container">
       <div class="warning">
         <strong>⚠️ 重要提示 / Important Notice</strong><br><br>
-        <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭，奖励会通过官方钱包统一空投发放。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。<br><br>
-        <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before checking in.
+        <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭，奖励会通过官方钱包统一空投发放。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。一个邮箱只能绑定一个钱包地址。<br><br>
+        <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before checking in. One email can only be bound to one wallet address.
       </div>
       <h1>🐾 签到挖矿 / Check-in Mining</h1>
 
-      <!-- 未登录 -->
       <div id="auth-section">
         <div class="auth-box">
           <h3>邮箱注册 / Register</h3>
@@ -61,7 +62,6 @@
         </div>
       </div>
 
-      <!-- 已登录 -->
       <div id="logged-in-section" style="display:none;">
         <p id="user-email-display" style="font-weight:bold; margin-bottom:20px;"></p>
         
@@ -82,31 +82,123 @@
   <div class="tab" id="tab1">
     <div class="container">
       <h1>📊 我的仪表盘 / My Dashboard</h1>
-      
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
-      
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
 
-      <!-- 倒数计时器 -->
       <div class="countdown">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">23:59:59</div>
         <div id="countdownStatus">签到冷却中...</div>
       </div>
 
-      <button onclick="logout()" 
-              style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:20px; cursor:pointer;">
+      <button onclick="logout()" style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:20px; cursor:pointer;">
         🚪 登出 / Logout
       </button>
     </div>
   </div>
 
-  <!-- 其他页面 -->
-  <div class="tab" id="tab2"><div class="container"><h1>🔥 质押挖矿 / Staking</h1><p>当用户超过 1 万时正式开放链上质押。</p></div></div>
-  <div class="tab" id="tab3"><div class="container"><h1>🐶 宠物支付 / Pet Payment</h1><p>未来将在合作宠物店、兽医诊所支持 PAWLY 支付。</p></div></div>
-  <div class="tab" id="tab4"><div class="container"><h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1><p>部分交易费用将用于宠物慈善，每季度公开捐款。</p></div></div>
-  <div class="tab" id="tab5"><div class="container"><h1>🌟 关于 PAWLY</h1><p>从可爱宠物 meme 币，逐步发展成有实际价值的宠物生态系统。</p></div></div>
+  <!-- 质押挖矿 -->
+  <div class="tab" id="tab2">
+    <div class="container">
+      <h1>🔥 质押挖矿 / Staking</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div><strong>中文：</strong><br>
+          当前处于<strong>预质押签到奖励阶段</strong>。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
+          <strong>正式 Staking 开放条件：</strong><br>
+          当 PAWLY 社区活跃用户数量超过 <strong>10,000 人</strong> 时，我们将正式开启链上质押挖矿功能。质押后可获得额外 PAWLY 奖励。</div>
+          
+          <div><strong>English：</strong><br>
+          We are currently in the <strong>pre-staking check-in reward phase</strong>. PAWLY accumulated through web check-ins will be airdropped by the official wallet after launch.<br><br>
+          <strong>Official Staking Opening Condition:</strong><br>
+          When PAWLY reaches <strong>10,000 active users</strong>, we will officially launch on-chain staking. Stakers will earn additional PAWLY rewards.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 宠物支付 -->
+  <div class="tab" id="tab3">
+    <div class="container">
+      <h1>🐶 宠物支付 / Pet Payment</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div><strong>中文：</strong><br>
+          PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店、线上宠物商城合作，让用户可以直接使用 PAWLY 支付宠物食品、医疗、美容等服务。</div>
+          
+          <div><strong>English：</strong><br>
+          PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, pet food shops, and online pet malls in Malaysia and globally, allowing users to pay for pet food, medical care, grooming and other services directly with PAWLY.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 慈善基金 -->
+  <div class="tab" id="tab4">
+    <div class="container">
+      <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div><strong>中文：</strong><br>
+          PAWLY 将把部分交易费用用于宠物慈善事业。每季度我们会公开捐款给马来西亚及全球的动物收容所和流浪动物救援组织。社区持币者可通过投票参与决定每季度的捐款方向和受助机构。</div>
+          
+          <div><strong>English：</strong><br>
+          PAWLY will allocate a portion of transaction fees to pet charity. Every quarter, we will make public donations to animal shelters and stray animal rescue organizations in Malaysia and around the world. Token holders can vote to decide the donation direction and beneficiary organizations each quarter.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关于 PAWLY -->
+  <div class="tab" id="tab5">
+    <div class="container">
+      <h1>🌟 关于 PAWLY / About PAWLY</h1>
+      <div class="section">
+        <div class="bilingual">
+          <div><strong>中文：</strong><br>
+          PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统 —— 让爱宠人士不仅能玩 meme，也能通过 PAWLY 获得实际的支付便利和慈善参与感。</div>
+          
+          <div><strong>English：</strong><br>
+          PAWLY was born from seeing more and more people caring for animals with heart. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem — where pet lovers can not only enjoy memes, but also gain real payment convenience and participate in charity through PAWLY.</div>
+        </div>
+      </div>
+
+      <!-- 宣传视频 -->
+      <div class="section">
+        <h3>🎥 宣传视频 / Promo Videos</h3>
+        <div class="bilingual">
+          <div><strong>中文：</strong><br>
+          <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：PAWLY 宣传片</a><br>
+          <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常温馨时刻</a><br>
+          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事与愿景</a></div>
+          
+          <div><strong>English：</strong><br>
+          <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">Video 1: PAWLY Promo Video</a><br>
+          <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">Video 2: Heartwarming Pet Daily Moments</a><br>
+          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">Video 3: Community Story & Vision</a></div>
+        </div>
+      </div>
+
+      <!-- 社交媒体 -->
+      <div class="section">
+        <h3>📱 官方链接 / Official Links</h3>
+        <div class="bilingual">
+          <div><strong>中文：</strong><br>
+          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ 
+          <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ 
+          <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ 
+          <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
+          
+          <div><strong>English：</strong><br>
+          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ 
+          <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ 
+          <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ 
+          <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
 <script>
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
@@ -116,14 +208,12 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let countdownInterval = null;
 
-// ==================== 工具函数 ====================
 function showTab(n) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab' + n).classList.add('active');
   document.querySelectorAll('.nav button').forEach((btn, i) => btn.classList.toggle('active', i === n));
 }
 
-// ==================== 注册 ====================
 async function registerUser() {
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
@@ -133,7 +223,6 @@ async function registerUser() {
   alert("注册成功！请去邮箱点击验证链接后再登录。");
 }
 
-// ==================== 登录 ====================
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -143,9 +232,7 @@ async function loginUser() {
   currentUser = data.user;
   await ensureUserRowExists(currentUser.id, currentUser.email);
 
-  // 加载钱包地址
-  const { data: userData } = await supabaseClient
-    .from('USERS')
+  const { data: userData } = await supabaseClient.from('USERS')
     .select('wallet_address')
     .eq('id', currentUser.id)
     .single();
@@ -164,7 +251,6 @@ async function loginUser() {
   updateDashboardWithCountdown();
 }
 
-// ==================== 确保用户记录存在 ====================
 async function ensureUserRowExists(userId, email) {
   const { data } = await supabaseClient.from('USERS').select('id').eq('id', userId).single();
   if (!data) {
@@ -200,7 +286,6 @@ async function bindWallet() {
     alert("✅ 钱包绑定成功！");
     document.getElementById('bind-wallet').disabled = true;
 
-    // 立即更新仪表盘显示
     const walletDisplay = document.getElementById('walletDisplay');
     if (walletDisplay) walletDisplay.innerText = wallet;
 
@@ -210,7 +295,6 @@ async function bindWallet() {
   }
 }
 
-// ==================== 签到功能 ====================
 async function checkIn() {
   if (!currentUser) return alert("请先登录");
 
@@ -231,7 +315,7 @@ async function checkIn() {
     showTab(1);
     return;
   }
-  
+
   const { error } = await supabaseClient.from('checkins').insert({
     user_id: currentUser.id,
     checkin_date: today
@@ -255,7 +339,6 @@ async function checkIn() {
   showTab(1);
 }
 
-// ==================== 更新仪表盘 ====================
 function updateDashboard() {
   if (!currentUser) return;
 
@@ -269,7 +352,6 @@ function updateDashboard() {
   if (totalEl) totalEl.innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
 }
 
-// ==================== 倒数计时器 ====================
 function startCountdown(lastSignInTime) {
   if (countdownInterval) clearInterval(countdownInterval);
 
@@ -307,7 +389,6 @@ function updateDashboardWithCountdown() {
   startCountdown(lastTime);
 }
 
-// ==================== 登出 ====================
 async function logout() {
   if (!confirm("确定要登出吗？")) return;
   await supabaseClient.auth.signOut();
@@ -321,7 +402,6 @@ async function logout() {
   showTab(0);
 }
 
-// ==================== 页面加载 ====================
 window.onload = async function() {
   showTab(0);
   const { data: { session } } = await supabaseClient.auth.getSession();
