@@ -85,7 +85,6 @@
   <div class="tab" id="tab1">
     <div class="container">
       <h1>📊 我的仪表盘 / My Dashboard</h1>
-      
       <p id="walletDisplay">钱包地址：未连接 / Wallet: Not connected</p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
@@ -108,7 +107,7 @@
           目前处于预质押签到奖励阶段。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
           <strong>正式 Staking 功能：</strong><br>
           当 PAWLY 用户数量超过 1 万时，我们将正式开启链上质押挖矿功能。</div>
-        
+       
           <div class="en"><strong>Current Phase (Pre-Staking)：</strong><br>
           We are currently in the pre-staking check-in reward phase. PAWLY accumulated through web check-ins will be airdropped after official launch.<br><br>
           <strong>Official Staking Function：</strong><br>
@@ -125,7 +124,7 @@
         <div class="bilingual">
           <div class="cn"><strong>未来愿景：</strong><br>
           PAWLY 将逐步发展成为宠物爱好者的日常支付工具。未来可在合作宠物店、兽医诊所、线上宠物商城直接使用 PAWLY 支付。</div>
-        
+       
           <div class="en"><strong>Future Vision：</strong><br>
           PAWLY aims to become a daily payment tool for pet lovers. Users will be able to use PAWLY directly at partner pet stores and clinics.</div>
         </div>
@@ -140,7 +139,7 @@
         <div class="bilingual">
           <div class="cn"><strong>我们的承诺：</strong><br>
           PAWLY 将把部分交易费用用于宠物慈善。每季度公开捐款给马来西亚及全球的动物收容所，社区可参与投票决定捐款方向。</div>
-        
+       
           <div class="en"><strong>Our Commitment：</strong><br>
           PAWLY will allocate part of transaction fees to pet charity. Quarterly public donations to animal shelters in Malaysia and worldwide. Community can vote on donation directions.</div>
         </div>
@@ -154,7 +153,7 @@
       <div class="section">
         <div class="bilingual">
           <div class="cn">PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。</div>
-        
+       
           <div class="en">PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.</div>
         </div>
       </div>
@@ -203,6 +202,7 @@
       alert("注册成功！请去邮箱点击验证链接后再登录。");
     }
 
+    // ==================== 登录 + 自动创建 USERS 表记录 ====================
     async function loginUser() {
       const email = document.getElementById('login-email').value;
       const password = document.getElementById('login-password').value;
@@ -211,11 +211,34 @@
       if (error) return alert("登录失败: " + error.message);
 
       currentUser = data.user;
+
+      // 关键修复：登录后自动确保 USERS 表里有这条记录
+      await ensureUserRowExists(currentUser.id, email);
+
       document.getElementById('auth-section').style.display = 'none';
       document.getElementById('logged-in-section').style.display = 'block';
       document.getElementById('user-email-display').innerText = `已登录: ${email}`;
 
       await checkUserStatus();
+    }
+
+    // 确保 USERS 表里有用户记录（不存在就创建）
+    async function ensureUserRowExists(userId, email) {
+      const { data } = await supabaseClient
+        .from('USERS')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (!data) {
+        // 不存在就创建一条记录
+        await supabaseClient.from('USERS').insert({
+          id: userId,
+          email: email,
+          email_verified: false,
+          wallet_address: null
+        });
+      }
     }
 
     async function checkUserStatus() {
@@ -231,7 +254,7 @@
       }
     }
 
-    // ==================== 绑定钱包（已优化） ====================
+    // ==================== 绑定钱包 ====================
     async function bindWallet() {
       const wallet = document.getElementById('bind-wallet').value.trim();
       if (!wallet || !currentUser) return alert("请输入钱包地址");
@@ -246,11 +269,10 @@
       document.getElementById('bind-wallet').disabled = true;
     }
 
-    // ==================== 签到功能（已优化） ====================
+    // ==================== 签到功能 ====================
     async function checkIn() {
       if (!currentUser) return alert("请先登录");
 
-      // 实时从数据库检查是否已绑定钱包
       const { data: userData } = await supabaseClient.from('USERS')
         .select('wallet_address')
         .eq('id', currentUser.id)
@@ -262,7 +284,6 @@
 
       const today = new Date().toISOString().split('T')[0];
 
-      // 检查今天是否已签到
       const { data: todayCheck } = await supabaseClient.from('checkins')
         .select('id')
         .eq('user_id', currentUser.id)
@@ -275,7 +296,6 @@
         return;
       }
 
-      // 插入签到记录
       const { error } = await supabaseClient.from('checkins').insert({
         user_id: currentUser.id,
         checkin_date: today,
@@ -284,7 +304,6 @@
 
       if (error) return alert("签到失败: " + error.message);
 
-      // 更新 streak 和 total（使用 localStorage 记录）
       streak = (parseInt(localStorage.getItem('streak_' + currentUser.id) || 0)) + 1;
       totalPAWLY = (parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0)) + 10;
 
@@ -303,27 +322,22 @@
       document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
     }
 
-    // ==================== 登出功能 ====================
+    // ==================== 登出 ====================
     async function logout() {
-      if (!confirm("确定要登出吗？\nAre you sure you want to logout?")) return;
-
+      if (!confirm("确定要登出吗？")) return;
       await supabaseClient.auth.signOut();
       localStorage.clear();
-
-      // 重置界面
       document.getElementById('auth-section').style.display = 'block';
       document.getElementById('logged-in-section').style.display = 'none';
       document.getElementById('bind-wallet').disabled = false;
       document.getElementById('bind-wallet').value = '';
-
       alert("已成功登出！");
       showTab(0);
     }
 
-    // 页面加载时检查登录状态
+    // 页面加载检查登录状态
     window.onload = async function() {
       showTab(0);
-
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) {
         currentUser = session.user;
