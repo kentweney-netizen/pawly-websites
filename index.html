@@ -371,10 +371,9 @@ async function checkIn() {
   updateDashboard();
 }
 
-    function updateDashboard() {
+  function updateDashboard() {
   if (!currentUser) return;
 
-  // 从 localStorage 读取当前用户的数据
   const streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
   const totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0);
 
