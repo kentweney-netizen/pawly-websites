@@ -389,15 +389,20 @@ function updateDashboardWithCountdown() {
   startCountdown(lastTime);
 }
 
+// ==================== 登出（已修复） ====================
 async function logout() {
-  if (!confirm("确定要登出吗？")) return;
+  if (!confirm("确定要登出吗？\nAre you sure you want to logout?")) return;
+
   await supabaseClient.auth.signOut();
-  localStorage.clear();
+
+  // 只清除当前登录状态，不清空 streak 和 total 数据
   currentUser = null;
+
   document.getElementById('auth-section').style.display = 'block';
   document.getElementById('logged-in-section').style.display = 'none';
   document.getElementById('bind-wallet').disabled = false;
   document.getElementById('bind-wallet').value = '';
+
   alert("已成功登出！");
   showTab(0);
 }
