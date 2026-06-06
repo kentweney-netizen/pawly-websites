@@ -88,6 +88,13 @@
       <p id="walletDisplay">钱包地址：未连接 / Wallet: Not connected</p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
+      
+      <!-- ==================== 实时倒数区域 ==================== -->
+<div id="countdownBox" style="margin:25px 0; padding:18px; background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; font-size:1.25em; font-weight:bold;">
+  <div style="margin-bottom:8px;">距离下次可签到 / Time until next check-in:</div>
+  <div id="countdownTimer" style="color:#ff8800; font-size:1.8em; margin:10px 0;">--:--:--</div>
+  <div id="countdownStatus" style="font-size:1em; color:#aaa;"></div>
+</div>
 
       <!-- 登出按钮 -->
       <button onclick="logout()" 
@@ -214,6 +221,7 @@
 
       // 关键修复：登录后自动确保 USERS 表里有这条记录
       await ensureUserRowExists(currentUser.id, email);
+      updateDashboardWithCountdown();
 
       document.getElementById('auth-section').style.display = 'none';
       document.getElementById('logged-in-section').style.display = 'block';
@@ -286,53 +294,68 @@ async function bindWallet() {
   }
 }
 
-    // ==================== 签到功能 ====================
-    async function checkIn() {
-      if (!currentUser) return alert("请先登录");
+   // ==================== 签到功能 ====================
+async function checkIn() {
+  if (!currentUser) {
+    alert("请先登录！");
+    return;
+  }
 
-      const { data: userData } = await supabaseClient.from('USERS')
-        .select('wallet_address')
-        .eq('id', currentUser.id)
-        .single();
+  const today = new Date().toISOString().split('T')[0];
+  const lastSignIn = localStorage.getItem('lastSignIn_' + currentUser.id);
 
-      if (!userData?.wallet_address) {
-        return alert("请先绑定钱包地址！");
-      }
+  // 防止同一天重复签到
+  if (lastSignIn === today) {
+    alert("今天已经签到过了！请明天再来。");
+    return;
+  }
 
-      const today = new Date().toISOString().split('T')[0];
+  // 检查钱包是否已绑定
+  const { data: userData, error: userError } = await supabaseClient
+    .from('USERS')
+    .select('wallet_address')
+    .eq('id', currentUser.id)
+    .single();
 
-      const { data: todayCheck } = await supabaseClient.from('checkins')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .eq('checkin_date', today)
-        .maybeSingle();
+  if (userError || !userData?.wallet_address) {
+    alert("请先绑定钱包地址！");
+    return;
+  }
 
-      if (todayCheck) {
-        alert("今天已经签到过了！");
-        showTab(1);
-        return;
-      }
+  // 执行签到记录
+  const { error } = await supabaseClient
+    .from('checkins')
+    .insert({
+      user_id: currentUser.id,
+      checkin_date: today
+    });
 
-      const { error } = await supabaseClient.from('checkins').insert({
-        user_id: currentUser.id,
-        checkin_date: today,
-        streak: 1
-      });
+  if (error) {
+    console.error("签到失败:", error);
+    alert("签到失败: " + error.message);
+    return;
+  }
 
-      if (error) return alert("签到失败: " + error.message);
+  // 更新 streak 和 total
+  let streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0) + 1;
+  let totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0) + 10;
 
-      streak = (parseInt(localStorage.getItem('streak_' + currentUser.id) || 0)) + 1;
-      totalPAWLY = (parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0)) + 10;
+  // ==================== 关键修复 ====================
+  const now = Date.now();
+  localStorage.setItem('lastSignIn_' + currentUser.id, today);
+  localStorage.setItem('lastSignInTime_' + currentUser.id, now);
+  localStorage.setItem('streak_' + currentUser.id, streak);
+  localStorage.setItem('totalPAWLY_' + currentUser.id, totalPAWLY);
 
-      localStorage.setItem('lastSignIn_' + currentUser.id, today);
-      localStorage.setItem('lastSignInTime_' + currentUser.id, Date.now());
-      localStorage.setItem('streak_' + currentUser.id, streak);
-      localStorage.setItem('totalPAWLY_' + currentUser.id, totalPAWLY);
+  alert(`✅ 签到成功！\n连续签到：${streak} 天\n总计：${totalPAWLY} PAWLY`);
 
-      alert(`✅ 签到成功！\n连续签到：${streak} 天\n总计：${totalPAWLY} PAWLY`);
-      showTab(1);
-      updateDashboard();
-    }
+  // 立即启动新的 24 小时倒数
+  startCountdown(now);
+  updateDashboardWithCountdown();   
+
+  showTab(1);
+  updateDashboard();
+}
 
     function updateDashboard() {
       document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
@@ -351,7 +374,48 @@ async function bindWallet() {
       alert("已成功登出！");
       showTab(0);
     }
+   // ==================== 实时 24 小时倒数功能 ====================
+let countdownInterval = null;
 
+function startCountdown(lastSignInTime) {
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  const timerEl = document.getElementById('countdownTimer');
+  const statusEl = document.getElementById('countdownStatus');
+
+  if (!lastSignInTime) {
+    timerEl.innerText = "尚未签到";
+    statusEl.innerText = "请先完成第一次签到";
+    return;
+  }
+
+  countdownInterval = setInterval(() => {
+    const now = Date.now();
+    const nextAvailable = lastSignInTime + (24 * 60 * 60 * 1000);
+    const remaining = nextAvailable - now;
+
+    if (remaining <= 0) {
+      clearInterval(countdownInterval);
+      timerEl.innerText = "00:00:00";
+      statusEl.innerHTML = `<span style="color:#00ff9d;">✅ 可以签到了！</span>`;
+    } else {
+      const hours = Math.floor(remaining / (1000 * 60 * 60));
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+      timerEl.innerText = 
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      statusEl.innerText = "签到冷却中...";
+    }
+  }, 1000);
+}
+
+// 更新仪表盘并启动倒数
+function updateDashboardWithCountdown() {
+  if (!currentUser) return;
+  const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
+  startCountdown(lastTime);
+}
     // 页面加载检查登录状态
     window.onload = async function() {
       showTab(0);
