@@ -230,21 +230,23 @@
       await checkUserStatus();
     }
 
-    // 确保 USERS 表里有用户记录（不存在就创建）
-    async function ensureUserRowExists(userId, email) {
-      const { data } = await supabaseClient
-        .from('USERS')
-        .select('id')
-        .eq('id', userId)
-        .single();
+   // 登录成功后加载钱包地址和仪表盘数据
+const { data: userData } = await supabaseClient
+  .from('USERS')
+  .select('wallet_address')
+  .eq('id', currentUser.id)
+  .single();
 
-      if (!data) {
-        // 不存在就创建一条记录
-        await supabaseClient.from('USERS').insert({
-          id: userId,
-          email: email,
-          email_verified: false,
-          wallet_address: null
+if (userData?.wallet_address) {
+  const walletDisplay = document.getElementById('walletDisplay') || 
+                        document.getElementById('walletAddress');
+  if (walletDisplay) {
+    walletDisplay.innerText = userData.wallet_address;
+  }
+}
+
+// 加载 streak 和 total 并刷新仪表盘
+updateDashboard();
         });
       }
     }
@@ -264,36 +266,48 @@
 
   // ==================== 绑定钱包（加强版 - 推荐使用） ====================
 async function bindWallet() {
-  const wallet = document.getElementById('bind-wallet').value.trim();
-  if (!wallet || !currentUser) {
+  if (!currentUser) {
+    alert("请先登录！");
+    return;
+  }
+
+  const walletInput = document.getElementById('bind-wallet');
+  const wallet = walletInput.value.trim();
+
+  if (!wallet) {
     alert("请输入钱包地址！");
     return;
   }
 
-  try {
-    // 使用 upsert：记录不存在就创建，存在就更新
-    const { error } = await supabaseClient
-      .from('USERS')
-      .upsert({
-        id: currentUser.id,
-        email: currentUser.email,
-        wallet_address: wallet,
-        email_verified: currentUser.email_confirmed_at ? true : false
-      }, { 
-        onConflict: 'id' 
-      });
+  // 更新 Supabase
+  const { error } = await supabaseClient
+    .from('USERS')
+    .update({ wallet_address: wallet })
+    .eq('id', currentUser.id);
 
-    if (error) throw error;
-
-    alert("钱包绑定成功！");
-    document.getElementById('bind-wallet').disabled = true;
-
-  } catch (error) {
-    console.error("绑定失败:", error);
+  if (error) {
+    console.error("绑定钱包失败:", error);
     alert("绑定失败: " + error.message);
+    return;
   }
-}
 
+  // ==================== 关键修复：立即更新页面显示 ====================
+  // 更新 dashboard 上的钱包地址显示
+  const walletDisplay = document.getElementById('walletDisplay') || 
+                        document.getElementById('walletAddress');
+  if (walletDisplay) {
+    walletDisplay.innerText = wallet;
+  }
+
+  // 同时更新输入框状态
+  walletInput.disabled = true;
+  walletInput.placeholder = "已绑定";
+
+  alert("✅ 钱包绑定成功！");
+  
+  // 刷新仪表盘数据
+  updateDashboard();
+}
    // ==================== 签到功能 ====================
 async function checkIn() {
   if (!currentUser) {
@@ -358,9 +372,22 @@ async function checkIn() {
 }
 
     function updateDashboard() {
-      document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
-      document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
-    }
+  if (!currentUser) return;
+
+  // 从 localStorage 读取当前用户的数据
+  const streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
+  const totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0);
+
+  const streakEl = document.getElementById("streakText");
+  const totalEl = document.getElementById("totalText");
+
+  if (streakEl) {
+    streakEl.innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
+  }
+  if (totalEl) {
+    totalEl.innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
+  }
+}
 
     // ==================== 登出 ====================
     async function logout() {
