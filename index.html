@@ -231,7 +231,7 @@ async function checkIn() {
     showTab(1);
     return;
   }
-
+  
   const { error } = await supabaseClient.from('checkins').insert({
     user_id: currentUser.id,
     checkin_date: today
