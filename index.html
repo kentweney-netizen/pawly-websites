@@ -20,14 +20,12 @@
     .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
     .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
     #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
-    .auth-box { background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0; }
     .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
     .bilingual { display:flex; flex-direction:column; gap:15px; }
   </style>
 </head>
 <body>
 
-  <!-- 导航栏 -->
   <div class="nav">
     <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
     <button onclick="showTab(1)" id="nav1">我的仪表盘 / Dashboard</button>
@@ -37,24 +35,24 @@
     <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
   </div>
 
-  <!-- 签到页面 -->
+  <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
     <div class="container">
       <div class="warning">
         <strong>⚠️ 重要提示 / Important Notice</strong><br><br>
-        <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭，奖励会通过官方钱包统一空投发放。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。一个邮箱只能绑定一个钱包地址。<br><br>
-        <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before checking in. One email can only be bound to one wallet address.
+        <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭，奖励会通过官方钱包统一空投发放。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。<strong>同一天无论哪个设备签到，只算一次</strong>。<br><br>
+        <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before checking in. <strong>Same-day check-in counts only once</strong> regardless of device.
       </div>
       <h1>🐾 签到挖矿 / Check-in Mining</h1>
 
       <div id="auth-section">
-        <div class="auth-box">
+        <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
           <h3>邮箱注册 / Register</h3>
           <input type="email" id="reg-email" placeholder="输入邮箱地址">
           <input type="password" id="reg-password" placeholder="设置密码">
           <button onclick="registerUser()">注册并发送验证邮件</button>
         </div>
-        <div class="auth-box">
+        <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
           <h3>登录 / Login</h3>
           <input type="email" id="login-email" placeholder="输入邮箱地址">
           <input type="password" id="login-password" placeholder="输入密码">
@@ -65,7 +63,7 @@
       <div id="logged-in-section" style="display:none;">
         <p id="user-email-display" style="font-weight:bold; margin-bottom:20px;"></p>
         
-        <div class="auth-box">
+        <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
           <h3>绑定 Solana 钱包 / Bind Wallet</h3>
           <input type="text" id="bind-wallet" placeholder="输入你的 Solana 钱包地址">
           <button onclick="bindWallet()">绑定钱包</button>
@@ -78,7 +76,7 @@
     </div>
   </div>
 
-  <!-- 仪表盘 -->
+  <!-- tab1 仪表盘 -->
   <div class="tab" id="tab1">
     <div class="container">
       <h1>📊 我的仪表盘 / My Dashboard</h1>
@@ -86,7 +84,6 @@
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
 
-      <!-- 倒数 -->
       <div class="countdown">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">00:00:00</div>
@@ -99,7 +96,7 @@
     </div>
   </div>
 
-  <!-- 其他页面（完整保留） -->
+  <!-- tab2 质押挖矿 -->
   <div class="tab" id="tab2">
     <div class="container">
       <h1>🔥 质押挖矿 / Staking</h1>
@@ -112,37 +109,40 @@
     </div>
   </div>
 
+  <!-- tab3 宠物支付 -->
   <div class="tab" id="tab3">
     <div class="container">
       <h1>🐶 宠物支付 / Pet Payment</h1>
       <div class="section">
         <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店、线上宠物商城合作，让用户可以直接使用 PAWLY 支付。</div>
-          <div><strong>English：</strong><br>PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, pet food shops, and online pet malls.</div>
+          <div><strong>中文：</strong><br>PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店、线上宠物商城合作，让用户可以直接使用 PAWLY 支付宠物食品、医疗、用品等。</div>
+          <div><strong>English：</strong><br>PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, pet food shops, and online pet malls in Malaysia and globally so users can pay directly with PAWLY.</div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- tab4 慈善基金 -->
   <div class="tab" id="tab4">
     <div class="container">
       <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
       <div class="section">
         <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 将把部分交易费用用于宠物慈善。每季度公开捐款给马来西亚及全球的动物收容所。社区持币者可通过投票参与决定捐款方向。</div>
-          <div><strong>English：</strong><br>PAWLY will allocate a portion of transaction fees to pet charity. Quarterly public donations to animal shelters. Token holders can vote on donation directions.</div>
+          <div><strong>中文：</strong><br>PAWLY 将把部分交易费用用于宠物慈善。每季度公开捐款给马来西亚及全球的动物收容所。社区持币者可通过投票参与决定捐款方向。我们希望用实际行动回馈爱护动物的社会。</div>
+          <div><strong>English：</strong><br>PAWLY will allocate a portion of transaction fees to pet charity. Quarterly public donations to animal shelters in Malaysia and globally. Token holders can vote on donation directions. We want to give back to society through real action.</div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- tab5 关于 PAWLY（完整中英文 + 视频 + 社交链接） -->
   <div class="tab" id="tab5">
     <div class="container">
       <h1>🌟 关于 PAWLY / About PAWLY</h1>
       <div class="section">
         <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。</div>
-          <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.</div>
+          <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。未来将包含支付、慈善、NFT 狗粮奖励等功能。</div>
+          <div><strong>English：</strong><br>PAWLY was born from seeing more and more people caring for animals with heart. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem. Future features will include payment, charity, NFT dog food rewards and more.</div>
         </div>
       </div>
 
@@ -179,8 +179,9 @@
   </div>
 
 <script>
+// ==================== Supabase 配置 ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcXpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null;
@@ -201,7 +202,7 @@ async function registerUser() {
   alert("注册成功！请去邮箱点击验证链接后再登录。");
 }
 
-// ==================== 只同步 streak ====================
+// ==================== 从数据库同步 streak 和 total ====================
 async function calculateUserStats(userId) {
   const { data: checkins, error } = await supabaseClient
     .from('checkins')
@@ -211,28 +212,32 @@ async function calculateUserStats(userId) {
 
   if (error || !checkins || checkins.length === 0) {
     localStorage.setItem('streak_' + userId, 0);
-    return { streak: 0 };
+    localStorage.setItem('totalPAWLY_' + userId, 0);
+    return { streak: 0, totalPAWLY: 0 };
   }
 
-  let streak = 1;
-  const today = new Date().toISOString().split('T')[0];
-  let currentDate = new Date(today);
+  const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
+  const totalPAWLY = uniqueDates.length * 10;
 
-  const hasToday = checkins.some(c => c.checkin_date === today);
+  let streak = 1;
+  const todayStr = new Date().toISOString().split('T')[0];
+  let currentDate = new Date(todayStr);
+  const hasToday = uniqueDates.includes(todayStr);
   if (!hasToday) currentDate.setDate(currentDate.getDate() - 1);
 
-  for (let i = 1; i < checkins.length; i++) {
+  for (let i = 1; i < uniqueDates.length; i++) {
     const prevDate = new Date(currentDate);
     prevDate.setDate(prevDate.getDate() - 1);
-    const prevDateStr = prevDate.toISOString().split('T')[0];
-    if (checkins.some(c => c.checkin_date === prevDateStr)) {
+    const prevStr = prevDate.toISOString().split('T')[0];
+    if (uniqueDates.includes(prevStr)) {
       streak++;
       currentDate = prevDate;
     } else break;
   }
 
   localStorage.setItem('streak_' + userId, streak);
-  return { streak };
+  localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
+  return { streak, totalPAWLY };
 }
 
 async function loginUser() {
@@ -245,9 +250,7 @@ async function loginUser() {
   await ensureUserRowExists(currentUser.id, currentUser.email);
 
   const { data: userData } = await supabaseClient.from('USERS')
-    .select('wallet_address')
-    .eq('id', currentUser.id)
-    .single();
+    .select('wallet_address').eq('id', currentUser.id).single();
 
   if (userData?.wallet_address) {
     document.getElementById('bind-wallet').value = userData.wallet_address;
@@ -257,20 +260,31 @@ async function loginUser() {
 
   await calculateUserStats(currentUser.id);
 
+  const today = new Date().toISOString().split('T')[0];
+  const { data: todayCheckin } = await supabaseClient
+    .from('checkins')
+    .select('created_at')
+    .eq('user_id', currentUser.id)
+    .eq('checkin_date', today)
+    .maybeSingle();
+
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('logged-in-section').style.display = 'block';
   document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email}`;
 
   updateDashboard();
-  startCountdownFromStorage();
+
+  if (todayCheckin?.created_at) {
+    startCountdown(new Date(todayCheckin.created_at).getTime());
+  } else {
+    startCountdownFromStorage();
+  }
 }
 
 async function ensureUserRowExists(userId, email) {
   const { data } = await supabaseClient.from('USERS').select('id').eq('id', userId).single();
   if (!data) {
-    await supabaseClient.from('USERS').insert({
-      id: userId, email: email, email_verified: false, wallet_address: null
-    });
+    await supabaseClient.from('USERS').insert({ id: userId, email: email, email_verified: false, wallet_address: null });
   }
 }
 
@@ -279,9 +293,7 @@ async function bindWallet() {
   if (!wallet || !currentUser) return alert("请输入钱包地址！");
   try {
     const { error } = await supabaseClient.from('USERS').upsert({
-      id: currentUser.id,
-      email: currentUser.email,
-      wallet_address: wallet,
+      id: currentUser.id, email: currentUser.email, wallet_address: wallet,
       email_verified: currentUser.email_confirmed_at ? true : false
     }, { onConflict: 'id' });
     if (error) throw error;
@@ -293,6 +305,7 @@ async function bindWallet() {
   }
 }
 
+// ==================== 核心：同一天只签到一次 + 精确弹出消息 + 自动跳转仪表盘 ====================
 async function checkIn() {
   if (!currentUser) return alert("请先登录");
 
@@ -301,36 +314,49 @@ async function checkIn() {
   if (!userData?.wallet_address) return alert("请先绑定钱包地址！");
 
   const today = new Date().toISOString().split('T')[0];
-  const lastSignIn = localStorage.getItem('lastSignIn_' + currentUser.id);
-  if (lastSignIn === today) {
-    alert("今天已经签到过了！请明天再来。");
+
+  const { data: existing } = await supabaseClient
+    .from('checkins')
+    .select('id, created_at')
+    .eq('user_id', currentUser.id)
+    .eq('checkin_date', today)
+    .maybeSingle();
+
+  if (existing) {
+    alert("此账号和钱包今日已签到，请在倒数完成后再签到");
     showTab(1);
+    await calculateUserStats(currentUser.id);
+    updateDashboard();
+    if (existing.created_at) {
+      startCountdown(new Date(existing.created_at).getTime());
+    }
     return;
   }
 
-  const { error } = await supabaseClient.from('checkins').insert({
-    user_id: currentUser.id, checkin_date: today
-  });
+  const { data: inserted, error } = await supabaseClient.from('checkins').insert({
+    user_id: currentUser.id,
+    checkin_date: today
+  }).select('created_at').single();
+
   if (error) return alert("签到失败: " + error.message);
 
-  let streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0) + 1;
-  let totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0) + 10;
+  const stats = await calculateUserStats(currentUser.id);
+  let totalPAWLY = stats.totalPAWLY;
 
-  if (streak % 7 === 0) {
+  if (stats.streak % 7 === 0) {
     totalPAWLY += 30;
-    alert(`🎉 恭喜！你已连续签到 ${streak} 天！\n额外获得 30 PAWLY 奖励！`);
+    localStorage.setItem('totalPAWLY_' + currentUser.id, totalPAWLY);
+    alert(`🎉 恭喜！你已连续签到 ${stats.streak} 天！\n额外获得 30 PAWLY 奖励！`);
   }
 
-  const now = Date.now();
+  const checkinTimestamp = inserted?.created_at ? new Date(inserted.created_at).getTime() : Date.now();
   localStorage.setItem('lastSignIn_' + currentUser.id, today);
-  localStorage.setItem('lastSignInTime_' + currentUser.id, now);
-  localStorage.setItem('streak_' + currentUser.id, streak);
-  localStorage.setItem('totalPAWLY_' + currentUser.id, totalPAWLY);
+  localStorage.setItem('lastSignInTime_' + currentUser.id, checkinTimestamp);
 
-  alert(`✅ 签到成功！\n连续签到：${streak} 天\n总计：${totalPAWLY} PAWLY`);
+  alert(`✅ 签到成功！\n连续签到：${stats.streak} 天\n总计：${totalPAWLY} PAWLY`);
 
   updateDashboard();
-  startCountdown(now);
+  startCountdown(checkinTimestamp);
   showTab(1);
 }
 
@@ -342,7 +368,6 @@ function updateDashboard() {
   document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
 }
 
-// ==================== 倒数功能 ====================
 function startCountdown(lastSignInTime) {
   if (countdownInterval) clearInterval(countdownInterval);
   const timerEl = document.getElementById('countdownTimer');
@@ -393,6 +418,7 @@ async function logout() {
   if (!confirm("确定要登出吗？")) return;
   await supabaseClient.auth.signOut();
   currentUser = null;
+  if (countdownInterval) clearInterval(countdownInterval);
   document.getElementById('auth-section').style.display = 'block';
   document.getElementById('logged-in-section').style.display = 'none';
   document.getElementById('bind-wallet').disabled = false;
@@ -421,7 +447,20 @@ window.onload = async function() {
 
     await calculateUserStats(currentUser.id);
     updateDashboard();
-    startCountdownFromStorage();
+
+    const today = new Date().toISOString().split('T')[0];
+    const { data: todayCheckin } = await supabaseClient
+      .from('checkins')
+      .select('created_at')
+      .eq('user_id', currentUser.id)
+      .eq('checkin_date', today)
+      .maybeSingle();
+
+    if (todayCheckin?.created_at) {
+      startCountdown(new Date(todayCheckin.created_at).getTime());
+    } else {
+      startCountdownFromStorage();
+    }
   }
 };
 </script>
