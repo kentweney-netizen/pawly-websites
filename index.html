@@ -164,7 +164,6 @@
         </div>
       </div>
 
-      <!-- 宣传视频 -->
       <div class="section">
         <h3>🎥 宣传视频 / Promo Videos</h3>
         <div class="bilingual">
@@ -180,7 +179,6 @@
         </div>
       </div>
 
-      <!-- 社交媒体 -->
       <div class="section">
         <h3>📱 官方链接 / Official Links</h3>
         <div class="bilingual">
@@ -223,6 +221,51 @@ async function registerUser() {
   alert("注册成功！请去邮箱点击验证链接后再登录。");
 }
 
+// ==================== 新增：从数据库计算 streak 和 total（跨设备同步核心） ====================
+async function calculateUserStats(userId) {
+  const { data: checkins, error } = await supabaseClient
+    .from('checkins')
+    .select('checkin_date')
+    .eq('user_id', userId)
+    .order('checkin_date', { ascending: false });
+
+  if (error || !checkins || checkins.length === 0) {
+    localStorage.setItem('streak_' + userId, 0);
+    localStorage.setItem('totalPAWLY_' + userId, 0);
+    return { streak: 0, totalPAWLY: 0 };
+  }
+
+  const totalPAWLY = checkins.length * 10;
+
+  let streak = 1;
+  const today = new Date().toISOString().split('T')[0];
+  let currentDate = new Date(today);
+
+  const hasToday = checkins.some(c => c.checkin_date === today);
+  if (!hasToday) {
+    currentDate.setDate(currentDate.getDate() - 1);
+  }
+
+  for (let i = 1; i < checkins.length; i++) {
+    const prevDate = new Date(currentDate);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = prevDate.toISOString().split('T')[0];
+
+    const hasPrev = checkins.some(c => c.checkin_date === prevDateStr);
+    if (hasPrev) {
+      streak++;
+      currentDate = prevDate;
+    } else {
+      break;
+    }
+  }
+
+  localStorage.setItem('streak_' + userId, streak);
+  localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
+
+  return { streak, totalPAWLY };
+}
+
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -242,6 +285,9 @@ async function loginUser() {
     document.getElementById('bind-wallet').disabled = true;
     document.getElementById('walletDisplay').innerText = userData.wallet_address;
   }
+
+  // ==================== 关键新增：登录后从数据库重新计算 streak 和 total ====================
+  await calculateUserStats(currentUser.id);
 
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('logged-in-section').style.display = 'block';
@@ -263,7 +309,6 @@ async function ensureUserRowExists(userId, email) {
   }
 }
 
-// ==================== 最强绑定钱包版本（你验证过的版本） ====================
 async function bindWallet() {
   const wallet = document.getElementById('bind-wallet').value.trim();
   if (!wallet || !currentUser) {
@@ -389,14 +434,16 @@ function updateDashboardWithCountdown() {
   startCountdown(lastTime);
 }
 
-// ==================== 登出（已修复） ====================
+// ==================== 登出（已修改：保留倒数、streak 和 total 数据） ====================
 async function logout() {
-  if (!confirm("确定要登出吗？\nAre you sure you want to logout?")) return;
+  if (!confirm("确定要登出吗？")) return;
 
   await supabaseClient.auth.signOut();
 
-  // 只清除当前登录状态，不清空 streak 和 total 数据
   currentUser = null;
+
+  // 注意：这里移除了 localStorage.clear(); 
+  // 目的是保留 lastSignInTime、streak 和 totalPAWLY，让登出后重新登录时倒数能继续
 
   document.getElementById('auth-section').style.display = 'block';
   document.getElementById('logged-in-section').style.display = 'none';
