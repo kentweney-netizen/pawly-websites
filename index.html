@@ -86,7 +86,7 @@
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
 
-      <!-- 倒数框 -->
+      <!-- 倒数 -->
       <div class="countdown">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">00:00:00</div>
@@ -179,7 +179,6 @@
   </div>
 
 <script>
-// ==================== Supabase 配置 ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -202,7 +201,7 @@ async function registerUser() {
   alert("注册成功！请去邮箱点击验证链接后再登录。");
 }
 
-// ==================== 从数据库同步 streak ====================
+// ==================== 只同步 streak ====================
 async function calculateUserStats(userId) {
   const { data: checkins, error } = await supabaseClient
     .from('checkins')
@@ -263,7 +262,7 @@ async function loginUser() {
   document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email}`;
 
   updateDashboard();
-  startCountdownFromDB(); // 登录后启动倒数
+  startCountdownFromStorage();
 }
 
 async function ensureUserRowExists(userId, email) {
@@ -280,7 +279,9 @@ async function bindWallet() {
   if (!wallet || !currentUser) return alert("请输入钱包地址！");
   try {
     const { error } = await supabaseClient.from('USERS').upsert({
-      id: currentUser.id, email: currentUser.email, wallet_address: wallet,
+      id: currentUser.id,
+      email: currentUser.email,
+      wallet_address: wallet,
       email_verified: currentUser.email_confirmed_at ? true : false
     }, { onConflict: 'id' });
     if (error) throw error;
@@ -329,7 +330,7 @@ async function checkIn() {
   alert(`✅ 签到成功！\n连续签到：${streak} 天\n总计：${totalPAWLY} PAWLY`);
 
   updateDashboard();
-  startCountdown(now); // 签到后启动倒数
+  startCountdown(now);
   showTab(1);
 }
 
@@ -362,7 +363,6 @@ function startCountdown(lastSignInTime) {
       clearInterval(countdownInterval);
       timerEl.innerText = "00:00:00";
       statusEl.innerHTML = `<span style="color:#00ff9d;">✅ 可以签到了！请尽快签到</span>`;
-      // 倒数结束提醒
       if (Notification.permission === "granted") {
         new Notification("PAWLY 签到提醒", { body: "24小时已到，可以签到了！" });
       } else if (Notification.permission !== "denied") {
@@ -378,25 +378,15 @@ function startCountdown(lastSignInTime) {
   }, 1000);
 }
 
-async function startCountdownFromDB() {
+function startCountdownFromStorage() {
   if (!currentUser) return;
-  const { data: checkins } = await supabaseClient
-    .from('checkins')
-    .select('checkin_date')
-    .eq('user_id', currentUser.id)
-    .order('checkin_date', { ascending: false })
-    .limit(1);
-
-  if (!checkins || checkins.length === 0) {
+  const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
+  if (lastTime > 0) {
+    startCountdown(lastTime);
+  } else {
     document.getElementById('countdownTimer').innerText = "00:00:00";
     document.getElementById('countdownStatus').innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
-    return;
   }
-
-  // 用最后一次签到日期计算剩余时间
-  const lastDate = checkins[0].checkin_date;
-  const lastTime = new Date(lastDate).getTime();
-  startCountdown(lastTime);
 }
 
 async function logout() {
@@ -431,7 +421,7 @@ window.onload = async function() {
 
     await calculateUserStats(currentUser.id);
     updateDashboard();
-    startCountdownFromDB();
+    startCountdownFromStorage();
   }
 };
 </script>
