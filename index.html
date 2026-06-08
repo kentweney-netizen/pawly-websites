@@ -22,6 +22,8 @@
     #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
     .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
     .bilingual { display:flex; flex-direction:column; gap:15px; }
+    .ready-to-checkin { background:#00ff9d; color:black; padding:20px; border-radius:15px; font-size:1.3em; font-weight:bold; margin:20px 0; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
   </style>
 </head>
 <body>
@@ -48,15 +50,15 @@
       <div id="auth-section">
         <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
           <h3>邮箱注册 / Register</h3>
-          <input type="email" id="reg-email" placeholder="输入邮箱地址">
-          <input type="password" id="reg-password" placeholder="设置密码">
-          <button onclick="registerUser()">注册并发送验证邮件</button>
+          <input type="email" id="reg-email" placeholder="输入邮箱地址 / Enter your email">
+          <input type="password" id="reg-password" placeholder="设置密码 / Set password">
+          <button onclick="registerUser()">注册并发送验证邮件 / Register & Send Verification</button>
         </div>
         <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
           <h3>登录 / Login</h3>
-          <input type="email" id="login-email" placeholder="输入邮箱地址">
-          <input type="password" id="login-password" placeholder="输入密码">
-          <button onclick="loginUser()">登录</button>
+          <input type="email" id="login-email" placeholder="输入邮箱地址 / Enter your email">
+          <input type="password" id="login-password" placeholder="输入密码 / Enter password">
+          <button onclick="loginUser()">登录 / Login</button>
         </div>
       </div>
 
@@ -65,8 +67,8 @@
         
         <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
           <h3>绑定 Solana 钱包 / Bind Wallet</h3>
-          <input type="text" id="bind-wallet" placeholder="输入你的 Solana 钱包地址">
-          <button onclick="bindWallet()">绑定钱包</button>
+          <input type="text" id="bind-wallet" placeholder="输入你的 Solana 钱包地址 / Enter your Solana wallet address">
+          <button onclick="bindWallet()">绑定钱包 / Bind Wallet</button>
         </div>
 
         <button onclick="checkIn()" style="width:60%; font-size:1.3em; padding:18px; margin-top:20px; background:#00ff9d; color:black;">
@@ -84,11 +86,25 @@
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
 
-      <div class="countdown">
+      <div class="countdown" id="countdownBox">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">00:00:00</div>
         <div id="countdownStatus">可以签到了！</div>
       </div>
+
+      <div id="readyCheckinArea" style="display:none;">
+        <div class="ready-to-checkin">
+          ✅ 可以签到了！请立即签到<br>
+          ✅ You can check in now! Please sign in immediately
+        </div>
+        <button onclick="goToCheckin()" style="background:#00ff9d; color:black; padding:18px 40px; font-size:1.4em; border-radius:15px; margin-top:10px;">
+          立即签到 / Check-in Now
+        </button>
+      </div>
+
+      <button onclick="enableNotifications()" style="background:#00aaff; color:white; padding:12px 25px; border:none; border-radius:12px; margin-top:15px; cursor:pointer;">
+        🔔 开启通知提醒 / Enable Notifications
+      </button>
 
       <button onclick="logout()" style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:20px; cursor:pointer;">
         🚪 登出 / Logout
@@ -135,14 +151,18 @@
     </div>
   </div>
 
-  <!-- tab5 关于 PAWLY（完整中英文 + 视频 + 社交链接） -->
+  <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
     <div class="container">
       <h1>🌟 关于 PAWLY / About PAWLY</h1>
       <div class="section">
         <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。</div>
-          <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.</div>
+          <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
+渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
+于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。</div>
+          <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
+Gradually, this love no longer stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
+That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.</div>
         </div>
       </div>
 
@@ -179,7 +199,6 @@
   </div>
 
 <script>
-// ==================== Supabase 配置 ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -187,19 +206,45 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let countdownInterval = null;
 
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "default") {
+    const permission = await Notification.requestPermission();
+    return permission === "granted";
+  }
+  return false;
+}
+
+async function enableNotifications() {
+  const granted = await requestNotificationPermission();
+  if (granted) {
+    alert("✅ 通知已开启！当倒数结束时会收到提醒。\n\n✅ Notifications enabled! You will receive a reminder when the countdown ends.");
+  } else {
+    alert("请在浏览器设置中允许通知权限。\n\nPlease allow notification permission in your browser settings.");
+  }
+}
+
 function showTab(n) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab' + n).classList.add('active');
   document.querySelectorAll('.nav button').forEach((btn, i) => btn.classList.toggle('active', i === n));
+  if (n === 1 && currentUser) requestNotificationPermission();
 }
 
 async function registerUser() {
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
-  if (!email || !password) return alert("请输入邮箱和密码");
+  if (!email || !password) {
+    alert("请输入邮箱和密码！\n\nPlease enter your email and password!");
+    return;
+  }
   const { error } = await supabaseClient.auth.signUp({ email, password });
-  if (error) return alert("注册失败: " + error.message);
-  alert("注册成功！请去邮箱点击验证链接后再登录。");
+  if (error) {
+    alert("注册失败: " + error.message + "\n\nRegistration failed: " + error.message);
+    return;
+  }
+  alert("注册成功！请去邮箱点击验证链接后再登录。\n\nRegistration successful! Please check your email and click the verification link before logging in.");
 }
 
 async function calculateUserStats(userId) {
@@ -216,7 +261,7 @@ async function calculateUserStats(userId) {
   }
 
   const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
-  const totalPAWLY = uniqueDates.length * 10;
+  const totalCheckins = uniqueDates.length;
 
   let streak = 1;
   const todayStr = new Date().toISOString().split('T')[0];
@@ -234,16 +279,29 @@ async function calculateUserStats(userId) {
     } else break;
   }
 
+  const base = totalCheckins * 10;
+  const bonusCount = Math.floor(totalCheckins / 7);
+  const bonus = bonusCount * 30;
+  const totalPAWLY = base + bonus;
+
   localStorage.setItem('streak_' + userId, streak);
   localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
+
   return { streak, totalPAWLY };
 }
 
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
+  if (!email || !password) {
+    alert("请输入邮箱和密码！\n\nPlease enter your email and password!");
+    return;
+  }
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) return alert("登录失败: " + error.message);
+  if (error) {
+    alert("登录失败: " + error.message + "\n\nLogin failed: " + error.message);
+    return;
+  }
 
   currentUser = data.user;
   await ensureUserRowExists(currentUser.id, currentUser.email);
@@ -269,9 +327,10 @@ async function loginUser() {
 
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('logged-in-section').style.display = 'block';
-  document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email}`;
+  document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
 
   updateDashboard();
+  await requestNotificationPermission();
 
   if (todayCheckin?.created_at) {
     startCountdown(new Date(todayCheckin.created_at).getTime());
@@ -289,28 +348,36 @@ async function ensureUserRowExists(userId, email) {
 
 async function bindWallet() {
   const wallet = document.getElementById('bind-wallet').value.trim();
-  if (!wallet || !currentUser) return alert("请输入钱包地址！");
+  if (!wallet || !currentUser) {
+    alert("请输入钱包地址！\n\nPlease enter your wallet address!");
+    return;
+  }
   try {
     const { error } = await supabaseClient.from('USERS').upsert({
       id: currentUser.id, email: currentUser.email, wallet_address: wallet,
       email_verified: currentUser.email_confirmed_at ? true : false
     }, { onConflict: 'id' });
     if (error) throw error;
-    alert("✅ 钱包绑定成功！");
+    alert("✅ 钱包绑定成功！\n\n✅ Wallet bound successfully!");
     document.getElementById('bind-wallet').disabled = true;
     document.getElementById('walletDisplay').innerText = wallet;
   } catch (error) {
-    alert("绑定失败: " + error.message);
+    alert("绑定失败: " + error.message + "\n\nBinding failed: " + error.message);
   }
 }
 
-// ==================== 双语弹窗 + 自动跳转仪表盘 ====================
 async function checkIn() {
-  if (!currentUser) return alert("请先登录");
+  if (!currentUser) {
+    alert("请先登录！\n\nPlease login first!");
+    return;
+  }
 
   const { data: userData } = await supabaseClient.from('USERS')
     .select('wallet_address').eq('id', currentUser.id).single();
-  if (!userData?.wallet_address) return alert("请先绑定钱包地址！");
+  if (!userData?.wallet_address) {
+    alert("请先绑定钱包地址！\n\nPlease bind your wallet address first!");
+    return;
+  }
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -322,41 +389,33 @@ async function checkIn() {
     .maybeSingle();
 
   if (existing) {
-    // ==================== 双语弹窗 ====================
     alert("此账号和钱包今日已签到，请在倒数结束后再进行签到\n\nThis account and wallet has already checked in today. Please wait until the countdown finishes before checking in again.");
     showTab(1);
     await calculateUserStats(currentUser.id);
     updateDashboard();
-    if (existing.created_at) {
-      startCountdown(new Date(existing.created_at).getTime());
-    }
     return;
   }
 
-  const { data: inserted, error } = await supabaseClient.from('checkins').insert({
+  const { error } = await supabaseClient.from('checkins').insert({
     user_id: currentUser.id,
     checkin_date: today
-  }).select('created_at').single();
+  });
 
-  if (error) return alert("签到失败: " + error.message);
-
-  const stats = await calculateUserStats(currentUser.id);
-  let totalPAWLY = stats.totalPAWLY;
-
-  if (stats.streak % 7 === 0) {
-    totalPAWLY += 30;
-    localStorage.setItem('totalPAWLY_' + currentUser.id, totalPAWLY);
-    alert(`🎉 恭喜！你已连续签到 ${stats.streak} 天！\n额外获得 30 PAWLY 奖励！`);
+  if (error) {
+    alert("签到失败: " + error.message + "\n\nCheck-in failed: " + error.message);
+    return;
   }
 
-  const checkinTimestamp = inserted?.created_at ? new Date(inserted.created_at).getTime() : Date.now();
-  localStorage.setItem('lastSignIn_' + currentUser.id, today);
-  localStorage.setItem('lastSignInTime_' + currentUser.id, checkinTimestamp);
+  const stats = await calculateUserStats(currentUser.id);
 
-  alert(`✅ 签到成功！\n连续签到：${stats.streak} 天\n总计：${totalPAWLY} PAWLY`);
+  if (stats.streak % 7 === 0) {
+    alert(`🎉 恭喜！你已连续签到 ${stats.streak} 天！\n额外获得 30 PAWLY 奖励！\n目前已赚取 ${stats.totalPAWLY} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak} consecutive days!\nYou received an extra 30 PAWLY reward!\nTotal earned: ${stats.totalPAWLY} PAWLY`);
+  } else {
+    alert(`✅ 签到成功！\n连续签到：${stats.streak} 天\n总计：${stats.totalPAWLY} PAWLY\n\n✅ Check-in successful!\nStreak: ${stats.streak} days\nTotal: ${stats.totalPAWLY} PAWLY`);
+  }
 
   updateDashboard();
-  startCountdown(checkinTimestamp);
+  startCountdown(Date.now());
   showTab(1);
 }
 
@@ -372,10 +431,12 @@ function startCountdown(lastSignInTime) {
   if (countdownInterval) clearInterval(countdownInterval);
   const timerEl = document.getElementById('countdownTimer');
   const statusEl = document.getElementById('countdownStatus');
+  const readyArea = document.getElementById('readyCheckinArea');
 
   if (!lastSignInTime) {
     timerEl.innerText = "00:00:00";
     statusEl.innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
+    if (readyArea) readyArea.style.display = "none";
     return;
   }
 
@@ -387,22 +448,22 @@ function startCountdown(lastSignInTime) {
     if (remaining <= 0) {
       clearInterval(countdownInterval);
       timerEl.innerText = "00:00:00";
-      statusEl.innerHTML = `<span style="color:#00ff9d;">✅ 可以签到了！请尽快签到</span>`;
+      statusEl.innerHTML = `<span style="color:#00ff9d; font-weight:bold;">✅ 可以签到了！</span>`;
+      
+      if (readyArea) readyArea.style.display = "block";
 
-      // ==================== 双语倒数结束通知 ====================
       if (Notification.permission === "granted") {
         new Notification("PAWLY 签到提醒 / PAWLY Check-in Reminder", { 
           body: "24小时已到，可以签到了！\n24 hours have passed, you can check in now!" 
         });
-      } else if (Notification.permission !== "denied") {
-        Notification.requestPermission();
       }
     } else {
       const hours = Math.floor(remaining / (1000 * 60 * 60));
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
       timerEl.innerText = `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
-      statusEl.innerHTML = "签到冷却中...";
+      statusEl.innerHTML = "签到冷却中... / Cooling down...";
+      if (readyArea) readyArea.style.display = "none";
     }
   }, 1000);
 }
@@ -415,11 +476,17 @@ function startCountdownFromStorage() {
   } else {
     document.getElementById('countdownTimer').innerText = "00:00:00";
     document.getElementById('countdownStatus').innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
+    const readyArea = document.getElementById('readyCheckinArea');
+    if (readyArea) readyArea.style.display = "none";
   }
 }
 
+function goToCheckin() {
+  showTab(0);
+}
+
 async function logout() {
-  if (!confirm("确定要登出吗？")) return;
+  if (!confirm("确定要登出吗？\n\nAre you sure you want to logout?")) return;
   await supabaseClient.auth.signOut();
   currentUser = null;
   if (countdownInterval) clearInterval(countdownInterval);
@@ -427,7 +494,7 @@ async function logout() {
   document.getElementById('logged-in-section').style.display = 'none';
   document.getElementById('bind-wallet').disabled = false;
   document.getElementById('bind-wallet').value = '';
-  alert("已成功登出！");
+  alert("已成功登出！\n\nLogged out successfully!");
   showTab(0);
 }
 
@@ -438,7 +505,7 @@ window.onload = async function() {
     currentUser = session.user;
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('logged-in-section').style.display = 'block';
-    document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email}`;
+    document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
 
     const { data: userData } = await supabaseClient.from('USERS')
       .select('wallet_address').eq('id', currentUser.id).single();
@@ -451,6 +518,7 @@ window.onload = async function() {
 
     await calculateUserStats(currentUser.id);
     updateDashboard();
+    await requestNotificationPermission();
 
     const today = new Date().toISOString().split('T')[0];
     const { data: todayCheckin } = await supabaseClient
