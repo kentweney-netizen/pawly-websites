@@ -102,7 +102,7 @@
       <!-- ==================== 新增：邮箱提醒功能 ==================== -->
       <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:15px; padding:22px; margin:25px 0;">
         <h3 style="margin-top:0;">📧 邮箱签到提醒 / Email Check-in Reminder</h3>
-        <p style="font-size:0.95em; margin:8px 0 15px;">倒数结束时，系统会自动发送邮件到你的注册邮箱提醒签到（比浏览器通知更可靠）</p>
+        <p style="font-size:0.95em; margin:8px 0 15px;">倒数结束时，系统会自动发送邮件到你的注册邮箱提醒签到（比浏览器通知更可靠)  When the countdown ends, the system will automatically send an email to remind you to check in (more reliable than browser notifications) </p>
         
         <button onclick="toggleEmailReminder()" id="emailReminderBtn" 
                 style="background:#00aaff; color:white; padding:12px 28px; border:none; border-radius:12px; margin:8px 5px; cursor:pointer; font-size:0.95em;">
@@ -366,7 +366,7 @@ function toggleEmailReminder() {
     localStorage.setItem('emailReminderEnabled', 'true');
     btn.innerText = '关闭邮箱提醒 / Disable Email Reminder';
     btn.style.background = '#ff4d4d';
-    alert('✅ 邮箱提醒已开启！倒数结束时会发送邮件到你的注册邮箱。');
+    alert('✅ 邮箱提醒已开启！倒数结束时会发送邮件到你的注册邮箱。✅ When the countdown ends, the system will automatically send an email to remind you to check in (more reliable than browser notifications)  ');
   } else {
     localStorage.setItem('emailReminderEnabled', 'false');
     btn.innerText = '开启邮箱提醒 / Enable Email Reminder';
@@ -382,7 +382,7 @@ async function sendEmailReminder() {
   const formData = new FormData();
   formData.append("access_key", WEB3FORMS_KEY);
   formData.append("email", currentUser.email);
-  formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！");
+  formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！PAWLY Check-in reminder - 24 hours is ends, you can Check-in now ");
   formData.append("message", 
 `你好，
 
@@ -429,16 +429,17 @@ This is a test email.
 
 If you received this email, the email reminder feature is working correctly.
 
-当倒数结束时，你将收到类似提醒邮件。`);
+当倒数结束时，你将收到类似提醒邮件。If you received this email, the email reminder feature is working correctly.
+When the countdown ends, you will receive a similar reminder email. `);
 
   try {
     await fetch("https://api.web3forms.com/submit", {
       method: "POST",
       body: formData
     });
-    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。");
+    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。Test Email Is Send! Please Check Your Register Email (Include the Spam mailbox)  ");
   } catch(e) {
-    alert("发送失败，请稍后再试。");
+    alert("发送失败，请稍后再试。Sending Fail, Please Try Again Later ");
   }
 }
 
@@ -661,7 +662,7 @@ function startCountdown(lastSignInTime) {
 
   if (!lastSignInTime) {
     timerEl.innerText = "00:00:00";
-    statusEl.innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
+    statusEl.innerHTML = `<span style="color:#00ff9d;">可以签到了！You May Check-in Now! </span>`;
     if (readyArea) readyArea.style.display = "none";
     return;
   }
@@ -674,7 +675,7 @@ function startCountdown(lastSignInTime) {
     if (remaining <= 0) {
       clearInterval(countdownInterval);
       timerEl.innerText = "00:00:00";
-      statusEl.innerHTML = `<span style="color:#00ff9d; font-weight:bold;">✅ 可以签到了！</span>`;
+      statusEl.innerHTML = `<span style="color:#00ff9d; font-weight:bold;">✅ 可以签到了! You May Check-in Now! </span>`;
       
       if (readyArea) readyArea.style.display = "block";
 
@@ -741,7 +742,7 @@ function closeStakingWaitlistModal() {
   document.getElementById('stakingWaitlistModal').style.display = 'none';
 }
 function submitStakingWaitlist() {
-  alert("✅ 成功加入 Staking 等待名单！\n\n✅ You have successfully joined the Staking Waitlist!\n\n我们会在 Staking 正式开启时优先通知你，并为你准备早期奖励。感谢你的支持！");
+  alert("✅ 成功加入 Staking 等待名单！\n\n✅ You have successfully joined the Staking Waitlist!\n\n我们会在 Staking 正式开启时优先通知你，并为你准备早期奖励。感谢你的支持！We will notify you first when Staking officially launches and prepare early rewards for you. Thank you for your support!");
   closeStakingWaitlistModal();
 }
 function showPaymentWaitlistModal() {
@@ -755,7 +756,7 @@ function closePaymentWaitlistModal() {
   document.getElementById('paymentWaitlistModal').style.display = 'none';
 }
 function submitPaymentWaitlist() {
-  alert("✅ 成功加入宠物支付计划！\n\n✅ You have successfully joined the Pet Payment Program!\n\n我们会在功能上线时优先通知你。感谢你的支持！");
+  alert("✅ 成功加入宠物支付计划！\n\n✅ You have successfully joined the Pet Payment Program!\n\n我们会在功能上线时优先通知你。感谢你的支持！We will notify you first when the feature officially launches. Thank you for your support!");
   closePaymentWaitlistModal();
 }
 function showCharityWaitlistModal() {
@@ -769,7 +770,7 @@ function closeCharityWaitlistModal() {
   document.getElementById('charityWaitlistModal').style.display = 'none';
 }
 function submitCharityWaitlist() {
-  alert("✅ 成功加入宠物慈善计划！\n\n✅ You have successfully joined the Pet Charity Program!\n\n我们会在捐款计划启动时优先通知你，并公开透明每一笔捐款。感谢你的支持！");
+  alert("✅ 成功加入宠物慈善计划！\n\n✅ You have successfully joined the Pet Charity Program!\n\n我们会在捐款计划启动时优先通知你，并公开透明每一笔捐款。感谢你的支持！We will notify you first when the donation program launches and publicly disclose every donation transparently. Thank you for your support!");
   closeCharityWaitlistModal();
 }
 
