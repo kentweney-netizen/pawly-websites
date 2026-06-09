@@ -44,7 +44,7 @@
     <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
   </div>
 
-  <!-- tab0 签到页面（保持原样） -->
+  <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
     <div class="container">
       <div class="warning">
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <!-- tab1 仪表盘（保持原样） -->
+  <!-- tab1 仪表盘 -->
   <div class="tab" id="tab1">
     <div class="container">
       <h1>📊 我的仪表盘 / My Dashboard</h1>
@@ -128,7 +128,7 @@
     </div>
   </div>
 
-  <!-- tab2 质押挖矿（保持原样） -->
+  <!-- tab2 质押挖矿 -->
   <div class="tab" id="tab2">
     <div class="container">
       <h1>🔥 质押挖矿 / Staking</h1>
@@ -164,7 +164,7 @@
     </div>
   </div>
 
-  <!-- tab3 宠物支付（保持原样） -->
+  <!-- tab3 宠物支付 -->
   <div class="tab" id="tab3">
     <div class="container">
       <h1>🐶 宠物支付 / Pet Payment</h1>
@@ -198,7 +198,7 @@
     </div>
   </div>
 
-  <!-- tab4 慈善基金（保持原样） -->
+  <!-- tab4 慈善基金 -->
   <div class="tab" id="tab4">
     <div class="container">
       <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
@@ -231,7 +231,7 @@
     </div>
   </div>
 
-  <!-- tab5 关于 PAWLY（保持原样） -->
+  <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
     <div class="container">
       <h1>🌟 关于 PAWLY / About PAWLY</h1>
@@ -270,7 +270,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
   </div>
 
-  <!-- Modal 部分（保持原样，已有双语） -->
+  <!-- Modal 部分（已全部双语） -->
   <!-- Staking Modal -->
   <div id="stakingWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
@@ -347,7 +347,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
   </div>
 
-  <!-- ==================== 宠物支付展示页面（已全部补全双语） ==================== -->
+  <!-- ==================== 宠物支付展示页面（完整双语） ==================== -->
   <div id="paymentShowcase" class="showcase">
     <h1>🐶 PAWLY 宠物支付系统愿景 / PAWLY Pet Payment System Vision</h1>
 
@@ -397,7 +397,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     <button class="back-btn" onclick="hideShowcase()">返回主页面 / Back to Main Page</button>
   </div>
 
-  <!-- ==================== 慈善影响力展示页面（已全部补全双语） ==================== -->
+  <!-- ==================== 慈善影响力展示页面（完整双语） ==================== -->
   <div id="charityShowcase" class="showcase">
     <h1>❤️ PAWLY 宠物慈善影响力 / PAWLY Pet Charity Impact</h1>
 
@@ -474,9 +474,9 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
   </div>
 
 <script>
-// ==================== 完整 JavaScript 代码（保持不变） ====================
+// ==================== 完整 JavaScript（使用你提供的 Key） ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcXpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
 const WEB3FORMS_KEY = '43436864-9437-4f9b-82a5-5b9d219f911f';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
