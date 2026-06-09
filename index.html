@@ -27,7 +27,6 @@
   </style>
 </head>
 <body>
-
   <!-- 导航栏 -->
   <div class="nav">
     <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
@@ -82,13 +81,11 @@
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
-
       <div class="countdown" id="countdownBox">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">00:00:00</div>
         <div id="countdownStatus">可以签到了！</div>
       </div>
-
       <div id="readyCheckinArea" style="display:none;">
         <div class="ready-to-checkin">
           ✅ 可以签到了！请立即签到<br>
@@ -98,28 +95,25 @@
           立即签到 / Check-in Now
         </button>
       </div>
-
       <!-- ==================== 新增：邮箱提醒功能 ==================== -->
       <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:15px; padding:22px; margin:25px 0;">
         <h3 style="margin-top:0;">📧 邮箱签到提醒 / Email Check-in Reminder</h3>
-        <p style="font-size:0.95em; margin:8px 0 15px;">倒数结束时，系统会自动发送邮件到你的注册邮箱提醒签到（比浏览器通知更可靠)  When the countdown ends, the system will automatically send an email to remind you to check in (more reliable than browser notifications) </p>
-        
-        <button onclick="toggleEmailReminder()" id="emailReminderBtn" 
+        <p style="font-size:0.95em; margin:8px 0 15px;">倒数结束时，系统会自动发送邮件到你的注册邮箱提醒签到（比浏览器通知更可靠) When the countdown ends, the system will automatically send an email to remind you to check in (more reliable than browser notifications) </p>
+       
+        <button onclick="toggleEmailReminder()" id="emailReminderBtn"
                 style="background:#00aaff; color:white; padding:12px 28px; border:none; border-radius:12px; margin:8px 5px; cursor:pointer; font-size:0.95em;">
           开启邮箱提醒 / Enable Email Reminder
         </button>
-        
-        <button onclick="sendTestEmailReminder()" 
+       
+        <button onclick="sendTestEmailReminder()"
                 style="background:#ffaa00; color:black; padding:12px 22px; border:none; border-radius:12px; margin:8px 5px; cursor:pointer; font-size:0.95em;">
           发送测试邮件 / Send Test Email
         </button>
       </div>
       <!-- ==================== 邮箱提醒功能结束 ==================== -->
-
       <button onclick="enableNotifications()" style="background:#00aaff; color:white; padding:12px 25px; border:none; border-radius:12px; margin-top:10px; cursor:pointer;">
         🔔 开启浏览器通知 / Enable Notifications
       </button>
-
       <button onclick="logout()" style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:20px; cursor:pointer;">
         🚪 登出 / Logout
       </button>
@@ -361,12 +355,12 @@ function isEmailReminderEnabled() {
 function toggleEmailReminder() {
   const btn = document.getElementById('emailReminderBtn');
   const current = isEmailReminderEnabled();
-  
+ 
   if (!current) {
     localStorage.setItem('emailReminderEnabled', 'true');
     btn.innerText = '关闭邮箱提醒 / Disable Email Reminder';
     btn.style.background = '#ff4d4d';
-    alert('✅ 邮箱提醒已开启！倒数结束时会发送邮件到你的注册邮箱。✅ When the countdown ends, the system will automatically send an email to remind you to check in (more reliable than browser notifications)  ');
+    alert('✅ 邮箱提醒已开启！倒数结束时会发送邮件到你的注册邮箱。✅ When the countdown ends, the system will automatically send an email to remind you to check in (more reliable than browser notifications) ');
   } else {
     localStorage.setItem('emailReminderEnabled', 'false');
     btn.innerText = '开启邮箱提醒 / Enable Email Reminder';
@@ -383,7 +377,7 @@ async function sendEmailReminder() {
   formData.append("access_key", WEB3FORMS_KEY);
   formData.append("email", currentUser.email);
   formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！PAWLY Check-in reminder - 24 hours is ends, you can Check-in now ");
-  formData.append("message", 
+  formData.append("message",
 `你好，
 
 你的 PAWLY 签到倒数已结束，现在可以进行签到了！
@@ -415,12 +409,12 @@ async function sendTestEmailReminder() {
     alert("请先登录！");
     return;
   }
-  
+ 
   const formData = new FormData();
   formData.append("access_key", WEB3FORMS_KEY);
   formData.append("email", currentUser.email);
   formData.append("subject", "PAWLY 测试邮件 - 邮箱提醒功能正常");
-  formData.append("message", 
+  formData.append("message",
 `这是一封测试邮件。
 
 如果你收到这封邮件，说明邮箱提醒功能已正常开启。
@@ -430,6 +424,7 @@ This is a test email.
 If you received this email, the email reminder feature is working correctly.
 
 当倒数结束时，你将收到类似提醒邮件。If you received this email, the email reminder feature is working correctly.
+
 When the countdown ends, you will receive a similar reminder email. `);
 
   try {
@@ -437,7 +432,7 @@ When the countdown ends, you will receive a similar reminder email. `);
       method: "POST",
       body: formData
     });
-    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。Test Email Is Send! Please Check Your Register Email (Include the Spam mailbox)  ");
+    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。Test Email Is Send! Please Check Your Register Email (Include the Spam mailbox) ");
   } catch(e) {
     alert("发送失败，请稍后再试。Sending Fail, Please Try Again Later ");
   }
@@ -446,7 +441,7 @@ When the countdown ends, you will receive a similar reminder email. `);
 function initEmailReminderButton() {
   const btn = document.getElementById('emailReminderBtn');
   if (!btn) return;
-  
+ 
   if (isEmailReminderEnabled()) {
     btn.innerText = '关闭邮箱提醒 / Disable Email Reminder';
     btn.style.background = '#ff4d4d';
@@ -455,6 +450,7 @@ function initEmailReminderButton() {
     btn.style.background = '#00aaff';
   }
 }
+
 // ==================== 邮箱提醒功能结束 ====================
 
 async function requestNotificationPermission() {
@@ -659,36 +655,30 @@ function startCountdown(lastSignInTime) {
   const timerEl = document.getElementById('countdownTimer');
   const statusEl = document.getElementById('countdownStatus');
   const readyArea = document.getElementById('readyCheckinArea');
-
   if (!lastSignInTime) {
     timerEl.innerText = "00:00:00";
     statusEl.innerHTML = `<span style="color:#00ff9d;">可以签到了！You May Check-in Now! </span>`;
     if (readyArea) readyArea.style.display = "none";
     return;
   }
-
   countdownInterval = setInterval(() => {
     const now = Date.now();
     const nextAvailable = lastSignInTime + (24 * 60 * 60 * 1000);
     const remaining = nextAvailable - now;
-
     if (remaining <= 0) {
       clearInterval(countdownInterval);
       timerEl.innerText = "00:00:00";
       statusEl.innerHTML = `<span style="color:#00ff9d; font-weight:bold;">✅ 可以签到了! You May Check-in Now! </span>`;
-      
+     
       if (readyArea) readyArea.style.display = "block";
-
       if (Notification.permission === "granted") {
         new Notification("PAWLY 签到提醒 / PAWLY Check-in Reminder", {
           body: "24小时已到，可以签到了！\n24 hours have passed, you can check in now!"
         });
       }
-
       // ==================== 新增：发送邮箱提醒 ====================
       sendEmailReminder();
       // ==================== 新增结束 ====================
-
     } else {
       const hours = Math.floor(remaining / (1000 * 60 * 60));
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
@@ -755,10 +745,15 @@ function showPaymentWaitlistModal() {
 function closePaymentWaitlistModal() {
   document.getElementById('paymentWaitlistModal').style.display = 'none';
 }
+
+// ==================== 已修改的 Payment 函数 ====================
 function submitPaymentWaitlist() {
   alert("✅ 成功加入宠物支付计划！\n\n✅ You have successfully joined the Pet Payment Program!\n\n我们会在功能上线时优先通知你。感谢你的支持！We will notify you first when the feature officially launches. Thank you for your support!");
   closePaymentWaitlistModal();
+  window.location.href = 'pet-payment-showcase.html';
 }
+
+// ==================== 已修改的 Charity 函数 ====================
 function showCharityWaitlistModal() {
   const modal = document.getElementById('charityWaitlistModal');
   const walletDisplay = document.getElementById('charityWalletDisplay');
@@ -772,12 +767,13 @@ function closeCharityWaitlistModal() {
 function submitCharityWaitlist() {
   alert("✅ 成功加入宠物慈善计划！\n\n✅ You have successfully joined the Pet Charity Program!\n\n我们会在捐款计划启动时优先通知你，并公开透明每一笔捐款。感谢你的支持！We will notify you first when the donation program launches and publicly disclose every donation transparently. Thank you for your support!");
   closeCharityWaitlistModal();
+  window.location.href = 'charity-impact.html';
 }
 
 // ==================== 页面加载 ====================
 window.onload = async function() {
   showTab(0);
-  initEmailReminderButton();   // ← 新增：初始化邮箱提醒按钮
+  initEmailReminderButton();
 
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
