@@ -604,11 +604,23 @@ async function loginUser() {
   currentUser = data.user;
   await ensureUserRowExists(currentUser.id, currentUser.email);
   const { data: userData } = await supabaseClient.from('USERS').select('wallet_address').eq('id', currentUser.id).single();
-  if (userData?.wallet_address) {
-    document.getElementById('bind-wallet').value = userData.wallet_address;
-    document.getElementById('bind-wallet').disabled = true;
-    document.getElementById('walletDisplay').innerText = userData.wallet_address;
-  }
+ if (userData?.wallet_address) {
+document.getElementById('bind-wallet').value = userData.wallet_address;
+document.getElementById('bind-wallet').disabled = true;
+document.getElementById('walletDisplay').innerText = userData.wallet_address;
+
+// ==================== 新增：从数据库读取 streak 和 total_earned ====================
+const { data: stats } = await supabaseClient
+.from('USERS')
+.select('streak, total_earned')
+.eq('id', currentUser.id)
+.single();
+
+if (stats) {
+document.getElementById("streakText").innerHTML = `连续签到 ${stats.streak || 0} 天 🔥 / Streak: ${stats.streak || 0} days`;
+document.getElementById("totalText").innerHTML = `总共已赚取 ${stats.total_earned || 0} PAWLY / Total Earned: ${stats.total_earned || 0} PAWLY`;
+}
+}
   await calculateUserStats(currentUser.id);
   const today = new Date().toISOString().split('T')[0];
   const { data: todayCheckin } = await supabaseClient.from('checkins').select('created_at').eq('user_id', currentUser.id).eq('checkin_date', today).maybeSingle();
@@ -649,29 +661,81 @@ async function bindWallet() {
 }
 
 async function checkIn() {
-  if (!currentUser) { alert("请先登录！\nPlease login first!"); return; }
-  const { data: userData } = await supabaseClient.from('USERS').select('wallet_address').eq('id', currentUser.id).single();
-  if (!userData?.wallet_address) { alert("请先绑定钱包地址！\nPlease bind your wallet address first!"); return; }
-  const today = new Date().toISOString().split('T')[0];
-  const { data: existing } = await supabaseClient.from('checkins').select('id, created_at').eq('user_id', currentUser.id).eq('checkin_date', today).maybeSingle();
-  if (existing) {
-    alert("此账号和钱包今日已签到，请在倒数结束后再进行签到\nThis account and wallet has already checked in today. Please wait until the countdown finishes before checking in again.");
-    showTab(1);
-    await calculateUserStats(currentUser.id);
-    updateDashboard();
-    return;
-  }
-  const { error } = await supabaseClient.from('checkins').insert({ user_id: currentUser.id, checkin_date: today });
-  if (error) { alert("签到失败: " + error.message); return; }
-  const stats = await calculateUserStats(currentUser.id);
-  if (stats.streak % 7 === 0) {
-    alert(`🎉 恭喜！你已连续签到 ${stats.streak} 天！\n额外获得 30 PAWLY 奖励！\n目前已赚取 ${stats.totalPAWLY} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak} consecutive days!\nYou received an extra 30 PAWLY reward!\nTotal earned: ${stats.totalPAWLY} PAWLY`);
-  } else {
-    alert(`✅ 签到成功！\n连续签到：${stats.streak} 天\n总计：${stats.totalPAWLY} PAWLY\n\n✅ Check-in successful!\nStreak: ${stats.streak} days\nTotal: ${stats.totalPAWLY} PAWLY`);
-  }
-  updateDashboard();
-  startCountdown(Date.now());
-  showTab(1);
+if (!currentUser) {
+alert("请先登录！\nPlease login first!");
+return;
+}
+
+// 从数据库读取当前 streak 和 total_earned
+const { data: userData } = await supabaseClient
+.from('USERS')
+.select('wallet_address, streak, total_earned')
+.eq('id', currentUser.id)
+.single();
+
+if (!userData?.wallet_address) {
+alert("请先绑定钱包地址！\nPlease bind your wallet address first!");
+return;
+}
+
+const today = new Date().toISOString().split('T')[0];
+
+// 检查今天是否已签到
+const { data: existing } = await supabaseClient
+.from('checkins')
+.select('id')
+.eq('user_id', currentUser.id)
+.eq('checkin_date', today)
+.maybeSingle();
+
+if (existing) {
+alert("此账号今日已签到，请在倒数结束后再进行签到\nYou have already checked in today.");
+showTab(1);
+return;
+}
+
+// 插入签到记录
+const { error: insertError } = await supabaseClient
+.from('checkins')
+.insert({ user_id: currentUser.id, checkin_date: today });
+
+if (insertError) {
+alert("签到失败: " + insertError.message);
+return;
+}
+
+// ==================== 核心修改：直接更新数据库 ====================
+let newStreak = (userData.streak || 0) + 1;
+let newTotal = (userData.total_earned || 0) + 10;
+
+// 每连续签到 7 天额外奖励 30 PAWLY
+if (newStreak % 7 === 0) {
+newTotal += 30;
+}
+
+// 更新到 USERS 表
+const { error: updateError } = await supabaseClient
+.from('USERS')
+.update({
+streak: newStreak,
+total_earned: newTotal
+})
+.eq('id', currentUser.id);
+
+if (updateError) {
+alert("更新数据失败: " + updateError.message);
+return;
+}
+
+// 更新页面显示
+document.getElementById("streakText").innerHTML = `连续签到 ${newStreak} 天 🔥 / Streak: ${newStreak} days`;
+document.getElementById("totalText").innerHTML = `总共已赚取 ${newTotal} PAWLY / Total Earned: ${newTotal} PAWLY`;
+
+alert(`✅ 签到成功！\n连续签到：${newStreak} 天\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`);
+
+// 重新开始倒数
+startCountdown(Date.now());
+showTab(1);
 }
 
 function updateDashboard() {
