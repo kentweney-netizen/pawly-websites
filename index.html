@@ -666,84 +666,84 @@ alert("请先登录！\nPlease login first!");
 return;
 }
 
-// 从数据库读取当前 streak 和 total_earned
+// 优先从输入框取，其次从数据库取
+let wallet = document.getElementById('bind-wallet').value.trim();
+
+if (!wallet) {
 const { data: userData } = await supabaseClient
 .from('USERS')
-.select('wallet_address, streak, total_earned')
+.select('wallet_address')
 .eq('id', currentUser.id)
 .single();
+wallet = userData?.wallet_address || '';
+}
 
-if (!userData?.wallet_address) {
+if (!wallet) {
 alert("请先绑定钱包地址！\nPlease bind your wallet address first!");
 return;
 }
 
-const today = new Date().toISOString().split('T')[0];
-
 // 检查今天是否已签到
-const { data: existing } = await supabaseClient
+const today = new Date().toISOString().split('T')[0];
+const { data: todayCheckin } = await supabaseClient
 .from('checkins')
-.select('id')
+.select('*')
 .eq('user_id', currentUser.id)
 .eq('checkin_date', today)
 .maybeSingle();
 
-if (existing) {
-alert("此账号今日已签到，请在倒数结束后再进行签到\nYou have already checked in today.");
-showTab(1);
+if (todayCheckin) {
+alert("今天已经签到过了！\nYou have already checked in today!");
+startCountdown(new Date(todayCheckin.created_at).getTime());
 return;
 }
 
 // 插入签到记录
 const { error: insertError } = await supabaseClient
 .from('checkins')
-.insert({ user_id: currentUser.id, checkin_date: today });
+.insert({
+user_id: currentUser.id,
+checkin_date: today,
+created_at: new Date().toISOString()
+});
 
 if (insertError) {
 alert("签到失败: " + insertError.message);
 return;
 }
 
-// ==================== 核心修改：直接更新数据库 ====================
-let newStreak = (userData.streak || 0) + 1;
-let newTotal = (userData.total_earned || 0) + 10;
-
-// 每连续签到 7 天额外奖励 30 PAWLY
-if (newStreak % 7 === 0) {
-newTotal += 30;
-}
-
-// 更新到 USERS 表
-const { error: updateError } = await supabaseClient
-.from('USERS')
-.update({
-streak: newStreak,
-total_earned: newTotal
-})
-.eq('id', currentUser.id);
-
-if (updateError) {
-alert("更新数据失败: " + updateError.message);
-return;
-}
+// 更新 streak 和 total_earned 到数据库
+await calculateUserStats(currentUser.id);
 
 // 更新页面显示
-document.getElementById("streakText").innerHTML = `连续签到 ${newStreak} 天 🔥 / Streak: ${newStreak} days`;
-document.getElementById("totalText").innerHTML = `总共已赚取 ${newTotal} PAWLY / Total Earned: ${newTotal} PAWLY`;
+await updateDashboardFromDB();
 
-alert(`✅ 签到成功！\n连续签到：${newStreak} 天\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`);
+alert("✅ 签到成功！\nCheck-in successful!\n+10 PAWLY");
 
-// 重新开始倒数
 startCountdown(Date.now());
 showTab(1);
 }
 
+async function updateDashboardFromDB() {
+if (!currentUser) return;
+
+const { data: stats } = await supabaseClient
+.from('USERS')
+.select('streak, total_earned')
+.eq('id', currentUser.id)
+.single();
+
+if (stats) {
+document.getElementById("streakText").innerHTML =
+`连续签到 ${stats.streak || 0} 天 🔥 / Streak: ${stats.streak || 0} days`;
+document.getElementById("totalText").innerHTML =
+`总共已赚取 ${stats.total_earned || 0} PAWLY / Total Earned: ${stats.total_earned || 0} PAWLY`;
+}
+}
+
+// 保留旧的 updateDashboard 名称，内部调用新函数（兼容旧代码）
 function updateDashboard() {
-  if (!currentUser) return;
-  const streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
-  const totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0);
-  document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
-  document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
+updateDashboardFromDB();
 }
 
 function startCountdown(lastSignInTime) {
