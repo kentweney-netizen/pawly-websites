@@ -626,48 +626,29 @@ async function calculateUserStats(userId) {
       .order('checkin_date', { ascending: false });
 
     if (error || !checkins || checkins.length === 0) {
+      localStorage.setItem('streak_' + userId, 0);
+      localStorage.setItem('totalPAWLY_' + userId, 0);
+      await supabaseClient.from('USERS').update({ streak: 0, total_earned: 0 }).eq('id', userId);
       return { streak: 0, totalPAWLY: 0 };
     }
 
-    const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
-    const totalCheckins = uniqueDates.length;
+    // 去重，得到用户实际签到的总天数
+    const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))];
+    const totalSignInDays = uniqueDates.length;   // ← 这就是用户实际签到天数
 
-    const base = totalCheckins * 10;
-    const bonus = Math.floor(totalCheckins / 7) * 30;
+    // 计算 Total Earned（保留7天奖励）
+    const base = totalSignInDays * 10;
+    const bonus = Math.floor(totalSignInDays / 7) * 30;
     const totalPAWLY = base + bonus;
 
-    // ==================== 计算 Streak ====================
-    let streak = 1;
+    // ==================== 关键修改：streak = 实际签到总天数 ====================
+    const streak = totalSignInDays;
 
-    if (uniqueDates.length > 1) {
-      const dateObjects = uniqueDates.map(d => new Date(d + 'T00:00:00')).sort((a, b) => b - a);
-      let current = dateObjects[0];
-
-      for (let i = 1; i < dateObjects.length; i++) {
-        const prev = new Date(current);
-        prev.setDate(prev.getDate() - 1);
-
-        if (dateObjects[i].getFullYear() === prev.getFullYear() &&
-            dateObjects[i].getMonth() === prev.getMonth() &&
-            dateObjects[i].getDate() === prev.getDate()) {
-          streak++;
-          current = dateObjects[i];
-        } else {
-          break;
-        }
-      }
-    }
-
-    // ==================== 关键调试输出 ====================
-    console.log("========== Streak 调试信息 ==========");
-    console.log("所有签到日期 (uniqueDates):", uniqueDates);
-    console.log("计算出的 streak:", streak);
-    console.log("totalCheckins:", totalCheckins);
-    console.log("=====================================");
-
+    // 保存到 localStorage
     localStorage.setItem('streak_' + userId, streak);
     localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
 
+    // 同步更新数据库
     await supabaseClient.from('USERS').update({
       streak: streak,
       total_earned: totalPAWLY
