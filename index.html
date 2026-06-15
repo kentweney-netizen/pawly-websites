@@ -619,7 +619,6 @@ async function registerUser() {
 
 async function calculateUserStats(userId) {
   try {
-    // 获取该用户所有签到记录（按日期倒序）
     const { data: checkins, error } = await supabaseClient
       .from('checkins')
       .select('checkin_date')
@@ -633,39 +632,40 @@ async function calculateUserStats(userId) {
       return { streak: 0, totalPAWLY: 0 };
     }
 
-    // 去重 + 倒序排列（最新日期在前）
+    // 去重 + 倒序（最新日期在前）
     const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
     const totalCheckins = uniqueDates.length;
 
-    // ==================== 计算 Total Earned（含7天奖励） ====================
+    // 计算 Total Earned（含7天奖励）
     const base = totalCheckins * 10;
     const bonus = Math.floor(totalCheckins / 7) * 30;
     const totalPAWLY = base + bonus;
 
-    // ==================== 计算连续签到 Streak ====================
+    // ==================== 更稳定的 Streak 计算 ====================
     let streak = 1;
 
     if (uniqueDates.length > 1) {
-      let currentDate = new Date(uniqueDates[0]); // 从最新签到日期开始往前推
+      // 把所有日期转成 Date 对象，并按时间排序（最新在前）
+      const dateObjects = uniqueDates.map(d => new Date(d + 'T00:00:00')).sort((a, b) => b - a);
 
-      for (let i = 1; i < uniqueDates.length; i++) {
-        const prevDate = new Date(currentDate);
-        prevDate.setDate(prevDate.getDate() - 1);
-        const prevStr = prevDate.toISOString().split('T')[0];
+      let current = dateObjects[0];
 
-        if (uniqueDates.includes(prevStr)) {
+      for (let i = 1; i < dateObjects.length; i++) {
+        const prev = new Date(current);
+        prev.setDate(prev.getDate() - 1);
+
+        // 比较年月日是否相同
+        if (dateObjects[i].getFullYear() === prev.getFullYear() &&
+            dateObjects[i].getMonth() === prev.getMonth() &&
+            dateObjects[i].getDate() === prev.getDate()) {
           streak++;
-          currentDate = prevDate;
+          current = dateObjects[i];
         } else {
-          break; // 一旦断掉就停止计算
+          break;
         }
       }
-    } 
-    
-    console.log("uniqueDates:", uniqueDates);
-    console.log("计算出的 streak:", streak);
-    console.log("totalCheckins:", totalCheckins);
-    
+    }
+
     // 保存到 localStorage
     localStorage.setItem('streak_' + userId, streak);
     localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
@@ -683,7 +683,7 @@ async function calculateUserStats(userId) {
     return { streak: 0, totalPAWLY: 0 };
   }
 }
-
+  
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
