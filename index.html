@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PAWLY PETS</title>
+<!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>...</style>
+</head>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
@@ -87,6 +93,16 @@
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
+
+<!-- ==================== 跳转专业 dApp 按钮（在这里添加） ==================== -->
+    <div style="margin-top:35px; text-align:center;">
+      <button onclick="window.location.href='https://app.pawlypets.netlify.app'" 
+              style="background:#00ff9d; color:black; padding:18px 45px; border:none; border-radius:14px; font-weight:bold; font-size:1.1em; cursor:pointer;">
+        进入专业版 dApp - entry dApp（链上质押等功能-fully onchain staking）
+      </button>
+      <p style="font-size:0.9em; color:#888; margin-top:10px;">专业 Web3 功能区 - Web3 Function （即将上线-COMING SOON）</p>
+    </div>
+
       <div class="countdown" id="countdownBox">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">00:00:00</div>
@@ -561,43 +577,63 @@ async function registerUser() {
   alert("注册成功！请去邮箱点击验证链接后再登录。\nRegistration successful! Please check your email and click the verification link before logging in.");
 }
 
-// ==================== 已升级：同时更新数据库 ====================
+// ==================== 已优化版本（推荐使用） ====================
 async function calculateUserStats(userId) {
-  const { data: checkins, error } = await supabaseClient.from('checkins').select('checkin_date').eq('user_id', userId).order('checkin_date', { ascending: false });
+  const { data: checkins, error } = await supabaseClient
+    .from('checkins')
+    .select('checkin_date')
+    .eq('user_id', userId)
+    .order('checkin_date', { ascending: false });
+
   if (error || !checkins || checkins.length === 0) {
     localStorage.setItem('streak_' + userId, 0);
     localStorage.setItem('totalPAWLY_' + userId, 0);
-    // 同步更新数据库
     await supabaseClient.from('USERS').update({ streak: 0, total_earned: 0 }).eq('id', userId);
     return { streak: 0, totalPAWLY: 0 };
   }
+
+  // 去重日期（避免同一天多次签到）
   const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
   const totalCheckins = uniqueDates.length;
+
+  // ==================== 计算 Total Earned（含7天奖励） ====================
+  const base = totalCheckins * 10;
+  const bonus = Math.floor(totalCheckins / 7) * 30;
+  const totalPAWLY = base + bonus;
+
+  // ==================== 计算连续签到 Streak ====================
   let streak = 1;
   const todayStr = new Date().toISOString().split('T')[0];
   let currentDate = new Date(todayStr);
+
   const hasToday = uniqueDates.includes(todayStr);
   if (!hasToday) currentDate.setDate(currentDate.getDate() - 1);
+
   for (let i = 1; i < uniqueDates.length; i++) {
     const prevDate = new Date(currentDate);
     prevDate.setDate(prevDate.getDate() - 1);
     const prevStr = prevDate.toISOString().split('T')[0];
-    if (uniqueDates.includes(prevStr)) { streak++; currentDate = prevDate; } else break;
-  }
-  const base = totalCheckins * 10;
-  const bonusCount = Math.floor(totalCheckins / 7);
-  const bonus = bonusCount * 30;
-  const totalPAWLY = base + bonus;
 
+    if (uniqueDates.includes(prevStr)) {
+      streak++;
+      currentDate = prevDate;
+    } else {
+      break;
+    }
+  }
+
+  // 保存到 localStorage
   localStorage.setItem('streak_' + userId, streak);
   localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
 
-  // 同步更新到数据库（核心修复）
-  await supabaseClient.from('USERS').update({ streak: streak, total_earned: totalPAWLY }).eq('id', userId);
+  // 同步更新数据库
+  await supabaseClient.from('USERS').update({
+    streak: streak,
+    total_earned: totalPAWLY
+  }).eq('id', userId);
 
   return { streak, totalPAWLY };
 }
-
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -874,6 +910,20 @@ window.onload = async function() {
     }
   }
 };
+
+// ==================== PWA Service Worker 注册 ====================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('Service Worker 注册成功:', registration.scope);
+      })
+      .catch(error => {
+        console.log('Service Worker 注册失败:', error);
+      });
+  });
+}
+
 </script>
 </body>
 </html>
