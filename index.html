@@ -38,6 +38,46 @@
     .showcase .back-btn { background:transparent; color:#00ff9d; padding:12px 35px; border:2px solid #00ff9d; border-radius:12px; font-size:1em; cursor:pointer; margin-top:30px; }
   </style>
 </head>
+<body><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAWLY PETS</title>
+<!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>...</style>
+</head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
+    .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+    .nav button { background:transparent; color:#00ff9d; border:1px solid #00ff9d; padding:10px 16px; border-radius:20px; cursor:pointer; transition:0.3s; font-size:0.95em; }
+    .nav button.active { background:#00ff9d; color:black; }
+    .tab { display:none; padding:25px; }
+    .tab.active { display:block; }
+    .container { max-width:720px; margin:20px auto; background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:25px; padding:30px; box-shadow:0 0 30px rgba(0,255,150,0.2); }
+    h1 { text-shadow:0 0 20px #00ff9d; margin-bottom:10px; }
+    input, button { padding:15px; margin:12px; width:85%; border-radius:12px; font-size:1.1em; }
+    input { background:#1a0033; color:white; border:1px solid #00ff9d; }
+    button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; }
+    .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
+    .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
+    #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
+    .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
+    .bilingual { display:flex; flex-direction:column; gap:15px; }
+    .ready-to-checkin { background:#00ff9d; color:black; padding:20px; border-radius:15px; font-size:1.3em; font-weight:bold; margin:20px 0; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .showcase { display:none; max-width:900px; margin:40px auto; padding:30px; background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:25px; text-align:left; }
+    .showcase h1 { text-shadow:0 0 20px #00ff9d; }
+    .showcase .section { background:rgba(255,255,255,0.05); border-radius:18px; padding:25px; margin:25px 0; }
+    .showcase .feature, .showcase .org-card { background:#120022; padding:18px; border-radius:14px; margin:15px 0; border-left:4px solid #00ff9d; }
+    .showcase button { background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:14px; font-size:1.2em; font-weight:bold; cursor:pointer; margin-top:20px; }
+    .showcase .back-btn { background:transparent; color:#00ff9d; padding:12px 35px; border:2px solid #00ff9d; border-radius:12px; font-size:1em; cursor:pointer; margin-top:30px; }
+  </style>
+</head>
 <body>
   <!-- 导航栏 -->
   <div class="nav">
@@ -577,7 +617,6 @@ async function registerUser() {
   alert("注册成功！请去邮箱点击验证链接后再登录。\nRegistration successful! Please check your email and click the verification link before logging in.");
 }
 
-// ==================== 已优化版本（推荐使用） ====================
 async function calculateUserStats(userId) {
   const { data: checkins, error } = await supabaseClient
     .from('checkins')
@@ -592,11 +631,11 @@ async function calculateUserStats(userId) {
     return { streak: 0, totalPAWLY: 0 };
   }
 
-  // 去重日期（避免同一天多次签到）
+  // 去重日期
   const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
   const totalCheckins = uniqueDates.length;
 
-  // ==================== 计算 Total Earned（含7天奖励） ====================
+  // 计算 Total Earned（含7天奖励）
   const base = totalCheckins * 10;
   const bonus = Math.floor(totalCheckins / 7) * 30;
   const totalPAWLY = base + bonus;
@@ -634,6 +673,7 @@ async function calculateUserStats(userId) {
 
   return { streak, totalPAWLY };
 }
+
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
