@@ -618,60 +618,66 @@ async function registerUser() {
 }
 
 async function calculateUserStats(userId) {
-  const { data: checkins, error } = await supabaseClient
-    .from('checkins')
-    .select('checkin_date')
-    .eq('user_id', userId)
-    .order('checkin_date', { ascending: false });
+  try {
+    // 获取该用户所有签到记录（按日期倒序）
+    const { data: checkins, error } = await supabaseClient
+      .from('checkins')
+      .select('checkin_date')
+      .eq('user_id', userId)
+      .order('checkin_date', { ascending: false });
 
-  if (error || !checkins || checkins.length === 0) {
-    localStorage.setItem('streak_' + userId, 0);
-    localStorage.setItem('totalPAWLY_' + userId, 0);
-    await supabaseClient.from('USERS').update({ streak: 0, total_earned: 0 }).eq('id', userId);
+    if (error || !checkins || checkins.length === 0) {
+      localStorage.setItem('streak_' + userId, 0);
+      localStorage.setItem('totalPAWLY_' + userId, 0);
+      await supabaseClient.from('USERS').update({ streak: 0, total_earned: 0 }).eq('id', userId);
+      return { streak: 0, totalPAWLY: 0 };
+    }
+
+    // 去重 + 排序（最新日期在前）
+    const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
+    const totalCheckins = uniqueDates.length;
+
+    // ==================== 计算 Total Earned（含7天奖励） ====================
+    const base = totalCheckins * 10;
+    const bonus = Math.floor(totalCheckins / 7) * 30;
+    const totalPAWLY = base + bonus;
+
+    // ==================== 计算连续签到 Streak ====================
+    let streak = 1;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 从最新一条记录开始往前推
+    let checkDate = new Date(uniqueDates[0]); // 从最近签到日期开始
+
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prevDate = new Date(checkDate);
+      prevDate.setDate(prevDate.getDate() - 1);
+      const prevStr = prevDate.toISOString().split('T')[0];
+
+      if (uniqueDates.includes(prevStr)) {
+        streak++;
+        checkDate = prevDate;
+      } else {
+        break; // 一旦断掉就停止
+      }
+    }
+
+    // 保存到 localStorage
+    localStorage.setItem('streak_' + userId, streak);
+    localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
+
+    // 同步更新数据库
+    await supabaseClient.from('USERS').update({
+      streak: streak,
+      total_earned: totalPAWLY
+    }).eq('id', userId);
+
+    return { streak, totalPAWLY };
+
+  } catch (err) {
+    console.error("计算 streak 出错:", err);
     return { streak: 0, totalPAWLY: 0 };
   }
-
-  // 去重日期
-  const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))].sort().reverse();
-  const totalCheckins = uniqueDates.length;
-
-  // 计算 Total Earned（含7天奖励）
-  const base = totalCheckins * 10;
-  const bonus = Math.floor(totalCheckins / 7) * 30;
-  const totalPAWLY = base + bonus;
-
-  // ==================== 计算连续签到 Streak ====================
-  let streak = 1;
-  const todayStr = new Date().toISOString().split('T')[0];
-  let currentDate = new Date(todayStr);
-
-  const hasToday = uniqueDates.includes(todayStr);
-  if (!hasToday) currentDate.setDate(currentDate.getDate() - 1);
-
-  for (let i = 1; i < uniqueDates.length; i++) {
-    const prevDate = new Date(currentDate);
-    prevDate.setDate(prevDate.getDate() - 1);
-    const prevStr = prevDate.toISOString().split('T')[0];
-
-    if (uniqueDates.includes(prevStr)) {
-      streak++;
-      currentDate = prevDate;
-    } else {
-      break;
-    }
-  }
-
-  // 保存到 localStorage
-  localStorage.setItem('streak_' + userId, streak);
-  localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
-
-  // 同步更新数据库
-  await supabaseClient.from('USERS').update({
-    streak: streak,
-    total_earned: totalPAWLY
-  }).eq('id', userId);
-
-  return { streak, totalPAWLY };
 }
 
 async function loginUser() {
