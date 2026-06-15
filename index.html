@@ -660,8 +660,12 @@ async function calculateUserStats(userId) {
           break; // 一旦断掉就停止计算
         }
       }
-    }
-
+    } 
+    
+    console.log("uniqueDates:", uniqueDates);
+    console.log("计算出的 streak:", streak);
+    console.log("totalCheckins:", totalCheckins);
+    
     // 保存到 localStorage
     localStorage.setItem('streak_' + userId, streak);
     localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
