@@ -988,55 +988,26 @@ window.onload = async function() {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')   <!-- 重点：改成 /sw.js -->
+    navigator.serviceWorker.register('/sw.js')
       .then(registration => {
         console.log('✅ Service Worker 注册成功');
       })
       .catch(error => {
-        console.log('❌ Service Worker 注册失败:', error);
+        console.log('Service Worker 注册失败:', error);
       });
   });
 }
 </script>
 
-<!-- ==================== PWA 安装逻辑 + 离线提示 ==================== -->
+<!-- ==================== 离线提示（安全版） ==================== -->
 <script>
-  let deferredPrompt;
-  const installContainer = document.getElementById('installContainer');
-  const installBtn = document.getElementById('installBtn');
-
-  // 监听安装提示事件
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (installContainer) installContainer.style.display = 'block';
-  });
-
-  // 点击安装按钮
-  if (installBtn) {
-    installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`用户选择: ${outcome}`);
-      deferredPrompt = null;
-      if (installContainer) installContainer.style.display = 'none';
-    });
-  }
-
-  // 隐藏安装按钮（如果已经安装）
-  window.addEventListener('appinstalled', () => {
-    if (installContainer) installContainer.style.display = 'none';
-    console.log('PWA 已安装');
-  });
-
-  // 离线/在线状态提示
   function showOfflineBanner(show) {
     let banner = document.getElementById('offlineBanner');
+    
     if (!banner) {
       banner = document.createElement('div');
       banner.id = 'offlineBanner';
-      banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#ff8800;color:white;text-align:center;padding:12px;z-index:99999;';
+      banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#ff8800;color:white;text-align:center;padding:12px;z-index:99999;font-size:14px;';
       banner.innerHTML = '⚠️ 当前处于离线状态 / You are currently offline';
       document.body.appendChild(banner);
     }
@@ -1046,7 +1017,6 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('online', () => showOfflineBanner(false));
   window.addEventListener('offline', () => showOfflineBanner(true));
 
-  // 初始检查
   if (!navigator.onLine) {
     showOfflineBanner(true);
   }
