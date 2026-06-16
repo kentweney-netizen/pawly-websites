@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="google-site-verification" content="VXKXOQ6hdKYFPhB9xR5izWcAhBRtSZcnYyycRIScq0c" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PAWLY PETS</title>
-<!-- ==================== PWA 核心支持 ==================== -->
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#00ff9d">
-<meta name="mobile-web-app-capable" content="yes">
 
-<!-- iOS / Apple 设备优化 -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PAWLY">
-<link rel="apple-touch-icon" href="/OvKdJ1.png">   <!-- 注意这里用你自己的图标 -->
+  <!-- ==================== PWA 核心支持 ==================== -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00ff9d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PAWLY">
+  <link rel="apple-touch-icon" href="/OvKdJ1.png">
+
+  <!-- Supabase（只保留一次） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
     .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
