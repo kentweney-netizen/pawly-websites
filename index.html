@@ -90,6 +90,13 @@
   <!-- tab1 仪表盘（完全保留原样） -->
   <div class="tab" id="tab1">
     <div class="container">
+      <!-- ==================== PWA 安装按钮 ==================== -->
+<div id="installContainer" style="display:none; text-align:center; margin:20px 0;">
+  <button id="installBtn" 
+          style="background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:50px; font-weight:bold; font-size:1.1em; cursor:pointer; box-shadow:0 0 20px rgba(0,255,157,0.5);">
+    📲 安装 PAWLY 到桌面 / Install PAWLY App
+  </button>
+</div>
       <h1>📊 我的仪表盘 / My Dashboard</h1>
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
@@ -923,19 +930,82 @@ window.onload = async function() {
   }
 };
 
-// ==================== PWA Service Worker 注册 ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('Service Worker 注册成功:', registration.scope);
-      })
-      .catch(error => {
-        console.log('Service Worker 注册失败:', error);
-      });
-  });
-}
+<!-- ==================== PWA 完整功能（最强防御版） ==================== -->
+<script>
+  // Service Worker 注册
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          console.log('✅ Service Worker 注册成功');
+        })
+        .catch(error => {
+          console.log('Service Worker 注册失败:', error);
+        });
+    });
+  }
 
+  // 安装按钮逻辑（最强防御）
+  let deferredPrompt;
+
+  function initPWAInstall() {
+    const installContainer = document.getElementById('installContainer');
+    const installBtn = document.getElementById('installBtn');
+
+    if (!installContainer || !installBtn) {
+      console.log('安装按钮元素不存在，跳过安装逻辑');
+      return;
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installContainer.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`用户选择: ${outcome}`);
+      deferredPrompt = null;
+      installContainer.style.display = 'none';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installContainer.style.display = 'none';
+      console.log('PWA 已安装');
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(initPWAInstall, 1000);
+    });
+  } else {
+    setTimeout(initPWAInstall, 1000);
+  }
+
+  // 离线提示
+  function showOfflineBanner(show) {
+    let banner = document.getElementById('offlineBanner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'offlineBanner';
+      banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#ff8800;color:white;text-align:center;padding:12px;z-index:99999;font-size:14px;';
+      banner.innerHTML = '⚠️ 当前处于离线状态 / You are currently offline';
+      document.body.appendChild(banner);
+    }
+    banner.style.display = show ? 'block' : 'none';
+  }
+
+  window.addEventListener('online', () => showOfflineBanner(false));
+  window.addEventListener('offline', () => showOfflineBanner(true));
+
+  if (!navigator.onLine) {
+    showOfflineBanner(true);
+  }
 </script>
+
 </body>
 </html>
