@@ -45,54 +45,6 @@
     .showcase .back-btn { background:transparent; color:#00ff9d; padding:12px 35px; border:2px solid #00ff9d; border-radius:12px; font-size:1em; cursor:pointer; margin-top:30px; }
   </style>
 </head>
-<body><!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PAWLY PETS</title>
-<!-- ==================== PWA 核心支持 ==================== -->
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#00ff9d">
-<meta name="mobile-web-app-capable" content="yes">
-
-<!-- iOS / Apple 设备优化 -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PAWLY">
-<link rel="apple-touch-icon" href="/OvKdJ1.png">   <!-- 注意这里用你自己的图标 -->
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>...</style>
-</head>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
-    .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-    .nav button { background:transparent; color:#00ff9d; border:1px solid #00ff9d; padding:10px 16px; border-radius:20px; cursor:pointer; transition:0.3s; font-size:0.95em; }
-    .nav button.active { background:#00ff9d; color:black; }
-    .tab { display:none; padding:25px; }
-    .tab.active { display:block; }
-    .container { max-width:720px; margin:20px auto; background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:25px; padding:30px; box-shadow:0 0 30px rgba(0,255,150,0.2); }
-    h1 { text-shadow:0 0 20px #00ff9d; margin-bottom:10px; }
-    input, button { padding:15px; margin:12px; width:85%; border-radius:12px; font-size:1.1em; }
-    input { background:#1a0033; color:white; border:1px solid #00ff9d; }
-    button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; }
-    .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
-    .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
-    #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
-    .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
-    .bilingual { display:flex; flex-direction:column; gap:15px; }
-    .ready-to-checkin { background:#00ff9d; color:black; padding:20px; border-radius:15px; font-size:1.3em; font-weight:bold; margin:20px 0; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-    .showcase { display:none; max-width:900px; margin:40px auto; padding:30px; background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:25px; text-align:left; }
-    .showcase h1 { text-shadow:0 0 20px #00ff9d; }
-    .showcase .section { background:rgba(255,255,255,0.05); border-radius:18px; padding:25px; margin:25px 0; }
-    .showcase .feature, .showcase .org-card { background:#120022; padding:18px; border-radius:14px; margin:15px 0; border-left:4px solid #00ff9d; }
-    .showcase button { background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:14px; font-size:1.2em; font-weight:bold; cursor:pointer; margin-top:20px; }
-    .showcase .back-btn { background:transparent; color:#00ff9d; padding:12px 35px; border:2px solid #00ff9d; border-radius:12px; font-size:1em; cursor:pointer; margin-top:30px; }
-  </style>
-</head>
 <body>
   <!-- 导航栏 -->
   <div class="nav">
@@ -984,26 +936,67 @@ window.onload = async function() {
   }
 };
 
-<!-- ==================== PWA Service Worker 注册 ==================== -->
+<!-- ==================== PWA 完整功能（加强防御版） ==================== -->
 <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(registration => {
-        console.log('✅ Service Worker 注册成功');
-      })
-      .catch(error => {
-        console.log('Service Worker 注册失败:', error);
-      });
-  });
-}
-</script>
+  // 1. Service Worker 注册
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          console.log('✅ Service Worker 注册成功');
+        })
+        .catch(error => {
+          console.log('Service Worker 注册失败:', error);
+        });
+    });
+  }
 
-<!-- ==================== 离线提示（安全版） ==================== -->
-<script>
+  // 2. 安装按钮逻辑（加强防御版）
+  let deferredPrompt;
+
+  function initPWAInstall() {
+    const installContainer = document.getElementById('installContainer');
+    const installBtn = document.getElementById('installBtn');
+
+    // 防御性检查：如果元素不存在就直接退出
+    if (!installContainer || !installBtn) {
+      console.log('安装按钮元素不存在，跳过安装逻辑');
+      return;
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installContainer.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`用户选择: ${outcome}`);
+      deferredPrompt = null;
+      installContainer.style.display = 'none';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installContainer.style.display = 'none';
+      console.log('PWA 已安装');
+    });
+  }
+
+  // 确保 DOM 加载完成后才执行（降低冲突概率）
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(initPWAInstall, 800);
+    });
+  } else {
+    setTimeout(initPWAInstall, 800);
+  }
+
+  // 3. 离线提示
   function showOfflineBanner(show) {
     let banner = document.getElementById('offlineBanner');
-    
     if (!banner) {
       banner = document.createElement('div');
       banner.id = 'offlineBanner';
