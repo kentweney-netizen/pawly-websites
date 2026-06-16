@@ -4,9 +4,16 @@
   <meta charset="UTF-8">
   <meta name="google-site-verification" content="VXKXOQ6hdKYFPhB9xR5izWcAhBRtSZcnYyycRIScq0c" />
   <title>PAWLY PETS</title>
-<!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json">
+<!-- ==================== PWA 核心支持 ==================== -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00ff9d">
+<meta name="mobile-web-app-capable" content="yes">
 
+<!-- iOS / Apple 设备优化 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PAWLY">
+<link rel="apple-touch-icon" href="/OvKdJ1.png">   <!-- 注意这里用你自己的图标 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>...</style>
 </head>
@@ -44,8 +51,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PAWLY PETS</title>
-<!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json">
+<!-- ==================== PWA 核心支持 ==================== -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00ff9d">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS / Apple 设备优化 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PAWLY">
+<link rel="apple-touch-icon" href="/OvKdJ1.png">   <!-- 注意这里用你自己的图标 -->
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>...</style>
@@ -129,6 +144,13 @@
   <!-- tab1 仪表盘（完全保留原样） -->
   <div class="tab" id="tab1">
     <div class="container">
+      <!-- ==================== PWA 安装按钮 ==================== -->
+    <div id="installContainer" style="display:none; text-align:center; margin:15px 0;">
+      <button id="installBtn" 
+              style="background:#00ff9d; color:black; padding:14px 40px; border:none; border-radius:50px; font-weight:bold; font-size:1.05em; cursor:pointer; box-shadow:0 0 15px rgba(0,255,157,0.4);">
+        📲 安装 PAWLY 到桌面 / Install PAWLY App
+      </button>
+    </div>
       <h1>📊 我的仪表盘 / My Dashboard</h1>
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
@@ -962,19 +984,73 @@ window.onload = async function() {
   }
 };
 
-// ==================== PWA Service Worker 注册 ====================
+<!-- ==================== PWA Service Worker 注册 ==================== -->
+<script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker.register('/sw.js')   <!-- 重点：改成 /sw.js -->
       .then(registration => {
-        console.log('Service Worker 注册成功:', registration.scope);
+        console.log('✅ Service Worker 注册成功');
       })
       .catch(error => {
-        console.log('Service Worker 注册失败:', error);
+        console.log('❌ Service Worker 注册失败:', error);
       });
   });
 }
-
 </script>
+
+<!-- ==================== PWA 安装逻辑 + 离线提示 ==================== -->
+<script>
+  let deferredPrompt;
+  const installContainer = document.getElementById('installContainer');
+  const installBtn = document.getElementById('installBtn');
+
+  // 监听安装提示事件
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installContainer) installContainer.style.display = 'block';
+  });
+
+  // 点击安装按钮
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`用户选择: ${outcome}`);
+      deferredPrompt = null;
+      if (installContainer) installContainer.style.display = 'none';
+    });
+  }
+
+  // 隐藏安装按钮（如果已经安装）
+  window.addEventListener('appinstalled', () => {
+    if (installContainer) installContainer.style.display = 'none';
+    console.log('PWA 已安装');
+  });
+
+  // 离线/在线状态提示
+  function showOfflineBanner(show) {
+    let banner = document.getElementById('offlineBanner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'offlineBanner';
+      banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#ff8800;color:white;text-align:center;padding:12px;z-index:99999;';
+      banner.innerHTML = '⚠️ 当前处于离线状态 / You are currently offline';
+      document.body.appendChild(banner);
+    }
+    banner.style.display = show ? 'block' : 'none';
+  }
+
+  window.addEventListener('online', () => showOfflineBanner(false));
+  window.addEventListener('offline', () => showOfflineBanner(true));
+
+  // 初始检查
+  if (!navigator.onLine) {
+    showOfflineBanner(true);
+  }
+</script>
+
 </body>
 </html>
