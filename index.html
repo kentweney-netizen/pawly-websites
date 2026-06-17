@@ -838,13 +838,19 @@ function startCountdown(lastSignInTime) {
 
 function startCountdownFromStorage() {
   if (!currentUser) return;
+
   const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
+
   if (lastTime > 0) {
     startCountdown(lastTime);
   } else {
-    document.getElementById('countdownTimer').innerText = "00:00:00";
-    document.getElementById('countdownStatus').innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
+    // 没有记录就显示 00:00:00，而不是尝试启动倒计时
+    const timerEl = document.getElementById('countdownTimer');
+    const statusEl = document.getElementById('countdownStatus');
     const readyArea = document.getElementById('readyCheckinArea');
+
+    if (timerEl) timerEl.innerText = "00:00:00";
+    if (statusEl) statusEl.innerHTML = `<span style="color:#00ff9d;">可以签到了！You May Check-in Now!</span>`;
     if (readyArea) readyArea.style.display = "none";
   }
 }
@@ -965,7 +971,7 @@ window.onload = async function() {
   updateDashboard();
   await requestNotificationPermission();
 
-  // 关键修复：永远读取用户“最后一次签到”的时间，而不是只看今天
+  // ==================== 最终修复版：优先从数据库读取最后一次签到时间 ====================
   const { data: lastCheckin } = await supabaseClient
     .from('checkins')
     .select('created_at')
@@ -975,14 +981,18 @@ window.onload = async function() {
     .maybeSingle();
 
   if (lastCheckin?.created_at) {
-    // 用数据库里最后一次签到的真实时间启动倒计时
-    startPersonalCountdown(new Date(lastCheckin.created_at).getTime());
+    // 使用你实际存在的函数名 startCountdown
+    startCountdown(new Date(lastCheckin.created_at).getTime());
   } else {
     // 完全没有签到记录才显示 00:00:00
     document.getElementById('countdownTimer').innerText = '00:00:00';
+    document.getElementById('countdownStatus').innerHTML = 
+      `<span style="color:#00ff9d;">可以签到了！You May Check-in Now!</span>`;
+    
+    const readyArea = document.getElementById('readyCheckinArea');
+    if (readyArea) readyArea.style.display = "none";
   }
 }
-};
 
 // ==================== PWA Service Worker 注册 ====================
 if ('serviceWorker' in navigator) {
