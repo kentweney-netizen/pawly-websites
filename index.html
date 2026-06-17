@@ -981,10 +981,10 @@ window.onload = async function() {
     .maybeSingle();
 
   if (lastCheckin?.created_at) {
-    // 使用你实际存在的函数名 startCountdown
+    console.log("✅ 成功从数据库读取到最后签到时间:", lastCheckin.created_at);
     startCountdown(new Date(lastCheckin.created_at).getTime());
   } else {
-    // 完全没有签到记录才显示 00:00:00
+   console.log("❌ lastCheckin 为 null 或空，查询失败或没有记录");
     document.getElementById('countdownTimer').innerText = '00:00:00';
     document.getElementById('countdownStatus').innerHTML = 
       `<span style="color:#00ff9d;">可以签到了！You May Check-in Now!</span>`;
