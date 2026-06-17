@@ -5,12 +5,13 @@
   <meta name="google-site-verification" content="VXKXOQ6hdKYFPhB9xR5izWcAhBRtSZcnYyycRIScq0c" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PAWLY PETS</title>
-
-  <!-- PWA Manifest -->
+<!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <style>...</style>
+</head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
     .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
@@ -79,8 +80,6 @@
   </style>
 </head>
 <body>
-
-  
   <!-- 导航栏 -->
   <div class="nav">
     <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
@@ -131,13 +130,6 @@
   <!-- tab1 仪表盘（完全保留原样） -->
   <div class="tab" id="tab1">
     <div class="container">
-      <!-- ==================== PWA 安装按钮 ==================== -->
-<div id="installContainer" style="display:none; text-align:center; margin:20px 0;">
-  <button id="installBtn" 
-          style="background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:50px; font-weight:bold; font-size:1.1em; cursor:pointer; box-shadow:0 0 20px rgba(0,255,157,0.5);">
-    📲 安装 PAWLY 到桌面 / Install PAWLY App
-  </button>
-</div>
       <h1>📊 我的仪表盘 / My Dashboard</h1>
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
@@ -838,19 +830,13 @@ function startCountdown(lastSignInTime) {
 
 function startCountdownFromStorage() {
   if (!currentUser) return;
-
   const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
-
   if (lastTime > 0) {
     startCountdown(lastTime);
   } else {
-    // 没有记录就显示 00:00:00，而不是尝试启动倒计时
-    const timerEl = document.getElementById('countdownTimer');
-    const statusEl = document.getElementById('countdownStatus');
+    document.getElementById('countdownTimer').innerText = "00:00:00";
+    document.getElementById('countdownStatus').innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
     const readyArea = document.getElementById('readyCheckinArea');
-
-    if (timerEl) timerEl.innerText = "00:00:00";
-    if (statusEl) statusEl.innerHTML = `<span style="color:#00ff9d;">可以签到了！You May Check-in Now!</span>`;
     if (readyArea) readyArea.style.display = "none";
   }
 }
@@ -953,48 +939,30 @@ window.onload = async function() {
   showTab(0);
   initEmailReminderButton();
   const { data: { session } } = await supabaseClient.auth.getSession();
- if (session) {
-  currentUser = session.user;
-  document.getElementById('auth-section').style.display = 'none';
-  document.getElementById('logged-in-section').style.display = 'block';
-  document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
-
-  const { data: userData } = await supabaseClient.from('USERS')
-    .select('wallet_address').eq('id', currentUser.id).single();
-  if (userData?.wallet_address) {
-    document.getElementById('bind-wallet').value = userData.wallet_address;
-    document.getElementById('bind-wallet').disabled = true;
-    document.getElementById('walletDisplay').innerText = userData.wallet_address;
+  if (session) {
+    currentUser = session.user;
+    document.getElementById('auth-section').style.display = 'none';
+    document.getElementById('logged-in-section').style.display = 'block';
+    document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
+    const { data: userData } = await supabaseClient.from('USERS').select('wallet_address').eq('id', currentUser.id).single();
+    if (userData?.wallet_address) {
+      document.getElementById('bind-wallet').value = userData.wallet_address;
+      document.getElementById('bind-wallet').disabled = true;
+      document.getElementById('walletDisplay').innerText = userData.wallet_address;
+    }
+    await calculateUserStats(currentUser.id);
+    updateDashboard();
+    await requestNotificationPermission();
+    const today = new Date().toISOString().split('T')[0];
+    const { data: todayCheckin } = await supabaseClient.from('checkins').select('created_at').eq('user_id', currentUser.id).eq('checkin_date', today).maybeSingle();
+    if (todayCheckin?.created_at) {
+      startCountdown(new Date(todayCheckin.created_at).getTime());
+    } else {
+      startCountdownFromStorage();
+    }
   }
-
-  await calculateUserStats(currentUser.id);
-  updateDashboard();
-  await requestNotificationPermission();
-
-  // ==================== 最终修复版：优先从数据库读取最后一次签到时间 ====================
-  const { data: lastCheckin } = await supabaseClient
-    .from('checkins')
-    .select('created_at')
-    .eq('user_id', currentUser.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (lastCheckin?.created_at) {
-    console.log("✅ 成功从数据库读取到最后签到时间:", lastCheckin.created_at);
-    startCountdown(new Date(lastCheckin.created_at).getTime());
-  } else {
-   console.log("❌ lastCheckin 为 null 或空，查询失败或没有记录");
-    document.getElementById('countdownTimer').innerText = '00:00:00';
-    document.getElementById('countdownStatus').innerHTML = 
-      `<span style="color:#00ff9d;">可以签到了！You May Check-in Now!</span>`;
-    
-    const readyArea = document.getElementById('readyCheckinArea');
-    if (readyArea) readyArea.style.display = "none";
-  }
-}
 };
-  
+
 // ==================== PWA Service Worker 注册 ====================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -1007,7 +975,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-  
+
 </script>
 </body>
 </html>
