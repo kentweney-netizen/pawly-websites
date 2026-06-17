@@ -947,28 +947,41 @@ window.onload = async function() {
   showTab(0);
   initEmailReminderButton();
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('logged-in-section').style.display = 'block';
-    document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
-    const { data: userData } = await supabaseClient.from('USERS').select('wallet_address').eq('id', currentUser.id).single();
-    if (userData?.wallet_address) {
-      document.getElementById('bind-wallet').value = userData.wallet_address;
-      document.getElementById('bind-wallet').disabled = true;
-      document.getElementById('walletDisplay').innerText = userData.wallet_address;
-    }
-    await calculateUserStats(currentUser.id);
-    updateDashboard();
-    await requestNotificationPermission();
-    const today = new Date().toISOString().split('T')[0];
-    const { data: todayCheckin } = await supabaseClient.from('checkins').select('created_at').eq('user_id', currentUser.id).eq('checkin_date', today).maybeSingle();
-    if (todayCheckin?.created_at) {
-      startCountdown(new Date(todayCheckin.created_at).getTime());
-    } else {
-      startCountdownFromStorage();
-    }
+ if (session) {
+  currentUser = session.user;
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('logged-in-section').style.display = 'block';
+  document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
+
+  const { data: userData } = await supabaseClient.from('USERS')
+    .select('wallet_address').eq('id', currentUser.id).single();
+  if (userData?.wallet_address) {
+    document.getElementById('bind-wallet').value = userData.wallet_address;
+    document.getElementById('bind-wallet').disabled = true;
+    document.getElementById('walletDisplay').innerText = userData.wallet_address;
   }
+
+  await calculateUserStats(currentUser.id);
+  updateDashboard();
+  await requestNotificationPermission();
+
+  // 关键修复：永远读取用户“最后一次签到”的时间，而不是只看今天
+  const { data: lastCheckin } = await supabaseClient
+    .from('checkins')
+    .select('created_at')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastCheckin?.created_at) {
+    // 用数据库里最后一次签到的真实时间启动倒计时
+    startPersonalCountdown(new Date(lastCheckin.created_at).getTime());
+  } else {
+    // 完全没有签到记录才显示 00:00:00
+    document.getElementById('countdownTimer').innerText = '00:00:00';
+  }
+}
 };
 
 // ==================== PWA Service Worker 注册 ====================
