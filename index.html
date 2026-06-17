@@ -942,55 +942,6 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-
-window.addEventListener('load', () => {
-    let deferredPrompt;
-    const installContainer = document.getElementById('installContainer');
-    const installBtn = document.getElementById('installBtn');
-
-    // 安装按钮逻辑
-    if (installContainer && installBtn) {
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installContainer.style.display = 'block';
-      });
-
-      installBtn.addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`用户选择: ${outcome}`);
-        deferredPrompt = null;
-        installContainer.style.display = 'none';
-      });
-
-      window.addEventListener('appinstalled', () => {
-        installContainer.style.display = 'none';
-        console.log('PWA 已安装');
-      });
-    }
-
-    // 离线提示
-    function showOfflineBanner(show) {
-      let banner = document.getElementById('offlineBanner');
-      if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'offlineBanner';
-        banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#ff8800;color:white;text-align:center;padding:12px;z-index:99999;font-size:14px;';
-        banner.innerHTML = '⚠️ 当前处于离线状态 / You are currently offline';
-        document.body.appendChild(banner);
-      }
-      banner.style.display = show ? 'block' : 'none';
-    }
-
-    window.addEventListener('online', () => showOfflineBanner(false));
-    window.addEventListener('offline', () => showOfflineBanner(true));
-
-    if (!navigator.onLine) {
-      showOfflineBanner(true);
-    }
-  });
   
 </script>
 </body>
