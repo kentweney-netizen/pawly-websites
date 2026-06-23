@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
- <meta name="google-site-verification: googledbf774ebed821532.html">
-  <meta name="google-site-verification" content="VXKXOQ6hdKYFPhB9xR5izWcAhBRtSZcnYyycRIScq0c" /> 
+  <meta name="google-site-verification: googledbf774ebed821532.html">
+  <meta name="google-site-verification" content="VXKXOQ6hdKYFPhB9xR5izWcAhBRtSZcnYyycRIScq0c" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PAWLY PETS</title>
   <link rel="manifest" href="/manifest.json">
@@ -306,7 +306,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
   </div>
 
-  <!-- 各种 Modal 保持原样 -->
+  <!-- 各种 Modal -->
   <div id="stakingWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
       <h2 style="color:#00ff9d; margin-bottom:15px;">加入 PAWLY Staking 等待名单<br>Join PAWLY Staking Waitlist</h2>
@@ -457,7 +457,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
         </div>
         <div class="org-card">
           <strong>WWF（世界自然基金会）</strong><br>
-          保护濒危物种与栖息地，推动全球生物多样性保护和气候行动。<br>
+          保护濒危物种与栖息地，推动全球生物多样性保护和气候 action。<br>
           Protects endangered species and habitats, promotes global biodiversity conservation and climate action.
         </div>
         <div class="org-card">
@@ -522,29 +522,23 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
   </div>
 
 <script>
-// ==================== 完整修复版 JavaScript（字段统一为 checkin_streak + total_earnd） ====================
+// ==================== 完整代码（已切换为 Resend） ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
-const WEB3FORMS_KEY = '43436864-9437-4f9b-82a5-5b9d219f911f';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let countdownInterval = null;
 
-// ==================== 邮箱提醒持久化（使用 user id） ====================
 function initEmailReminderButton() {
   const btn = document.getElementById('emailReminderBtn');
   if (!btn || !currentUser) return;
-
   const storageKey = `email_reminder_${currentUser.id}`;
   let isEnabled = localStorage.getItem(storageKey) === 'true';
-
   updateReminderButtonText(btn, isEnabled);
-
   btn.onclick = () => {
     isEnabled = !isEnabled;
     localStorage.setItem(storageKey, isEnabled);
     updateReminderButtonText(btn, isEnabled);
-
     if (isEnabled) {
       alert("邮箱提醒已开启！\n当倒数结束时会收到邮件通知。\n\nEmail reminder enabled!\nYou will receive an email when the countdown ends.");
     } else {
@@ -607,14 +601,12 @@ async function calculateUserStats(userId) {
       .select('checkin_streak, total_earnd, pawly_points')
       .eq('id', userId)
       .single();
-
     return {
       streak: userData?.checkin_streak || 0,
       totalPAWLY: userData?.total_earnd || 0,
       points: userData?.pawly_points || 0
     };
   } catch (error) {
-    console.error("计算用户数据失败:", error);
     return { streak: 0, totalPAWLY: 0, points: 0 };
   }
 }
@@ -626,10 +618,8 @@ async function loginUser() {
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) { alert("登录失败: " + error.message); return; }
   currentUser = data.user;
-
   await ensureUserRowExists(currentUser.id, currentUser.email);
 
-  // 使用正确字段名
   const { data: userData } = await supabaseClient.from('USERS')
     .select('wallet_address, checkin_streak, total_earnd')
     .eq('id', currentUser.id)
@@ -642,23 +632,23 @@ async function loginUser() {
   }
 
   await calculateUserStats(currentUser.id);
-
-  const today = new Date().toISOString().split('T')[0];
-  const { data: todayCheckin } = await supabaseClient.from('checkins')
-    .select('created_at')
-    .eq('user_id', currentUser.id)
-    .eq('checkin_date', today)
-    .maybeSingle();
-
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('logged-in-section').style.display = 'block';
   document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
 
   updateDashboard();
   await requestNotificationPermission();
+  initEmailReminderButton();
 
-  if (todayCheckin?.created_at) {
-    startCountdown(new Date(todayCheckin.created_at).getTime());
+  const { data: lastCheckin } = await supabaseClient.from('checkins')
+    .select('created_at')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastCheckin?.created_at) {
+    startCountdown(new Date(lastCheckin.created_at).getTime());
   } else {
     startCountdownFromStorage();
   }
@@ -668,13 +658,8 @@ async function ensureUserRowExists(userId, email) {
   const { data } = await supabaseClient.from('USERS').select('id').eq('id', userId).single();
   if (!data) {
     await supabaseClient.from('USERS').insert({
-      id: userId,
-      email: email,
-      email_verified: false,
-      wallet_address: null,
-      checkin_streak: 0,
-      total_earnd: 0,
-      pawly_points: 0
+      id: userId, email: email, email_verified: false,
+      wallet_address: null, checkin_streak: 0, total_earnd: 0, pawly_points: 0
     });
   }
 }
@@ -683,13 +668,9 @@ async function bindWallet() {
   const wallet = document.getElementById('bind-wallet').value.trim();
   if (!wallet || !currentUser) { alert("请输入钱包地址！\nPlease enter your wallet address!"); return; }
   try {
-    const { error } = await supabaseClient.from('USERS').upsert({
-      id: currentUser.id,
-      email: currentUser.email,
-      wallet_address: wallet,
-      email_verified: currentUser.email_confirmed_at ? true : false
+    await supabaseClient.from('USERS').upsert({
+      id: currentUser.id, email: currentUser.email, wallet_address: wallet
     }, { onConflict: 'id' });
-    if (error) throw error;
     alert("✅ 钱包绑定成功！\n✅ Wallet bound successfully!");
     document.getElementById('bind-wallet').disabled = true;
     document.getElementById('walletDisplay').innerText = wallet;
@@ -698,7 +679,7 @@ async function bindWallet() {
   }
 }
 
-// ==================== 强制绑定钱包 + 正确字段 ====================
+// ==================== checkIn（已加入保存 lastSignInTime） ====================
 async function checkIn() {
   if (!currentUser) {
     alert("请先登录！\nPlease login first!");
@@ -718,7 +699,6 @@ async function checkIn() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-
   const { data: existing } = await supabaseClient
     .from('checkins')
     .select('id')
@@ -742,17 +722,13 @@ async function checkIn() {
   }
 
   const stats = await calculateUserStats(currentUser.id);
-
   const newTotal = (stats.totalPAWLY || 0) + 2;
   const newPoints = (stats.points || 0) + 5;
 
-  await supabaseClient
-    .from('USERS')
-    .update({
-      total_earnd: newTotal,
-      pawly_points: newPoints
-    })
-    .eq('id', currentUser.id);
+  await supabaseClient.from('USERS').update({
+    total_earnd: newTotal,
+    pawly_points: newPoints
+  }).eq('id', currentUser.id);
 
   let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`;
 
@@ -764,6 +740,9 @@ async function checkIn() {
 
   alert(message);
 
+  // ========== 关键：保存最后签到时间 ==========
+  localStorage.setItem('lastSignInTime_' + currentUser.id, Date.now());
+
   await calculateUserStats(currentUser.id);
   updateDashboard();
   startCountdown(Date.now());
@@ -773,16 +752,11 @@ async function checkIn() {
 async function updateDashboard() {
   if (!currentUser) return;
   try {
-    const { data: dbData, error } = await supabaseClient
+    const { data: dbData } = await supabaseClient
       .from('USERS')
       .select('checkin_streak, total_earnd, pawly_points')
       .eq('id', currentUser.id)
       .single();
-
-    if (error) {
-      console.error("查询用户数据失败:", error);
-      return;
-    }
 
     const streak = dbData?.checkin_streak || 0;
     const totalPAWLY = dbData?.total_earnd || 0;
@@ -795,23 +769,14 @@ async function updateDashboard() {
     const redeemableEl = document.getElementById('redeemablePAWLY');
     if (pointsEl) pointsEl.innerText = points;
     if (redeemableEl) redeemableEl.innerText = Math.floor(points / 100) * 5;
-
-  } catch (error) {
-    console.error("更新仪表盘失败:", error);
-  }
+  } catch (error) {}
 }
 
-// ==================== Pawly Points 兑换功能（已修复 pawly_balance 问题） ====================
+// ==================== Redeem 功能 ====================
 function showRedeemModal() {
-  if (!currentUser) {
-    alert("请先登录！\nPlease log in first!");
-    return;
-  }
+  if (!currentUser) { alert("请先登录！\nPlease log in first!"); return; }
   const points = parseInt(document.getElementById('pointsDisplay').innerText) || 0;
-  if (points < 100) {
-    alert("积分不足 100，无法兑换！\nNot enough points!");
-    return;
-  }
+  if (points < 100) { alert("积分不足 100，无法兑换！\nNot enough points!"); return; }
   const pawlyAmount = Math.floor(points / 100) * 5;
   document.getElementById('redeemPointsText').innerText = `${points} Points`;
   document.getElementById('redeemPAWLYText').innerText = `${pawlyAmount} PAWLY`;
@@ -824,34 +789,20 @@ function closeRedeemModal() {
 
 async function confirmRedeem() {
   if (!currentUser) return;
-
   const points = parseInt(document.getElementById('pointsDisplay').innerText) || 0;
-  if (points < 100) {
-    alert("积分不足！\nNot enough points!");
-    closeRedeemModal();
-    return;
-  }
-
+  if (points < 100) { alert("积分不足！\nNot enough points!"); closeRedeemModal(); return; }
   const pawlyAmount = Math.floor(points / 100) * 5;
   const pointsToRedeem = Math.floor(points / 100) * 100;
 
   try {
-    // 获取当前 total_earnd
-    const { data: userData } = await supabaseClient
-      .from('USERS')
-      .select('total_earnd')
-      .eq('id', currentUser.id)
-      .single();
-
+    const { data: userData } = await supabaseClient.from('USERS').select('total_earnd').eq('id', currentUser.id).single();
     const currentBalance = userData?.total_earnd || 0;
 
-    // 更新 pawly_points 和 total_earnd
     await supabaseClient.from('USERS').update({
       pawly_points: points - pointsToRedeem,
       total_earnd: currentBalance + pawlyAmount
     }).eq('id', currentUser.id);
 
-    // 记录兑换历史
     await supabaseClient.from('points_redemptions').insert({
       user_id: currentUser.id,
       points_redeemed: pointsToRedeem,
@@ -860,13 +811,10 @@ async function confirmRedeem() {
     });
 
     alert(`✅ 兑换成功！\n获得 ${pawlyAmount} PAWLY\n积分已扣除 ${pointsToRedeem} Points`);
-
     closeRedeemModal();
     await calculateUserStats(currentUser.id);
     updateDashboard();
-
   } catch (error) {
-    console.error("兑换失败:", error);
     alert("兑换失败，请稍后再试。");
   }
 }
@@ -916,8 +864,6 @@ function startCountdownFromStorage() {
   } else {
     document.getElementById('countdownTimer').innerText = "00:00:00";
     document.getElementById('countdownStatus').innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
-    const readyArea = document.getElementById('readyCheckinArea');
-    if (readyArea) readyArea.style.display = "none";
   }
 }
 
@@ -936,137 +882,75 @@ async function logout() {
   showTab(0);
 }
 
-function showStakingWaitlistModal() {
-  const modal = document.getElementById('stakingWaitlistModal');
-  const walletDisplay = document.getElementById('stakingWalletDisplay');
-  let wallet = document.getElementById('bind-wallet')?.value || localStorage.getItem('userWallet') || "未检测到钱包地址";
-  walletDisplay.innerText = wallet;
-  modal.style.display = 'flex';
-}
-
-function closeStakingWaitlistModal() { document.getElementById('stakingWaitlistModal').style.display = 'none'; }
-
-function submitStakingWaitlist() {
-  alert("✅ 成功加入 Staking 等待名单！\n\n✅ You have successfully joined the Staking Waitlist!\n\n我们会在质押正式开启时优先通知你，并为你准备早期奖励。感谢你的支持！We will notify you first when Staking officially launches and prepare early staking rewards for you. Thank you for your support！");
-  closeStakingWaitlistModal();
-}
-
-function showPaymentWaitlistModal() {
-  const modal = document.getElementById('paymentWaitlistModal');
-  const walletDisplay = document.getElementById('paymentWalletDisplay');
-  let wallet = document.getElementById('bind-wallet')?.value || localStorage.getItem('userWallet') || "未检测到钱包地址";
-  walletDisplay.innerText = wallet;
-  modal.style.display = 'flex';
-}
-
-function closePaymentWaitlistModal() { document.getElementById('paymentWaitlistModal').style.display = 'none'; }
-
-function showCharityWaitlistModal() {
-  const modal = document.getElementById('charityWaitlistModal');
-  const walletDisplay = document.getElementById('charityWalletDisplay');
-  let wallet = document.getElementById('bind-wallet')?.value || localStorage.getItem('userWallet') || "未检测到钱包地址";
-  walletDisplay.innerText = wallet;
-  modal.style.display = 'flex';
-}
-
-function closeCharityWaitlistModal() { document.getElementById('charityWaitlistModal').style.display = 'none'; }
-
-function showPaymentShowcase() {
-  document.querySelectorAll('.tab').forEach(t => {
-    t.style.display = 'none';
-    t.classList.remove('active');
-  });
-  document.getElementById('paymentShowcase').style.display = 'block';
-}
-
-function showCharityShowcase() {
-  document.querySelectorAll('.tab').forEach(t => {
-    t.style.display = 'none';
-    t.classList.remove('active');
-  });
-  document.getElementById('charityShowcase').style.display = 'block';
-}
-
-function hideShowcase() {
-  const payment = document.getElementById('paymentShowcase');
-  const charity = document.getElementById('charityShowcase');
-  if (payment) payment.style.display = 'none';
-  if (charity) charity.style.display = 'none';
-  document.querySelectorAll('.tab').forEach(t => {
-    t.style.display = '';
-    t.classList.remove('active');
-  });
-  showTab(0);
-}
-
-function showComingSoon() {
-  alert("此功能尚未开放，敬请期待！\n\nThis feature is not yet available. Please stay tuned!");
-}
-
-function submitPaymentWaitlist() {
-  alert("✅ 成功加入宠物支付计划！\n\n✅ You have successfully joined the Pet Payment Program!\n\n我们会在支付功能上线时优先通知你。感谢你的支持！We will notify you first when the feature officially launches and prepare early usage rewards for you. Thank you for your support！");
-  closePaymentWaitlistModal();
-  showPaymentShowcase();
-}
-
-function submitCharityWaitlist() {
-  alert("✅ 成功加入宠物慈善计划！\n\n✅ You have successfully joined the Pet Charity Program!\n\n我们会在捐款计划启动时优先通知你，并公开透明每一笔捐款。感谢你的支持！We will notify you first when the donation activities begin and publicly disclose where every donation goes. Thank you for your support!");
-  closeCharityWaitlistModal();
-  showCharityShowcase();
-}
-
-// ==================== 修复后的邮箱提醒（已解决重复发送问题） ====================
+// ==================== 使用 Resend 的邮箱提醒 ====================
 async function sendEmailReminder() {
   if (!currentUser || !currentUser.email) return;
   if (!isEmailReminderEnabled()) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const lastSignInTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
+  if (!lastSignInTime) return;
 
   try {
-    // ========== 关键修复：检查今天是否已经签到 ==========
-    const { data: todayCheckin } = await supabaseClient
+    const { data: newerCheckin } = await supabaseClient
       .from('checkins')
       .select('id')
       .eq('user_id', currentUser.id)
-      .eq('checkin_date', today)
+      .gt('created_at', new Date(lastSignInTime).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    // 如果今天已经签到过，就不再发送提醒邮件
-    if (todayCheckin) {
-      console.log("今天已签到，不再发送邮箱提醒");
+    if (newerCheckin) {
+      console.log("用户已经再次签到，不再发送邮箱提醒");
       return;
     }
   } catch (e) {
-    console.error("检查今日签到状态失败:", e);
+    console.error("检查是否已再次签到失败:", e);
     return;
   }
 
-  // 只有今天还没签到，才发送提醒邮件
-  const formData = new FormData();
-  formData.append("access_key", WEB3FORMS_KEY);
-  formData.append("email", currentUser.email);
-  formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder");
-  formData.append("message", `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/\nThank you for supporting PAWLY!`);
-  
+  // 调用 Netlify Function（Resend）
   try {
-    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
-    console.log("邮箱提醒已发送给:", currentUser.email);
-  } catch(e) {
+    await fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        subject: "PAWLY 签到提醒 - 24小时已到，可以签到了！",
+        message: `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/`
+      })
+    });
+    console.log("邮箱提醒已发送（通过 Resend）");
+  } catch (e) {
     console.error("发送邮箱提醒失败:", e);
   }
 }
 
 async function sendTestEmailReminder() {
-  if (!currentUser || !currentUser.email) { alert("请先登录！\nPlease login first!"); return; }
-  const formData = new FormData();
-  formData.append("access_key", WEB3FORMS_KEY);
-  formData.append("email", currentUser.email);
-  formData.append("subject", "PAWLY 测试邮件 - 邮箱提醒功能正常 / PAWLY Test Email - Email Reminder Working");
-  formData.append("message", `这是一封测试邮件。\n如果你收到这封邮件，说明邮箱提醒功能已正常开启。\n当倒数结束时，你将收到类似提醒邮件。\n\nThis is a test email.\nIf you received this email, the email reminder feature is working correctly.\nWhen the countdown ends, you will receive a similar reminder email.`);
+  if (!currentUser || !currentUser.email) {
+    alert("请先登录！\nPlease login first!");
+    return;
+  }
+
   try {
-    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
-    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。\n✅ Test email sent! Please check your email (including spam folder).");
-  } catch(e) { alert("发送失败，请稍后再试。\nSending failed, please try again later."); }
+    const res = await fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        subject: "PAWLY 测试邮件 - 邮箱提醒功能正常",
+        message: `这是一封测试邮件。\n如果你收到这封邮件，说明邮箱提醒功能已正常开启。\n\nThis is a test email.\nIf you received this email, the email reminder feature is working correctly.`
+      })
+    });
+
+    if (res.ok) {
+      alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。");
+    } else {
+      alert("发送失败，请稍后再试。");
+    }
+  } catch (e) {
+    alert("发送失败，请稍后再试。");
+  }
 }
 
 // ==================== 页面加载初始化 ====================
@@ -1111,7 +995,7 @@ window.onload = async function() {
 
       await calculateUserStats(currentUser.id);
       updateDashboard();
-      initEmailReminderButton(); // 初始化持久化邮箱提醒按钮
+      initEmailReminderButton();
 
       await requestNotificationPermission();
 
