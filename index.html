@@ -730,25 +730,30 @@ async function checkIn() {
     pawly_points: newPoints
   }).eq('id', currentUser.id);
 
+  // ========== 关键：新签到时清理旧提醒标记 ==========
+  const oldLastSignInTime = localStorage.getItem('lastSignInTime_' + currentUser.id);
+  if (oldLastSignInTime) {
+    localStorage.removeItem(`reminder_sent_for_${oldLastSignInTime}`);
+  }
+
+  localStorage.setItem('lastSignInTime_' + currentUser.id, Date.now());
+
   let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`;
 
   if ((stats.streak + 1) % 7 === 0) {
     const bonusPoints = newPoints + 10;
     await supabaseClient.from('USERS').update({ pawly_points: bonusPoints }).eq('id', currentUser.id);
-    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak + 1} consecutive days!`;
+    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY\n\n🎉 Congratulations!`;
   }
 
   alert(message);
-
-  // ========== 关键：保存最后签到时间 ==========
-  localStorage.setItem('lastSignInTime_' + currentUser.id, Date.now());
 
   await calculateUserStats(currentUser.id);
   updateDashboard();
   startCountdown(Date.now());
   showTab(1);
 }
-
+  
 async function updateDashboard() {
   if (!currentUser) return;
   try {
@@ -1108,7 +1113,7 @@ function isEmailReminderEnabled() {
   return localStorage.getItem(storageKey) === 'true';
 }
 
-// ==================== 最终加强版：严格按签到时间点，只发一次 ====================
+// ==================== 最强最终版（已针对旧用户加强） ====================
 async function sendEmailReminderOnce() {
   if (!currentUser || !currentUser.email) return;
   if (!isEmailReminderEnabled()) return;
@@ -1116,16 +1121,29 @@ async function sendEmailReminderOnce() {
   const lastSignInTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
   if (!lastSignInTime) return;
 
-  // 用「精确签到时间戳」做唯一 key，防止同一个签到周期重复发送
-  const reminderKey = `reminder_sent_for_${lastSignInTime}`;
-
-  // 第1层防护：这个签到周期已经发过提醒 → 直接返回
-  if (localStorage.getItem(reminderKey) === 'sent') {
-    console.log("这个签到周期已发送过提醒，跳过");
+  // 1. 如果签到时间超过 72 小时，直接放弃（防止旧数据一直触发）
+  const hoursSinceSignIn = (Date.now() - lastSignInTime) / (1000 * 60 * 60);
+  if (hoursSinceSignIn > 72) {
+    console.log("签到时间太旧，跳过提醒");
     return;
   }
 
-  // 第2层防护：检查今天是否已经签到（双重保险）
+  const reminderKey = `reminder_sent_for_${lastSignInTime}`;
+
+  // 2. 这个签到周期已经发过
+  if (localStorage.getItem(reminderKey) === 'sent') {
+    return;
+  }
+
+  // 3. 全局 22 小时节流（最强防护）
+  const globalKey = `global_reminder_cooldown_${currentUser.id}`;
+  const lastGlobal = parseInt(localStorage.getItem(globalKey) || 0);
+  if (lastGlobal && (Date.now() - lastGlobal) < 22 * 60 * 60 * 1000) {
+    console.log("全局冷却中，跳过");
+    return;
+  }
+
+  // 4. 检查今天是否已签到
   const today = new Date().toISOString().split('T')[0];
   try {
     const { data: todayCheckin } = await supabaseClient
@@ -1136,38 +1154,32 @@ async function sendEmailReminderOnce() {
       .maybeSingle();
 
     if (todayCheckin) {
-      console.log("今天已签到，不再发送提醒");
-      localStorage.setItem(reminderKey, 'sent'); // 标记已处理
+      localStorage.setItem(reminderKey, 'sent');
       return;
     }
   } catch (e) {
-    console.error("检查签到状态失败:", e);
     return;
   }
 
-  // 第3层防护：真正发送邮件（只发送一次）
+  // 真正发送
   try {
-    const response = await fetch('/.netlify/functions/send-email', {
+    const res = await fetch('/.netlify/functions/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: currentUser.email,
         subject: "PAWLY 签到提醒 - 24小时已到，可以签到了！",
-        message: `你好！\n\n距离你上次签到已经过去 24 小时了，记得来签到领取今天的 PAWLY 奖励哦～\n\n24 hours have passed since your last check-in. Don't forget to check in again today.\n\n立即去签到 / Check-in Now: https://pawlypets.netlify.app/\n\n感谢支持 PAWLY 社区！`
+        message: `你好！\n\n距离你上次签到已经过去 24 小时了，记得来签到领取今天的 PAWLY 奖励哦～\n\n立即去签到: https://pawlypets.netlify.app/`
       })
     });
 
-    if (response.ok) {
-      localStorage.setItem(reminderKey, 'sent'); // 标记已发送
-      console.log("✅ 倒数结束提醒已发送给:", currentUser.email);
-    } else {
-      console.error("发送提醒失败，状态码:", response.status);
+    if (res.ok) {
+      localStorage.setItem(reminderKey, 'sent');
+      localStorage.setItem(globalKey, Date.now().toString());
+      console.log("✅ 已发送提醒给:", currentUser.email);
     }
-  } catch (e) {
-    console.error("发送邮箱提醒失败:", e);
-  }
+  } catch (e) {}
 }
-  
 async function sendTestEmailReminder() {
   if (!currentUser || !currentUser.email) {
     alert("请先登录！\nPlease login first!");
