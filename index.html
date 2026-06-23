@@ -1013,17 +1013,45 @@ function submitCharityWaitlist() {
   showCharityShowcase();
 }
 
+// ==================== 修复后的邮箱提醒（已解决重复发送问题） ====================
 async function sendEmailReminder() {
   if (!currentUser || !currentUser.email) return;
-  const storageKey = `email_reminder_${currentUser.id}`;
-  if (localStorage.getItem(storageKey) !== 'true') return;
+  if (!isEmailReminderEnabled()) return;
 
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    // ========== 关键修复：检查今天是否已经签到 ==========
+    const { data: todayCheckin } = await supabaseClient
+      .from('checkins')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('checkin_date', today)
+      .maybeSingle();
+
+    // 如果今天已经签到过，就不再发送提醒邮件
+    if (todayCheckin) {
+      console.log("今天已签到，不再发送邮箱提醒");
+      return;
+    }
+  } catch (e) {
+    console.error("检查今日签到状态失败:", e);
+    return;
+  }
+
+  // 只有今天还没签到，才发送提醒邮件
   const formData = new FormData();
   formData.append("access_key", WEB3FORMS_KEY);
   formData.append("email", currentUser.email);
   formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder");
   formData.append("message", `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/\nThank you for supporting PAWLY!`);
-  try { await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData }); } catch(e) {}
+  
+  try {
+    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
+    console.log("邮箱提醒已发送给:", currentUser.email);
+  } catch(e) {
+    console.error("发送邮箱提醒失败:", e);
+  }
 }
 
 async function sendTestEmailReminder() {
