@@ -844,7 +844,7 @@ function startCountdown(lastSignInTime) {
       statusEl.innerHTML = `<span style="color:#00ff9d; font-weight:bold;">✅ 可以签到了! You May Check-in Now!</span>`;
       if (readyArea) readyArea.style.display = "block";
 
-      // 只在倒数结束的那一刻调用一次
+      // 只调用一次
       sendEmailReminderOnce();
     } else {
       const hours = Math.floor(remaining / (1000 * 60 * 60));
@@ -944,6 +944,116 @@ function hideShowcase() {
   showTab(0);
 }
 
+// ==================== Coming Soon 提示 ====================
+function showComingSoon() {
+  alert(
+    "此功能尚未开放，敬请期待！\n\n" +
+    "This feature is not yet available. Please stay tuned!"
+  );
+}
+
+// ==================== Payment Waitlist Modal ====================
+function showPaymentWaitlistModal() {
+  const modal = document.getElementById('paymentWaitlistModal');
+  const walletDisplay = document.getElementById('paymentWalletDisplay');
+  let wallet = document.getElementById('bind-wallet')?.value || "未检测到钱包地址";
+  if (walletDisplay) walletDisplay.innerText = wallet;
+  if (modal) modal.style.display = 'flex';
+}
+
+function closePaymentWaitlistModal() {
+  const modal = document.getElementById('paymentWaitlistModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ==================== Charity Waitlist Modal ====================
+function showCharityWaitlistModal() {
+  const modal = document.getElementById('charityWaitlistModal');
+  const walletDisplay = document.getElementById('charityWalletDisplay');
+  let wallet = document.getElementById('bind-wallet')?.value || "未检测到钱包地址";
+  if (walletDisplay) walletDisplay.innerText = wallet;
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeCharityWaitlistModal() {
+  const modal = document.getElementById('charityWaitlistModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ==================== 展示页面控制 ====================
+function showPaymentShowcase() {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.style.display = 'none';
+    t.classList.remove('active');
+  });
+  const showcase = document.getElementById('paymentShowcase');
+  if (showcase) showcase.style.display = 'block';
+}
+
+function showCharityShowcase() {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.style.display = 'none';
+    t.classList.remove('active');
+  });
+  const showcase = document.getElementById('charityShowcase');
+  if (showcase) showcase.style.display = 'block';
+}
+
+// ==================== 提交等待名单 + 双语提示 + 跳转 ====================
+function submitPaymentWaitlist() {
+  alert(
+    "✅ 成功加入宠物支付计划！\n\n" +
+    "我们会在支付功能上线时优先通知你，并为你准备早期使用奖励。\n\n" +
+    "Thank you for your support! We will notify you first when the Pet Payment feature officially launches."
+  );
+  closePaymentWaitlistModal();
+  showPaymentShowcase();
+}
+
+function submitCharityWaitlist() {
+  alert(
+    "✅ 成功加入宠物慈善计划！\n\n" +
+    "我们会在捐款计划启动时优先通知你，并公开透明每一笔捐款。\n\n" +
+    "Thank you for your support! We will notify you first when donation activities begin and publicly disclose where every donation goes."
+  );
+  closeCharityWaitlistModal();
+  showCharityShowcase();
+}
+
+// ==================== 邮箱提醒开关 ====================
+function toggleEmailReminder() {
+  if (!currentUser) {
+    alert("请先登录！\nPlease login first!");
+    return;
+  }
+  const storageKey = `email_reminder_${currentUser.id}`;
+  let isEnabled = localStorage.getItem(storageKey) === 'true';
+  isEnabled = !isEnabled;
+  localStorage.setItem(storageKey, isEnabled);
+
+  const btn = document.getElementById('emailReminderBtn');
+  if (btn) {
+    if (isEnabled) {
+      btn.textContent = "关闭邮箱提醒 / Disable Email Reminder";
+      btn.style.background = "#ff6b6b";
+      btn.style.color = "white";
+      alert("邮箱提醒已开启！\n当倒数结束时会收到邮件通知。");
+    } else {
+      btn.textContent = "开启邮箱提醒 / Enable Email Reminder";
+      btn.style.background = "#00aaff";
+      btn.style.color = "white";
+      alert("邮箱提醒已关闭。");
+    }
+  }
+}
+
+// ==================== 邮箱提醒是否开启（重要！之前遗漏了） ====================
+function isEmailReminderEnabled() {
+  if (!currentUser) return false;
+  const storageKey = `email_reminder_${currentUser.id}`;
+  return localStorage.getItem(storageKey) === 'true';
+}
+
 // --- 提交等待名单 + 双语提示 + 跳转 ---
 function submitPaymentWaitlist() {
   alert(
@@ -998,7 +1108,7 @@ function isEmailReminderEnabled() {
   return localStorage.getItem(storageKey) === 'true';
 }
 
-// ==================== 严格版：只在倒数结束时发一次 ====================
+// ==================== 最终加强版：严格按签到时间点，只发一次 ====================
 async function sendEmailReminderOnce() {
   if (!currentUser || !currentUser.email) return;
   if (!isEmailReminderEnabled()) return;
@@ -1006,16 +1116,16 @@ async function sendEmailReminderOnce() {
   const lastSignInTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
   if (!lastSignInTime) return;
 
-  // 用「最后签到时间」做唯一标识，防止重复发送
+  // 用「精确签到时间戳」做唯一 key，防止同一个签到周期重复发送
   const reminderKey = `reminder_sent_for_${lastSignInTime}`;
 
-  // 如果这个签到周期已经发过提醒，就不再发
+  // 第1层防护：这个签到周期已经发过提醒 → 直接返回
   if (localStorage.getItem(reminderKey) === 'sent') {
-    console.log("这个签到周期已经发送过提醒，跳过");
+    console.log("这个签到周期已发送过提醒，跳过");
     return;
   }
 
-  // 检查今天是否已经签到（双重保险）
+  // 第2层防护：检查今天是否已经签到（双重保险）
   const today = new Date().toISOString().split('T')[0];
   try {
     const { data: todayCheckin } = await supabaseClient
@@ -1026,18 +1136,18 @@ async function sendEmailReminderOnce() {
       .maybeSingle();
 
     if (todayCheckin) {
-      console.log("今天已签到，不再发送");
-      localStorage.setItem(reminderKey, 'sent');
+      console.log("今天已签到，不再发送提醒");
+      localStorage.setItem(reminderKey, 'sent'); // 标记已处理
       return;
     }
   } catch (e) {
-    console.error("检查签到失败:", e);
+    console.error("检查签到状态失败:", e);
     return;
   }
 
-  // 真正发送（只发一次）
+  // 第3层防护：真正发送邮件（只发送一次）
   try {
-    await fetch('/.netlify/functions/send-email', {
+    const response = await fetch('/.netlify/functions/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1047,14 +1157,17 @@ async function sendEmailReminderOnce() {
       })
     });
 
-    localStorage.setItem(reminderKey, 'sent'); // 标记已发送
-    console.log("✅ 倒数结束提醒已发送给:", currentUser.email);
-
+    if (response.ok) {
+      localStorage.setItem(reminderKey, 'sent'); // 标记已发送
+      console.log("✅ 倒数结束提醒已发送给:", currentUser.email);
+    } else {
+      console.error("发送提醒失败，状态码:", response.status);
+    }
   } catch (e) {
-    console.error("发送失败:", e);
+    console.error("发送邮箱提醒失败:", e);
   }
 }
-
+  
 async function sendTestEmailReminder() {
   if (!currentUser || !currentUser.email) {
     alert("请先登录！\nPlease login first!");
