@@ -631,15 +631,42 @@ async function sendTestEmailReminder() {
   } catch(e) { alert("发送失败，请稍后再试。\nSending failed, please try again later."); }
 }
 
+// ==================== 邮箱提醒按钮（持久化版本） ====================
 function initEmailReminderButton() {
   const btn = document.getElementById('emailReminderBtn');
-  if (!btn) return;
-  if (isEmailReminderEnabled()) {
-    btn.innerText = '关闭邮箱提醒 / Disable Email Reminder';
-    btn.style.background = '#ff4d4d';
+  if (!btn || !currentUser) return;
+
+  // 使用用户 ID 作为 key，实现不同用户独立存储
+  const storageKey = `email_reminder_${currentUser.id}`;
+  let isEnabled = localStorage.getItem(storageKey) === 'true';
+
+  // 初始化按钮文字
+  updateReminderButtonText(btn, isEnabled);
+
+  // 点击事件
+  btn.onclick = () => {
+    isEnabled = !isEnabled; // 切换状态
+    localStorage.setItem(storageKey, isEnabled);
+    updateReminderButtonText(btn, isEnabled);
+
+    if (isEnabled) {
+      alert("邮箱提醒已开启！\n当倒数结束时会收到邮件通知。\n\nEmail reminder enabled!\nYou will receive an email when the countdown ends.");
+    } else {
+      alert("邮箱提醒已关闭。\n\nEmail reminder disabled.");
+    }
+  };
+}
+
+// 辅助函数：更新按钮文字
+function updateReminderButtonText(btn, isEnabled) {
+  if (isEnabled) {
+    btn.textContent = "关闭邮箱提醒 / Disable Email Reminder";
+    btn.style.background = "#ff6b6b";
+    btn.style.color = "white";
   } else {
-    btn.innerText = '开启邮箱提醒 / Enable Email Reminder';
-    btn.style.background = '#00aaff';
+    btn.textContent = "开启邮箱提醒 / Enable Email Reminder";
+    btn.style.background = "#00aaff";
+    btn.style.color = "white";
   }
 }
 
@@ -782,7 +809,7 @@ async function checkIn() {
     return;
   }
 
-  // 强制绑定钱包
+  // ========== 强制绑定钱包（双语提示） ==========
   const { data: userData } = await supabaseClient
     .from('USERS')
     .select('wallet_address')
@@ -791,7 +818,7 @@ async function checkIn() {
 
   if (!userData?.wallet_address) {
     alert("请先绑定 Solana 钱包才能签到！\nPlease bind your Solana wallet before checking in.");
-    showTab(1);
+    showTab(1); // 跳转到仪表盘
     return;
   }
 
@@ -806,7 +833,7 @@ async function checkIn() {
     .maybeSingle();
 
   if (existing) {
-    alert("此账号今日已签到，请在倒数结束后再进行签到。");
+    alert("此账号今日已签到，请在倒数结束后再进行签到。\nThis account has already checked in today.");
     showTab(1);
     return;
   }
@@ -824,7 +851,7 @@ async function checkIn() {
   // 获取当前数据
   const stats = await calculateUserStats(currentUser.id);
 
-  // 更新奖励（2 PAWLY + 5 Points）
+  // 更新奖励：2 PAWLY + 5 Points
   const newTotal = (stats.totalPAWLY || 0) + 2;
   const newPoints = (stats.points || 0) + 5;
 
@@ -836,8 +863,8 @@ async function checkIn() {
     })
     .eq('id', currentUser.id);
 
-  // 连续签到7天额外奖励
-  let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY`;
+  // 连续签到7天额外 +10 Points
+  let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`;
 
   if ((stats.streak + 1) % 7 === 0) {
     const bonusPoints = newPoints + 10;
@@ -846,7 +873,7 @@ async function checkIn() {
       .update({ pawly_points: bonusPoints })
       .eq('id', currentUser.id);
 
-    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY`;
+    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak + 1} consecutive days!`;
   }
 
   alert(message);
@@ -877,7 +904,7 @@ async function calculateUserStats(userId) {
     return { streak: 0, totalPAWLY: 0, points: 0 };
   }
 }
-
+  
 async function updateDashboard() {
   if (!currentUser) return;
 
@@ -909,7 +936,7 @@ async function updateDashboard() {
     console.error("更新仪表盘失败:", error);
   }
 }
-
+  
 // ==================== Pawly Points 兑换功能（必须放在外面！） ====================
 function showRedeemModal() {
   if (!currentUser) {
