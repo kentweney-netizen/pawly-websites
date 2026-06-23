@@ -883,33 +883,42 @@ async function logout() {
 }
 
 // ==================== 使用 Resend 的邮箱提醒 ====================
+// ==================== 修复版：防止重复发送的邮箱提醒 ====================
 async function sendEmailReminder() {
   if (!currentUser || !currentUser.email) return;
+
+  // 1. 先判断用户是否开启了邮箱提醒
   if (!isEmailReminderEnabled()) return;
 
-  const lastSignInTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
-  if (!lastSignInTime) return;
-
-  try {
-    const { data: newerCheckin } = await supabaseClient
-      .from('checkins')
-      .select('id')
-      .eq('user_id', currentUser.id)
-      .gt('created_at', new Date(lastSignInTime).toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (newerCheckin) {
-      console.log("用户已经再次签到，不再发送邮箱提醒");
-      return;
-    }
-  } catch (e) {
-    console.error("检查是否已再次签到失败:", e);
+  // 2. 防止1小时内重复发送（客户端防护）
+  const reminderKey = `last_reminder_sent_${currentUser.id}`;
+  const lastSent = parseInt(localStorage.getItem(reminderKey) || 0);
+  const now = Date.now();
+  if (lastSent && (now - lastSent) < 23 * 60 * 60 * 1000) {
+    console.log("23小时内已发送过提醒，跳过");
     return;
   }
 
-  // 调用 Netlify Function（Resend）
+  // 3. 检查今天是否已经签到（如果签到了就不要再提醒）
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const { data: todayCheckin } = await supabaseClient
+      .from('checkins')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('checkin_date', today)
+      .maybeSingle();
+
+    if (todayCheckin) {
+      console.log("今天已签到，不再发送邮箱提醒");
+      return;
+    }
+  } catch (e) {
+    console.error("检查今日签到状态失败:", e);
+    return;
+  }
+
+  // 4. 通过所有检查后才真正发送邮件
   try {
     await fetch('/.netlify/functions/send-email', {
       method: 'POST',
@@ -917,10 +926,14 @@ async function sendEmailReminder() {
       body: JSON.stringify({
         email: currentUser.email,
         subject: "PAWLY 签到提醒 - 24小时已到，可以签到了！",
-        message: `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/`
+        message: `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/\nThank you for supporting PAWLY!`
       })
     });
-    console.log("邮箱提醒已发送（通过 Resend）");
+
+    // 记录本次发送时间，防止短时间内重复发送
+    localStorage.setItem(reminderKey, now.toString());
+    console.log("✅ 邮箱提醒已发送给:", currentUser.email);
+
   } catch (e) {
     console.error("发送邮箱提醒失败:", e);
   }
