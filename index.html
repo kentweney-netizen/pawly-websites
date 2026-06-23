@@ -2,56 +2,9 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="google-site-verification: googledbf774ebed821532.html">
-  <meta name="google-site-verification" content="VXKXOQ6hdKYFPhB9xR5izWcAhBRtSZcnYyycRIScq0c" />
-
-  <title>PAWLY PETS</title>
-<!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json">
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>...</style>
-</head>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
-    .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-    .nav button { background:transparent; color:#00ff9d; border:1px solid #00ff9d; padding:10px 16px; border-radius:20px; cursor:pointer; transition:0.3s; font-size:0.95em; }
-    .nav button.active { background:#00ff9d; color:black; }
-    .tab { display:none; padding:25px; }
-    .tab.active { display:block; }
-    .container { max-width:720px; margin:20px auto; background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:25px; padding:30px; box-shadow:0 0 30px rgba(0,255,150,0.2); }
-    h1 { text-shadow:0 0 20px #00ff9d; margin-bottom:10px; }
-    input, button { padding:15px; margin:12px; width:85%; border-radius:12px; font-size:1.1em; }
-    input { background:#1a0033; color:white; border:1px solid #00ff9d; }
-    button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; }
-    .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
-    .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
-    #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
-    .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
-    .bilingual { display:flex; flex-direction:column; gap:15px; }
-    .ready-to-checkin { background:#00ff9d; color:black; padding:20px; border-radius:15px; font-size:1.3em; font-weight:bold; margin:20px 0; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-    .showcase { display:none; max-width:900px; margin:40px auto; padding:30px; background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:25px; text-align:left; }
-    .showcase h1 { text-shadow:0 0 20px #00ff9d; }
-    .showcase .section { background:rgba(255,255,255,0.05); border-radius:18px; padding:25px; margin:25px 0; }
-    .showcase .feature, .showcase .org-card { background:#120022; padding:18px; border-radius:14px; margin:15px 0; border-left:4px solid #00ff9d; }
-    .showcase button { background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:14px; font-size:1.2em; font-weight:bold; cursor:pointer; margin-top:20px; }
-    .showcase .back-btn { background:transparent; color:#00ff9d; padding:12px 35px; border:2px solid #00ff9d; border-radius:12px; font-size:1em; cursor:pointer; margin-top:30px; }
-  </style>
-</head>
-<body><!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PAWLY PETS</title>
-<!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>...</style>
-</head>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
@@ -81,6 +34,7 @@
   </style>
 </head>
 <body>
+
   <!-- 导航栏 -->
   <div class="nav">
     <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
@@ -91,7 +45,7 @@
     <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
   </div>
 
-  <!-- tab0 签到页面（完全保留原样） -->
+  <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
     <div class="container">
       <div class="warning">
@@ -128,52 +82,47 @@
     </div>
   </div>
 
-  <!-- tab1 仪表盘（完全保留原样） -->
+  <!-- tab1 仪表盘 -->
   <div class="tab" id="tab1">
     <div class="container">
       <h1>📊 我的仪表盘 / My Dashboard</h1>
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
-      <!-- ==================== Pawly Points 兑换卡片 ==================== -->
-<div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:22px; margin:25px 0; text-align:center;">
-  <h3 style="color:#00ff9d; margin:0 0 12px 0;">🐾 Pawly Points</h3>
-  
-  <div style="display:flex; justify-content:center; gap:40px; margin:15px 0;">
-    <div>
-      <div style="font-size:13px; color:#aaa;">当前积分</div>
-      <div id="pointsDisplay" style="font-size:28px; font-weight:bold; color:#00ff9d;">0</div>
-    </div>
-    <div>
-      <div style="font-size:13px; color:#aaa;">可兑换 PAWLY</div>
-      <div id="redeemablePAWLY" style="font-size:28px; font-weight:bold; color:#ffaa00;">0</div>
-    </div>
-  </div>
 
-  <button onclick="showRedeemModal()" 
-          style="background:#00ff9d; color:black; padding:14px 50px; border:none; border-radius:14px; font-weight:bold; font-size:1.05em; cursor:pointer; margin-top:10px;">
-    兑换 PAWLY / Redeem PAWLY
-  </button>
-  
-  <p style="font-size:12px; color:#888; margin-top:12px;">
-    100 Points = 5 PAWLY（积分可累积，兑换后归零）
-  </p>
-</div>
+      <!-- Pawly Points 兑换卡片 -->
+      <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:22px; margin:25px 0; text-align:center;">
+        <h3 style="color:#00ff9d; margin:0 0 12px 0;">🐾 Pawly Points</h3>
+        <div style="display:flex; justify-content:center; gap:40px; margin:15px 0;">
+          <div>
+            <div style="font-size:13px; color:#aaa;">当前积分</div>
+            <div id="pointsDisplay" style="font-size:28px; font-weight:bold; color:#00ff9d;">0</div>
+          </div>
+          <div>
+            <div style="font-size:13px; color:#aaa;">可兑换 PAWLY</div>
+            <div id="redeemablePAWLY" style="font-size:28px; font-weight:bold; color:#ffaa00;">0</div>
+          </div>
+        </div>
+        <button onclick="showRedeemModal()" style="background:#00ff9d; color:black; padding:14px 50px; border:none; border-radius:14px; font-weight:bold; font-size:1.05em; cursor:pointer; margin-top:10px;">
+          兑换 PAWLY / Redeem PAWLY
+        </button>
+        <p style="font-size:12px; color:#888; margin-top:12px;">100 Points = 5 PAWLY（积分可累积，兑换后归零）</p>
+      </div>
 
-<!-- ==================== 跳转专业 dApp 按钮（在这里添加） ==================== -->
-    <div style="margin-top:35px; text-align:center;">
-      <button onclick="window.location.href='https://pawlypets-dapp.netlify.app'" 
-              style="background:#00ff9d; color:black; padding:18px 45px; border:none; border-radius:14px; font-weight:bold; font-size:1.1em; cursor:pointer;">
-        进入专业版 dApp - entry dApp（链上质押等功能-fully onchain staking）
-      </button>
-      <p style="font-size:0.9em; color:#888; margin-top:10px;">专业 Web3 功能区 - Web3 Function （即将上线-COMING SOON）</p>
-    </div>
+      <div style="margin-top:35px; text-align:center;">
+        <button onclick="window.location.href='https://pawlypets-dapp.netlify.app'" 
+                style="background:#00ff9d; color:black; padding:18px 45px; border:none; border-radius:14px; font-weight:bold; font-size:1.1em; cursor:pointer;">
+          进入专业版 dApp - entry dApp（链上质押等功能-fully onchain staking）
+        </button>
+        <p style="font-size:0.9em; color:#888; margin-top:10px;">专业 Web3 功能区 - Web3 Function （即将上线-COMING SOON）</p>
+      </div>
 
       <div class="countdown" id="countdownBox">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">00:00:00</div>
         <div id="countdownStatus">可以签到了！</div>
       </div>
+
       <div id="readyCheckinArea" style="display:none;">
         <div class="ready-to-checkin">
           ✅ 可以签到了！请立即签到<br>
@@ -183,6 +132,7 @@
           立即签到 / Check-in Now
         </button>
       </div>
+
       <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:15px; padding:22px; margin:25px 0;">
         <h3 style="margin-top:0;">📧 邮箱签到提醒 / Email Check-in Reminder</h3>
         <div class="bilingual" style="margin:12px 0 18px; text-align:left; font-size:0.95em; line-height:1.6;">
@@ -198,6 +148,7 @@
           发送测试邮件 / Send Test Email
         </button>
       </div>
+
       <button onclick="enableNotifications()" style="background:#00aaff; color:white; padding:12px 25px; border:none; border-radius:12px; margin-top:10px; cursor:pointer;">
         🔔 开启浏览器通知 / Enable Notifications
       </button>
@@ -207,11 +158,10 @@
     </div>
   </div>
 
-    <!-- tab2 质押挖矿 -->
+  <!-- tab2 质押挖矿 -->
   <div class="tab" id="tab2">
     <div class="container">
       <h1>🔥 质押挖矿 / Staking</h1>
-
       <div class="section">
         <div class="bilingual">
           <div>
@@ -226,7 +176,6 @@
           </div>
         </div>
       </div>
-
       <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin:25px 0; text-align:left; line-height:1.85;">
         <h3 style="color:#00ff9d; margin-top:0;">为什么我们要等到 10,000 名活跃用户才开启 Staking？</h3>
         <div class="bilingual">
@@ -242,7 +191,6 @@
           </div>
         </div>
       </div>
-
       <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
         专业版 Staking 功能已在 dApp 中开发中<br>
         Professional Staking features are being developed in the dApp
@@ -250,7 +198,7 @@
     </div>
   </div>
 
-  <!-- tab3 宠物支付（完全保留原样） -->
+  <!-- tab3 宠物支付 -->
   <div class="tab" id="tab3">
     <div class="container">
       <h1>🐶 宠物支付 / Pet Payment</h1>
@@ -284,7 +232,7 @@
     </div>
   </div>
 
-  <!-- tab4 慈善基金（完全保留原样） -->
+  <!-- tab4 慈善基金 -->
   <div class="tab" id="tab4">
     <div class="container">
       <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
@@ -317,7 +265,7 @@
     </div>
   </div>
 
-  <!-- tab5 关于 PAWLY（完全保留原样） -->
+  <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
     <div class="container">
       <h1>🌟 关于 PAWLY / About PAWLY</h1>
@@ -327,7 +275,7 @@
 渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
 于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。</div>
           <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
-Gradually, this love no longer stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
+Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
 That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.</div>
         </div>
       </div>
@@ -356,8 +304,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
   </div>
 
-  <!-- Modal 部分（完全保留原样） -->
-  <!-- Staking Modal -->
+  <!-- 各种 Modal 保持原样 -->
   <div id="stakingWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
       <h2 style="color:#00ff9d; margin-bottom:15px;">加入 PAWLY Staking 等待名单<br>Join PAWLY Staking Waitlist</h2>
@@ -383,7 +330,6 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
   </div>
 
-  <!-- Payment Modal -->
   <div id="paymentWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
       <h2 style="color:#00ff9d; margin-bottom:15px;">加入宠物支付计划<br>Join Pet Payment Program</h2>
@@ -397,7 +343,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </div>
       <div style="text-align:left; line-height:1.8; margin:20px 0; font-size:0.97em;">
         <strong>English：</strong><br>
-        Thank you for your support! When the PAWLY pet payment feature officially launches, we will notify you first and prepare early usage rewards.
+        Thank you for your support! When the PAWLY pet payment feature officially launches, we will notify you first and prepare early usage rewards for you.
       </div>
       <button onclick="submitPaymentWaitlist()" style="width:100%; padding:18px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:15px;">
         确认加入 / Confirm Join
@@ -408,7 +354,6 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
   </div>
 
-  <!-- Charity Modal -->
   <div id="charityWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
       <h2 style="color:#00ff9d; margin-bottom:15px;">加入宠物慈善计划<br>Join Pet Charity Program</h2>
@@ -433,7 +378,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
   </div>
 
-  <!-- 宠物支付展示页面（完全保留原样） -->
+  <!-- 展示页面 -->
   <div id="paymentShowcase" class="showcase">
     <h1>🐶 PAWLY 宠物支付系统愿景 / PAWLY Pet Payment System Vision</h1>
     <div class="section">
@@ -480,7 +425,6 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     <button class="back-btn" onclick="hideShowcase()">返回主页面 / Back to Main Page</button>
   </div>
 
-  <!-- 慈善影响力展示页面（完全保留原样） -->
   <div id="charityShowcase" class="showcase">
     <h1>❤️ PAWLY 宠物慈善影响力 / PAWLY Pet Charity Impact</h1>
     <div class="section">
@@ -550,36 +494,33 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     <button class="donate-btn" onclick="showComingSoon()">立即捐款 / Donate Now</button>
     <button class="back-btn" onclick="hideShowcase()">返回主页面 / Back to Main Page</button>
   </div>
-<!-- ==================== 积分兑换确认弹窗 ==================== -->
-<div id="redeemModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
-  <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:20px; padding:30px; max-width:420px; width:90%; text-align:center;">
-    <h2 style="color:#00ff9d; margin-bottom:20px;">确认兑换 PAWLY Confirm to redeem PAWLY</h2>
-    
-    <div style="background:#120022; padding:20px; border-radius:14px; margin:20px 0;">
-      <p style="margin:0 0 8px 0; color:#aaa;">你将使用 You will use</p>
-      <p id="redeemPointsText" style="font-size:26px; font-weight:bold; color:#00ff9d; margin:0;"></p>
-      <p style="margin:8px 0 0 0; color:#aaa;">兑换 Redeem</p>
-      <p id="redeemPAWLYText" style="font-size:26px; font-weight:bold; color:#ffaa00; margin:0;"></p>
+
+  <!-- 积分兑换确认弹窗 -->
+  <div id="redeemModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:20px; padding:30px; max-width:420px; width:90%; text-align:center;">
+      <h2 style="color:#00ff9d; margin-bottom:20px;">确认兑换 PAWLY Confirm to redeem PAWLY</h2>
+      <div style="background:#120022; padding:20px; border-radius:14px; margin:20px 0;">
+        <p style="margin:0 0 8px 0; color:#aaa;">你将使用 You will use</p>
+        <p id="redeemPointsText" style="font-size:26px; font-weight:bold; color:#00ff9d; margin:0;"></p>
+        <p style="margin:8px 0 0 0; color:#aaa;">兑换 Redeem</p>
+        <p id="redeemPAWLYText" style="font-size:26px; font-weight:bold; color:#ffaa00; margin:0;"></p>
+      </div>
+      <p style="color:#ffaa00; font-size:14px; margin:15px 0;">
+        ⚠️ 兑换后积分将归零，请确认操作 ⚠️ after redeem will return to 0, please confirm
+      </p>
+      <button onclick="confirmRedeem()" 
+              style="width:100%; padding:16px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:10px;">
+        确认兑换 / Confirm Redeem
+      </button>
+      <button onclick="closeRedeemModal()" 
+              style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
+        取消 / Cancel
+      </button>
     </div>
-
-    <p style="color:#ffaa00; font-size:14px; margin:15px 0;">
-      ⚠️ 兑换后积分将归零，请确认操作 ⚠️ after redeem will return to 0, please confirm
-    </p>
-
-    <button onclick="confirmRedeem()" 
-            style="width:100%; padding:16px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:10px;">
-      确认兑换 / Confirm Redeem
-    </button>
-    
-    <button onclick="closeRedeemModal()" 
-            style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
-      取消 / Cancel
-    </button>
   </div>
-</div>
 
 <script>
-// ==================== 完整 JavaScript（已修复同步问题） ====================
+// ==================== 完整修复版 JavaScript（字段统一为 checkin_streak + total_earnd） ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
 const WEB3FORMS_KEY = '43436864-9437-4f9b-82a5-5b9d219f911f';
@@ -587,65 +528,18 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let countdownInterval = null;
 
-function isEmailReminderEnabled() {
-  return localStorage.getItem('emailReminderEnabled') === 'true';
-}
-
-function toggleEmailReminder() {
-  const btn = document.getElementById('emailReminderBtn');
-  const current = isEmailReminderEnabled();
-  if (!current) {
-    localStorage.setItem('emailReminderEnabled', 'true');
-    btn.innerText = '关闭邮箱提醒 / Disable Email Reminder';
-    btn.style.background = '#ff4d4d';
-    alert('✅ 邮箱提醒已开启！倒数结束时会发送邮件到你的注册邮箱。\n✅ Email reminder enabled! An email will be sent to your registered email when the countdown ends.');
-  } else {
-    localStorage.setItem('emailReminderEnabled', 'false');
-    btn.innerText = '开启邮箱提醒 / Enable Email Reminder';
-    btn.style.background = '#00aaff';
-    alert('邮箱提醒已关闭。\nEmail reminder disabled.');
-  }
-}
-
-async function sendEmailReminder() {
-  if (!currentUser || !currentUser.email) return;
-  if (!isEmailReminderEnabled()) return;
-  const formData = new FormData();
-  formData.append("access_key", WEB3FORMS_KEY);
-  formData.append("email", currentUser.email);
-  formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder");
-  formData.append("message", `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/\nThank you for supporting PAWLY!`);
-  try { await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData }); } catch(e) {}
-}
-
-async function sendTestEmailReminder() {
-  if (!currentUser || !currentUser.email) { alert("请先登录！\nPlease login first!"); return; }
-  const formData = new FormData();
-  formData.append("access_key", WEB3FORMS_KEY);
-  formData.append("email", currentUser.email);
-  formData.append("subject", "PAWLY 测试邮件 - 邮箱提醒功能正常 / PAWLY Test Email - Email Reminder Working");
-  formData.append("message", `这是一封测试邮件。\n如果你收到这封邮件，说明邮箱提醒功能已正常开启。\n当倒数结束时，你将收到类似提醒邮件。\n\nThis is a test email.\nIf you received this email, the email reminder feature is working correctly.\nWhen the countdown ends, you will receive a similar reminder email.`);
-  try {
-    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
-    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。\n✅ Test email sent! Please check your email (including spam folder).");
-  } catch(e) { alert("发送失败，请稍后再试。\nSending failed, please try again later."); }
-}
-
-// ==================== 邮箱提醒按钮（持久化版本） ====================
+// ==================== 邮箱提醒持久化（使用 user id） ====================
 function initEmailReminderButton() {
   const btn = document.getElementById('emailReminderBtn');
   if (!btn || !currentUser) return;
 
-  // 使用用户 ID 作为 key，实现不同用户独立存储
   const storageKey = `email_reminder_${currentUser.id}`;
   let isEnabled = localStorage.getItem(storageKey) === 'true';
 
-  // 初始化按钮文字
   updateReminderButtonText(btn, isEnabled);
 
-  // 点击事件
   btn.onclick = () => {
-    isEnabled = !isEnabled; // 切换状态
+    isEnabled = !isEnabled;
     localStorage.setItem(storageKey, isEnabled);
     updateReminderButtonText(btn, isEnabled);
 
@@ -657,7 +551,6 @@ function initEmailReminderButton() {
   };
 }
 
-// 辅助函数：更新按钮文字
 function updateReminderButtonText(btn, isEnabled) {
   if (isEnabled) {
     btn.textContent = "关闭邮箱提醒 / Disable Email Reminder";
@@ -705,50 +598,25 @@ async function registerUser() {
 }
 
 async function calculateUserStats(userId) {
+  if (!userId) return { streak: 0, totalPAWLY: 0, points: 0 };
   try {
-    const { data: checkins, error } = await supabaseClient
-      .from('checkins')
-      .select('checkin_date')
-      .eq('user_id', userId)
-      .order('checkin_date', { ascending: false });
+    const { data: userData } = await supabaseClient
+      .from('USERS')
+      .select('checkin_streak, total_earnd, pawly_points')
+      .eq('id', userId)
+      .single();
 
-    if (error || !checkins || checkins.length === 0) {
-      localStorage.setItem('streak_' + userId, 0);
-      localStorage.setItem('totalPAWLY_' + userId, 0);
-      await supabaseClient.from('USERS').update({ streak: 0, total_earnd: 0 }).eq('id', userId);
-      return { streak: 0, totalPAWLY: 0 };
-    }
-
-    // 去重，得到用户实际签到的总天数
-    const uniqueDates = [...new Set(checkins.map(c => c.checkin_date))];
-    const totalSignInDays = uniqueDates.length;   // ← 这就是用户实际签到天数
-
-    // 计算 Total Earned（保留7天奖励）
-    const base = totalSignInDays * 10;
-    const bonus = Math.floor(totalSignInDays / 7) * 30;
-    const totalPAWLY = base + bonus;
-
-    // ==================== 关键修改：streak = 实际签到总天数 ====================
-    const streak = totalSignInDays;
-
-    // 保存到 localStorage
-    localStorage.setItem('streak_' + userId, streak);
-    localStorage.setItem('totalPAWLY_' + userId, totalPAWLY);
-
-    // 同步更新数据库
-    await supabaseClient.from('USERS').update({
-      streak: streak,
-      total_earnd: totalPAWLY
-    }).eq('id', userId);
-
-    return { streak, totalPAWLY };
-
-  } catch (err) {
-    console.error("计算 streak 出错:", err);
-    return { streak: 0, totalPAWLY: 0 };
+    return {
+      streak: userData?.checkin_streak || 0,
+      totalPAWLY: userData?.total_earnd || 0,
+      points: userData?.pawly_points || 0
+    };
+  } catch (error) {
+    console.error("计算用户数据失败:", error);
+    return { streak: 0, totalPAWLY: 0, points: 0 };
   }
 }
-  
+
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -756,21 +624,37 @@ async function loginUser() {
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) { alert("登录失败: " + error.message); return; }
   currentUser = data.user;
+
   await ensureUserRowExists(currentUser.id, currentUser.email);
-  const { data: userData } = await supabaseClient.from('USERS').select('wallet_address, streak, total_earned').eq('id', currentUser.id).single();
+
+  // 使用正确字段名
+  const { data: userData } = await supabaseClient.from('USERS')
+    .select('wallet_address, checkin_streak, total_earnd')
+    .eq('id', currentUser.id)
+    .single();
+
   if (userData?.wallet_address) {
     document.getElementById('bind-wallet').value = userData.wallet_address;
     document.getElementById('bind-wallet').disabled = true;
     document.getElementById('walletDisplay').innerText = userData.wallet_address;
   }
+
   await calculateUserStats(currentUser.id);
+
   const today = new Date().toISOString().split('T')[0];
-  const { data: todayCheckin } = await supabaseClient.from('checkins').select('created_at').eq('user_id', currentUser.id).eq('checkin_date', today).maybeSingle();
+  const { data: todayCheckin } = await supabaseClient.from('checkins')
+    .select('created_at')
+    .eq('user_id', currentUser.id)
+    .eq('checkin_date', today)
+    .maybeSingle();
+
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('logged-in-section').style.display = 'block';
   document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
+
   updateDashboard();
   await requestNotificationPermission();
+
   if (todayCheckin?.created_at) {
     startCountdown(new Date(todayCheckin.created_at).getTime());
   } else {
@@ -781,7 +665,15 @@ async function loginUser() {
 async function ensureUserRowExists(userId, email) {
   const { data } = await supabaseClient.from('USERS').select('id').eq('id', userId).single();
   if (!data) {
-    await supabaseClient.from('USERS').insert({ id: userId, email: email, email_verified: false, wallet_address: null, streak: 0, total_earned: 0 });
+    await supabaseClient.from('USERS').insert({
+      id: userId,
+      email: email,
+      email_verified: false,
+      wallet_address: null,
+      checkin_streak: 0,
+      total_earnd: 0,
+      pawly_points: 0
+    });
   }
 }
 
@@ -790,7 +682,9 @@ async function bindWallet() {
   if (!wallet || !currentUser) { alert("请输入钱包地址！\nPlease enter your wallet address!"); return; }
   try {
     const { error } = await supabaseClient.from('USERS').upsert({
-      id: currentUser.id, email: currentUser.email, wallet_address: wallet,
+      id: currentUser.id,
+      email: currentUser.email,
+      wallet_address: wallet,
       email_verified: currentUser.email_confirmed_at ? true : false
     }, { onConflict: 'id' });
     if (error) throw error;
@@ -802,14 +696,13 @@ async function bindWallet() {
   }
 }
 
-// ==================== 强制绑定钱包 + 新奖励规则 ====================
+// ==================== 强制绑定钱包 + 正确字段 ====================
 async function checkIn() {
   if (!currentUser) {
     alert("请先登录！\nPlease login first!");
     return;
   }
 
-  // ========== 强制绑定钱包（双语提示） ==========
   const { data: userData } = await supabaseClient
     .from('USERS')
     .select('wallet_address')
@@ -818,13 +711,12 @@ async function checkIn() {
 
   if (!userData?.wallet_address) {
     alert("请先绑定 Solana 钱包才能签到！\nPlease bind your Solana wallet before checking in.");
-    showTab(1); // 跳转到仪表盘
+    showTab(1);
     return;
   }
 
   const today = new Date().toISOString().split('T')[0];
 
-  // 检查今天是否已签到
   const { data: existing } = await supabaseClient
     .from('checkins')
     .select('id')
@@ -838,7 +730,6 @@ async function checkIn() {
     return;
   }
 
-  // 插入签到记录
   const { error: insertError } = await supabaseClient
     .from('checkins')
     .insert({ user_id: currentUser.id, checkin_date: today });
@@ -848,10 +739,8 @@ async function checkIn() {
     return;
   }
 
-  // 获取当前数据
   const stats = await calculateUserStats(currentUser.id);
 
-  // 更新奖励：2 PAWLY + 5 Points
   const newTotal = (stats.totalPAWLY || 0) + 2;
   const newPoints = (stats.points || 0) + 5;
 
@@ -863,16 +752,11 @@ async function checkIn() {
     })
     .eq('id', currentUser.id);
 
-  // 连续签到7天额外 +10 Points
   let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`;
 
   if ((stats.streak + 1) % 7 === 0) {
     const bonusPoints = newPoints + 10;
-    await supabaseClient
-      .from('USERS')
-      .update({ pawly_points: bonusPoints })
-      .eq('id', currentUser.id);
-
+    await supabaseClient.from('USERS').update({ pawly_points: bonusPoints }).eq('id', currentUser.id);
     message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak + 1} consecutive days!`;
   }
 
@@ -883,35 +767,13 @@ async function checkIn() {
   startCountdown(Date.now());
   showTab(1);
 }
-// ==================== 更新后的 calculateUserStats（简化版） ====================
-async function calculateUserStats(userId) {
-  if (!userId) return { streak: 0, totalPAWLY: 0, points: 0 };
 
-  try {
-    const { data: userData } = await supabaseClient
-      .from('USERS')
-      .select('streak, total_earnd, pawly_points')
-      .eq('id', userId)
-      .single();
-
-    return {
-      streak: userData?.streak || 0,
-      totalPAWLY: userData?.total_earnd || 0,
-      points: userData?.pawly_points || 0
-    };
-  } catch (error) {
-    console.error("计算用户数据失败:", error);
-    return { streak: 0, totalPAWLY: 0, points: 0 };
-  }
-}
-  
 async function updateDashboard() {
   if (!currentUser) return;
-
   try {
     const { data: dbData, error } = await supabaseClient
       .from('USERS')
-      .select('streak, total_earnd, pawly_points')
+      .select('checkin_streak, total_earnd, pawly_points')
       .eq('id', currentUser.id)
       .single();
 
@@ -920,7 +782,7 @@ async function updateDashboard() {
       return;
     }
 
-    const streak = dbData?.streak || 0;
+    const streak = dbData?.checkin_streak || 0;
     const totalPAWLY = dbData?.total_earnd || 0;
     const points = dbData?.pawly_points || 0;
 
@@ -936,25 +798,21 @@ async function updateDashboard() {
     console.error("更新仪表盘失败:", error);
   }
 }
-  
-// ==================== Pawly Points 兑换功能（必须放在外面！） ====================
+
+// ==================== Pawly Points 兑换功能（已修复 pawly_balance 问题） ====================
 function showRedeemModal() {
   if (!currentUser) {
     alert("请先登录！\nPlease log in first!");
     return;
   }
-
   const points = parseInt(document.getElementById('pointsDisplay').innerText) || 0;
   if (points < 100) {
     alert("积分不足 100，无法兑换！\nNot enough points!");
     return;
   }
-
   const pawlyAmount = Math.floor(points / 100) * 5;
-
   document.getElementById('redeemPointsText').innerText = `${points} Points`;
   document.getElementById('redeemPAWLYText').innerText = `${pawlyAmount} PAWLY`;
-  
   document.getElementById('redeemModal').style.display = 'flex';
 }
 
@@ -976,19 +834,22 @@ async function confirmRedeem() {
   const pointsToRedeem = Math.floor(points / 100) * 100;
 
   try {
+    // 获取当前 total_earnd
     const { data: userData } = await supabaseClient
       .from('USERS')
-      .select('pawly_balance')
+      .select('total_earnd')
       .eq('id', currentUser.id)
       .single();
 
-    const currentBalance = userData?.pawly_balance || 0;
+    const currentBalance = userData?.total_earnd || 0;
 
+    // 更新 pawly_points 和 total_earnd
     await supabaseClient.from('USERS').update({
       pawly_points: points - pointsToRedeem,
-      pawly_balance: currentBalance + pawlyAmount
+      total_earnd: currentBalance + pawlyAmount
     }).eq('id', currentUser.id);
 
+    // 记录兑换历史
     await supabaseClient.from('points_redemptions').insert({
       user_id: currentUser.id,
       points_redeemed: pointsToRedeem,
@@ -1007,7 +868,7 @@ async function confirmRedeem() {
     alert("兑换失败，请稍后再试。");
   }
 }
-  
+
 function startCountdown(lastSignInTime) {
   if (countdownInterval) clearInterval(countdownInterval);
   const timerEl = document.getElementById('countdownTimer');
@@ -1152,7 +1013,33 @@ function submitCharityWaitlist() {
   showCharityShowcase();
 }
 
-// ==================== 页面加载初始化（最终稳定版） ====================
+async function sendEmailReminder() {
+  if (!currentUser || !currentUser.email) return;
+  const storageKey = `email_reminder_${currentUser.id}`;
+  if (localStorage.getItem(storageKey) !== 'true') return;
+
+  const formData = new FormData();
+  formData.append("access_key", WEB3FORMS_KEY);
+  formData.append("email", currentUser.email);
+  formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder");
+  formData.append("message", `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/\nThank you for supporting PAWLY!`);
+  try { await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData }); } catch(e) {}
+}
+
+async function sendTestEmailReminder() {
+  if (!currentUser || !currentUser.email) { alert("请先登录！\nPlease login first!"); return; }
+  const formData = new FormData();
+  formData.append("access_key", WEB3FORMS_KEY);
+  formData.append("email", currentUser.email);
+  formData.append("subject", "PAWLY 测试邮件 - 邮箱提醒功能正常 / PAWLY Test Email - Email Reminder Working");
+  formData.append("message", `这是一封测试邮件。\n如果你收到这封邮件，说明邮箱提醒功能已正常开启。\n当倒数结束时，你将收到类似提醒邮件。\n\nThis is a test email.\nIf you received this email, the email reminder feature is working correctly.\nWhen the countdown ends, you will receive a similar reminder email.`);
+  try {
+    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
+    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。\n✅ Test email sent! Please check your email (including spam folder).");
+  } catch(e) { alert("发送失败，请稍后再试。\nSending failed, please try again later."); }
+}
+
+// ==================== 页面加载初始化 ====================
 window.onload = async function() {
   showTab(0);
 
@@ -1162,20 +1049,16 @@ window.onload = async function() {
     if (session && session.user) {
       currentUser = session.user;
 
-      // 显示已登录状态
       const authSection = document.getElementById('auth-section');
       const loggedSection = document.getElementById('logged-in-section');
       if (authSection) authSection.style.display = 'none';
       if (loggedSection) loggedSection.style.display = 'block';
 
-      // 显示邮箱
       const emailDisplay = document.getElementById('user-email-display');
       if (emailDisplay) {
         emailDisplay.innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
       }
 
-      // 获取用户钱包地址（容错处理）
-      let hasWallet = false;
       try {
         const { data: userData } = await supabaseClient
           .from('USERS')
@@ -1184,7 +1067,6 @@ window.onload = async function() {
           .single();
 
         if (userData?.wallet_address) {
-          hasWallet = true;
           const bindInput = document.getElementById('bind-wallet');
           if (bindInput) {
             bindInput.value = userData.wallet_address;
@@ -1197,11 +1079,10 @@ window.onload = async function() {
         console.warn("获取钱包地址失败（不影响使用）");
       }
 
-      // 更新仪表盘（包含积分显示）
       await calculateUserStats(currentUser.id);
       updateDashboard();
+      initEmailReminderButton(); // 初始化持久化邮箱提醒按钮
 
-      // 恢复倒计时
       await requestNotificationPermission();
 
       const { data: lastCheckin } = await supabaseClient
@@ -1226,23 +1107,28 @@ window.onload = async function() {
 
   } catch (error) {
     console.error("初始化失败:", error);
-    // 不再弹窗，只在控制台记录，避免打扰用户
   }
 };
 
-// ==================== PWA Service Worker 注册 ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('Service Worker 注册成功:', registration.scope);
-      })
-      .catch(error => {
-        console.log('Service Worker 注册失败:', error);
-      });
+// ==================== PWA Service Worker 注册（安全增强版） ====================
+try {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('Service Worker 注册成功:', registration.scope);
+        })
+        .catch(error => {
+          console.log('Service Worker 注册失败（可忽略）:', error);
+        });
+    });
+  }
+} catch (e) {
+  // 沙盒环境或浏览器限制时静默处理，不影响其他功能
+  console.log('Service Worker 功能被禁用（沙盒环境）:', e.message);
+});
   });
 }
-
 </script>
 </body>
 </html>
