@@ -135,6 +135,30 @@
       <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
+      <!-- ==================== Pawly Points 兑换卡片 ==================== -->
+<div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:22px; margin:25px 0; text-align:center;">
+  <h3 style="color:#00ff9d; margin:0 0 12px 0;">🐾 Pawly Points</h3>
+  
+  <div style="display:flex; justify-content:center; gap:40px; margin:15px 0;">
+    <div>
+      <div style="font-size:13px; color:#aaa;">当前积分</div>
+      <div id="pointsDisplay" style="font-size:28px; font-weight:bold; color:#00ff9d;">0</div>
+    </div>
+    <div>
+      <div style="font-size:13px; color:#aaa;">可兑换 PAWLY</div>
+      <div id="redeemablePAWLY" style="font-size:28px; font-weight:bold; color:#ffaa00;">0</div>
+    </div>
+  </div>
+
+  <button onclick="showRedeemModal()" 
+          style="background:#00ff9d; color:black; padding:14px 50px; border:none; border-radius:14px; font-weight:bold; font-size:1.05em; cursor:pointer; margin-top:10px;">
+    兑换 PAWLY / Redeem PAWLY
+  </button>
+  
+  <p style="font-size:12px; color:#888; margin-top:12px;">
+    100 Points = 5 PAWLY（积分可累积，兑换后归零）
+  </p>
+</div>
 
 <!-- ==================== 跳转专业 dApp 按钮（在这里添加） ==================== -->
     <div style="margin-top:35px; text-align:center;">
@@ -526,6 +550,33 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     <button class="donate-btn" onclick="showComingSoon()">立即捐款 / Donate Now</button>
     <button class="back-btn" onclick="hideShowcase()">返回主页面 / Back to Main Page</button>
   </div>
+<!-- ==================== 积分兑换确认弹窗 ==================== -->
+<div id="redeemModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
+  <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:20px; padding:30px; max-width:420px; width:90%; text-align:center;">
+    <h2 style="color:#00ff9d; margin-bottom:20px;">确认兑换 PAWLY Confirm to redeem PAWLY</h2>
+    
+    <div style="background:#120022; padding:20px; border-radius:14px; margin:20px 0;">
+      <p style="margin:0 0 8px 0; color:#aaa;">你将使用 You will use</p>
+      <p id="redeemPointsText" style="font-size:26px; font-weight:bold; color:#00ff9d; margin:0;"></p>
+      <p style="margin:8px 0 0 0; color:#aaa;">兑换 Redeem</p>
+      <p id="redeemPAWLYText" style="font-size:26px; font-weight:bold; color:#ffaa00; margin:0;"></p>
+    </div>
+
+    <p style="color:#ffaa00; font-size:14px; margin:15px 0;">
+      ⚠️ 兑换后积分将归零，请确认操作 ⚠️ after redeem will return to 0, please confirm
+    </p>
+
+    <button onclick="confirmRedeem()" 
+            style="width:100%; padding:16px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:10px;">
+      确认兑换 / Confirm Redeem
+    </button>
+    
+    <button onclick="closeRedeemModal()" 
+            style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
+      取消 / Cancel
+    </button>
+  </div>
+</div>
 
 <script>
 // ==================== 完整 JavaScript（已修复同步问题） ====================
@@ -724,58 +775,204 @@ async function bindWallet() {
   }
 }
 
+// ==================== 强制绑定钱包 + 新奖励规则 ====================
 async function checkIn() {
-  if (!currentUser) { alert("请先登录！\nPlease login first!"); return; }
-  const { data: userData } = await supabaseClient.from('USERS').select('wallet_address').eq('id', currentUser.id).single();
-  if (!userData?.wallet_address) { alert("请先绑定钱包地址！\nPlease bind your wallet address first!"); return; }
-  const today = new Date().toISOString().split('T')[0];
-  const { data: existing } = await supabaseClient.from('checkins').select('id, created_at').eq('user_id', currentUser.id).eq('checkin_date', today).maybeSingle();
-  if (existing) {
-    alert("此账号和钱包今日已签到，请在倒数结束后再进行签到\nThis account and wallet has already checked in today. Please wait until the countdown finishes before checking in again.");
-    showTab(1);
-    await calculateUserStats(currentUser.id);
-    updateDashboard();
+  if (!currentUser) {
+    alert("请先登录！\nPlease login first!");
     return;
   }
-  const { error } = await supabaseClient.from('checkins').insert({ user_id: currentUser.id, checkin_date: today });
-  if (error) { alert("签到失败: " + error.message); return; }
-  const stats = await calculateUserStats(currentUser.id);
-  if (stats.streak % 7 === 0) {
-    alert(`🎉 恭喜！你已连续签到 ${stats.streak} 天！\n额外获得 30 PAWLY 奖励！\n目前已赚取 ${stats.totalPAWLY} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak} consecutive days!\nYou received an extra 30 PAWLY reward!\nTotal earned: ${stats.totalPAWLY} PAWLY`);
-  } else {
-    alert(`✅ 签到成功！\n连续签到：${stats.streak} 天\n总计：${stats.totalPAWLY} PAWLY\n\n✅ Check-in successful!\nStreak: ${stats.streak} days\nTotal: ${stats.totalPAWLY} PAWLY`);
+
+  // === 强制绑定钱包校验 ===
+  const { data: userData, error: userError } = await supabaseClient
+    .from('USERS')
+    .select('wallet_address, pawly_balance, pawly_points, checkin_streak')
+    .eq('id', currentUser.id)
+    .single();
+
+  if (userError || !userData) {
+    alert("获取用户信息失败，请稍后再试。");
+    return;
   }
-  updateDashboard();
-  startCountdown(Date.now());
-  showTab(1);
+
+  if (!userData.wallet_address) {
+    alert("请先绑定钱包后再进行签到！\nPlease bind your wallet before checking in.");
+    return;
+  }
+
+  // === 检查今天是否已签到 ===
+  const today = new Date().toISOString().split('T')[0];
+  const { data: existing } = await supabaseClient
+    .from('checkins')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .eq('checkin_date', today)
+    .maybeSingle();
+
+  if (existing) {
+    alert("今天已经签到过了！");
+    return;
+  }
+
+  try {
+    // 插入签到记录
+    await supabaseClient.from('checkins').insert({
+      user_id: currentUser.id,
+      checkin_date: today,
+      created_at: new Date().toISOString()
+    });
+
+    // 新奖励规则
+    const newStreak = (userData.checkin_streak || 0) + 1;
+    let tokenReward = 2;      // 每天 2 PAWLY
+    let pointsReward = 5;     // 每天 5 Points
+
+    if (newStreak % 7 === 0) {
+      pointsReward += 10;     // 每满7天额外 +10 Points
+    }
+
+    const newBalance = (userData.pawly_balance || 0) + tokenReward;
+    const newPoints = (userData.pawly_points || 0) + pointsReward;
+
+    // 更新用户数据
+    await supabaseClient.from('USERS').update({
+      pawly_balance: newBalance,
+      pawly_points: newPoints,
+      checkin_streak: newStreak,
+      last_checkin: new Date().toISOString()
+    }).eq('id', currentUser.id);
+
+    alert(`✅ 签到成功！\n连续签到：${newStreak} 天\n获得：${tokenReward} PAWLY + ${pointsReward} Points`);
+
+    await calculateUserStats(currentUser.id);
+    updateDashboard();
+    startCountdown(Date.now());
+
+  } catch (error) {
+    console.error("签到失败:", error);
+    alert("签到失败，请稍后再试。");
+  }
 }
 
-// ==================== 已升级：优先从数据库读取 ====================
+// ==================== 更新后的 calculateUserStats（简化版） ====================
+async function calculateUserStats(userId) {
+  const { data } = await supabaseClient
+    .from('USERS')
+    .select('checkin_streak, pawly_balance, pawly_points')
+    .eq('id', userId)
+    .single();
+
+  if (data) {
+    localStorage.setItem('streak_' + userId, data.checkin_streak || 0);
+    localStorage.setItem('totalPAWLY_' + userId, data.pawly_balance || 0);
+    localStorage.setItem('pawly_points_' + userId, data.pawly_points || 0);
+  }
+}
+
 async function updateDashboard() {
   if (!currentUser) return;
 
-  // 优先从数据库读取（实现跨设备同步）
-  const { data: dbData } = await supabaseClient.from('USERS')
-    .select('streak, total_earned')
+  const { data: dbData } = await supabaseClient
+    .from('USERS')
+    .select('checkin_streak, pawly_balance, pawly_points')
     .eq('id', currentUser.id)
     .single();
 
   let streak = 0;
   let totalPAWLY = 0;
+  let points = 0;
 
-  if (dbData && (dbData.streak !== null || dbData.total_earned !== null)) {
-    streak = dbData.streak || 0;
-    totalPAWLY = dbData.total_earned || 0;
+  if (dbData) {
+    streak = dbData.checkin_streak || 0;
+    totalPAWLY = dbData.pawly_balance || 0;
+    points = dbData.pawly_points || 0;
   } else {
-    // 降级使用 localStorage
     streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
     totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0);
+    points = parseInt(localStorage.getItem('pawly_points_' + currentUser.id) || 0);
   }
 
+  // 更新原有显示
   document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
   document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
+
+  // 显示 Pawly Points
+  const pointsEl = document.getElementById('pointsDisplay');
+  const redeemableEl = document.getElementById('redeemablePAWLY');
+  if (pointsEl) pointsEl.innerText = points;
+  if (redeemableEl) redeemableEl.innerText = Math.floor(points / 100) * 5;
 }
 
+// ==================== Pawly Points 兑换功能（必须放在外面！） ====================
+function showRedeemModal() {
+  if (!currentUser) {
+    alert("请先登录！\nPlease log in first!");
+    return;
+  }
+
+  const points = parseInt(document.getElementById('pointsDisplay').innerText) || 0;
+  if (points < 100) {
+    alert("积分不足 100，无法兑换！\nNot enough points!");
+    return;
+  }
+
+  const pawlyAmount = Math.floor(points / 100) * 5;
+
+  document.getElementById('redeemPointsText').innerText = `${points} Points`;
+  document.getElementById('redeemPAWLYText').innerText = `${pawlyAmount} PAWLY`;
+  
+  document.getElementById('redeemModal').style.display = 'flex';
+}
+
+function closeRedeemModal() {
+  document.getElementById('redeemModal').style.display = 'none';
+}
+
+async function confirmRedeem() {
+  if (!currentUser) return;
+
+  const points = parseInt(document.getElementById('pointsDisplay').innerText) || 0;
+  if (points < 100) {
+    alert("积分不足！\nNot enough points!");
+    closeRedeemModal();
+    return;
+  }
+
+  const pawlyAmount = Math.floor(points / 100) * 5;
+  const pointsToRedeem = Math.floor(points / 100) * 100;
+
+  try {
+    const { data: userData } = await supabaseClient
+      .from('USERS')
+      .select('pawly_balance')
+      .eq('id', currentUser.id)
+      .single();
+
+    const currentBalance = userData?.pawly_balance || 0;
+
+    await supabaseClient.from('USERS').update({
+      pawly_points: points - pointsToRedeem,
+      pawly_balance: currentBalance + pawlyAmount
+    }).eq('id', currentUser.id);
+
+    await supabaseClient.from('points_redemptions').insert({
+      user_id: currentUser.id,
+      points_redeemed: pointsToRedeem,
+      pawly_received: pawlyAmount,
+      wallet_address: document.getElementById('walletDisplay').innerText || null
+    });
+
+    alert(`✅ 兑换成功！\n获得 ${pawlyAmount} PAWLY\n积分已扣除 ${pointsToRedeem} Points`);
+
+    closeRedeemModal();
+    await calculateUserStats(currentUser.id);
+    updateDashboard();
+
+  } catch (error) {
+    console.error("兑换失败:", error);
+    alert("兑换失败，请稍后再试。");
+  }
+}
+  
 function startCountdown(lastSignInTime) {
   if (countdownInterval) clearInterval(countdownInterval);
   const timerEl = document.getElementById('countdownTimer');
