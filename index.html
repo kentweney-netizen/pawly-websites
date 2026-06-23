@@ -782,25 +782,22 @@ async function checkIn() {
     return;
   }
 
-  // === 强制绑定钱包校验 ===
-  const { data: userData, error: userError } = await supabaseClient
+  // ========== 强制绑定钱包 ==========
+  const { data: userData } = await supabaseClient
     .from('USERS')
-    .select('wallet_address, pawly_balance, pawly_points, checkin_streak')
+    .select('wallet_address')
     .eq('id', currentUser.id)
     .single();
 
-  if (userError || !userData) {
-    alert("获取用户信息失败，请稍后再试。");
+  if (!userData?.wallet_address) {
+    alert("请先绑定 Solana 钱包才能签到！\nPlease bind your Solana wallet before checking in.");
+    showTab(1); // 跳转到仪表盘页面
     return;
   }
 
-  if (!userData.wallet_address) {
-    alert("请先绑定钱包后再进行签到！\nPlease bind your wallet before checking in.");
-    return;
-  }
-
-  // === 检查今天是否已签到 ===
   const today = new Date().toISOString().split('T')[0];
+
+  // 检查今天是否已签到
   const { data: existing } = await supabaseClient
     .from('checkins')
     .select('id')
@@ -809,48 +806,34 @@ async function checkIn() {
     .maybeSingle();
 
   if (existing) {
-    alert("今天已经签到过了！");
+    alert("此账号今日已签到，请在倒数结束后再进行签到\nThis account has already checked in today.");
+    showTab(1);
     return;
   }
 
-  try {
-    // 插入签到记录
-    await supabaseClient.from('checkins').insert({
-      user_id: currentUser.id,
-      checkin_date: today,
-      created_at: new Date().toISOString()
-    });
+  // 插入签到记录
+  const { error } = await supabaseClient
+    .from('checkins')
+    .insert({ user_id: currentUser.id, checkin_date: today });
 
-    // 新奖励规则
-    const newStreak = (userData.checkin_streak || 0) + 1;
-    let tokenReward = 2;      // 每天 2 PAWLY
-    let pointsReward = 5;     // 每天 5 Points
-
-    if (newStreak % 7 === 0) {
-      pointsReward += 10;     // 每满7天额外 +10 Points
-    }
-
-    const newBalance = (userData.pawly_balance || 0) + tokenReward;
-    const newPoints = (userData.pawly_points || 0) + pointsReward;
-
-    // 更新用户数据
-    await supabaseClient.from('USERS').update({
-      pawly_balance: newBalance,
-      pawly_points: newPoints,
-      checkin_streak: newStreak,
-      last_checkin: new Date().toISOString()
-    }).eq('id', currentUser.id);
-
-    alert(`✅ 签到成功！\n连续签到：${newStreak} 天\n获得：${tokenReward} PAWLY + ${pointsReward} Points`);
-
-    await calculateUserStats(currentUser.id);
-    updateDashboard();
-    startCountdown(Date.now());
-
-  } catch (error) {
-    console.error("签到失败:", error);
-    alert("签到失败，请稍后再试。");
+  if (error) {
+    alert("签到失败: " + error.message);
+    return;
   }
+
+  // 更新奖励（2 PAWLY + 5 积分，连续7天额外+10积分）
+  const stats = await calculateUserStats(currentUser.id);
+
+  let message = `✅ 签到成功！\n连续签到：${stats.streak} 天\n获得 2 PAWLY + 5 积分\n总计：${stats.totalPAWLY} PAWLY\n\n✅ Check-in successful!`;
+
+  if (stats.streak % 7 === 0) {
+    message = `🎉 恭喜！你已连续签到 ${stats.streak} 天！\n额外获得 10 积分！\n目前已赚取 ${stats.totalPAWLY} PAWLY`;
+  }
+
+  alert(message);
+  updateDashboard();
+  startCountdown(Date.now());
+  showTab(1);
 }
 
 // ==================== 更新后的 calculateUserStats（简化版） ====================
@@ -871,35 +854,42 @@ async function calculateUserStats(userId) {
 async function updateDashboard() {
   if (!currentUser) return;
 
-  const { data: dbData } = await supabaseClient
-    .from('USERS')
-    .select('checkin_streak, pawly_balance, pawly_points')
-    .eq('id', currentUser.id)
-    .single();
+  try {
+    const { data: dbData } = await supabaseClient
+      .from('USERS')
+      .select('checkin_streak, total_earned, pawly_points')
+      .eq('id', currentUser.id)
+      .single();
 
-  let streak = 0;
-  let totalPAWLY = 0;
-  let points = 0;
+    let streak = 0;
+    let totalPAWLY = 0;
+    let points = 0;
 
-  if (dbData) {
-    streak = dbData.checkin_streak || 0;
-    totalPAWLY = dbData.pawly_balance || 0;
-    points = dbData.pawly_points || 0;
-  } else {
-    streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
-    totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0);
-    points = parseInt(localStorage.getItem('pawly_points_' + currentUser.id) || 0);
+    if (dbData) {
+      streak = dbData.checkin_streak || 0;
+      totalPAWLY = dbData.total_earned || 0;
+      points = dbData.pawly_points || 0;
+    } else {
+      // 降级使用 localStorage
+      streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
+      totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0);
+      points = parseInt(localStorage.getItem('pawly_points_' + currentUser.id) || 0);
+    }
+
+    // 更新原有显示
+    document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
+    document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
+
+    // 显示 Pawly Points
+    const pointsEl = document.getElementById('pointsDisplay');
+    const redeemableEl = document.getElementById('redeemablePAWLY');
+
+    if (pointsEl) pointsEl.innerText = points;
+    if (redeemableEl) redeemableEl.innerText = Math.floor(points / 100) * 5;
+
+  } catch (error) {
+    console.error("更新仪表盘失败:", error);
   }
-
-  // 更新原有显示
-  document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
-  document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
-
-  // 显示 Pawly Points
-  const pointsEl = document.getElementById('pointsDisplay');
-  const redeemableEl = document.getElementById('redeemablePAWLY');
-  if (pointsEl) pointsEl.innerText = points;
-  if (redeemableEl) redeemableEl.innerText = Math.floor(points / 100) * 5;
 }
 
 // ==================== Pawly Points 兑换功能（必须放在外面！） ====================
@@ -1117,31 +1107,81 @@ function submitCharityWaitlist() {
   showCharityShowcase();
 }
 
+// ==================== 页面加载初始化（最终稳定版） ====================
 window.onload = async function() {
   showTab(0);
-  initEmailReminderButton();
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('logged-in-section').style.display = 'block';
-    document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
-    const { data: userData } = await supabaseClient.from('USERS').select('wallet_address').eq('id', currentUser.id).single();
-    if (userData?.wallet_address) {
-      document.getElementById('bind-wallet').value = userData.wallet_address;
-      document.getElementById('bind-wallet').disabled = true;
-      document.getElementById('walletDisplay').innerText = userData.wallet_address;
-    }
-    await calculateUserStats(currentUser.id);
-    updateDashboard();
-    await requestNotificationPermission();
-    const today = new Date().toISOString().split('T')[0];
-    const { data: todayCheckin } = await supabaseClient.from('checkins').select('created_at').eq('user_id', currentUser.id).eq('checkin_date', today).maybeSingle();
-    if (todayCheckin?.created_at) {
-      startCountdown(new Date(todayCheckin.created_at).getTime());
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (session && session.user) {
+      currentUser = session.user;
+
+      // 显示已登录状态
+      const authSection = document.getElementById('auth-section');
+      const loggedSection = document.getElementById('logged-in-section');
+      if (authSection) authSection.style.display = 'none';
+      if (loggedSection) loggedSection.style.display = 'block';
+
+      // 显示邮箱
+      const emailDisplay = document.getElementById('user-email-display');
+      if (emailDisplay) {
+        emailDisplay.innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
+      }
+
+      // 获取用户钱包地址（容错处理）
+      let hasWallet = false;
+      try {
+        const { data: userData } = await supabaseClient
+          .from('USERS')
+          .select('wallet_address')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (userData?.wallet_address) {
+          hasWallet = true;
+          const bindInput = document.getElementById('bind-wallet');
+          if (bindInput) {
+            bindInput.value = userData.wallet_address;
+            bindInput.disabled = true;
+          }
+          const walletDisplay = document.getElementById('walletDisplay');
+          if (walletDisplay) walletDisplay.innerText = userData.wallet_address;
+        }
+      } catch (e) {
+        console.warn("获取钱包地址失败（不影响使用）");
+      }
+
+      // 更新仪表盘（包含积分显示）
+      await calculateUserStats(currentUser.id);
+      updateDashboard();
+
+      // 恢复倒计时
+      await requestNotificationPermission();
+
+      const { data: lastCheckin } = await supabaseClient
+        .from('checkins')
+        .select('created_at')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastCheckin?.created_at) {
+        startCountdown(new Date(lastCheckin.created_at).getTime());
+      } else {
+        const timerEl = document.getElementById('countdownTimer');
+        if (timerEl) timerEl.innerText = "00:00:00";
+      }
+
     } else {
-      startCountdownFromStorage();
+      const authSection = document.getElementById('auth-section');
+      if (authSection) authSection.style.display = 'block';
     }
+
+  } catch (error) {
+    console.error("初始化失败:", error);
+    // 不再弹窗，只在控制台记录，避免打扰用户
   }
 };
 
