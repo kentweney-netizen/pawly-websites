@@ -1121,13 +1121,6 @@ try {
         .catch(error => {
           console.log('Service Worker 注册失败（可忽略）:', error);
         });
-    });
-  }
-} catch (e) {
-  // 沙盒环境或浏览器限制时静默处理，不影响其他功能
-  console.log('Service Worker 功能被禁用（沙盒环境）:', e.message);
-});
-  });
 }
 </script>
 </body>
