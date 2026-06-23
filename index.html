@@ -782,7 +782,7 @@ async function checkIn() {
     return;
   }
 
-  // ========== 强制绑定钱包 ==========
+  // 强制绑定钱包
   const { data: userData } = await supabaseClient
     .from('USERS')
     .select('wallet_address')
@@ -791,7 +791,7 @@ async function checkIn() {
 
   if (!userData?.wallet_address) {
     alert("请先绑定 Solana 钱包才能签到！\nPlease bind your Solana wallet before checking in.");
-    showTab(1); // 跳转到仪表盘页面
+    showTab(1);
     return;
   }
 
@@ -806,48 +806,75 @@ async function checkIn() {
     .maybeSingle();
 
   if (existing) {
-    alert("此账号今日已签到，请在倒数结束后再进行签到\nThis account has already checked in today.");
+    alert("此账号今日已签到，请在倒数结束后再进行签到。");
     showTab(1);
     return;
   }
 
   // 插入签到记录
-  const { error } = await supabaseClient
+  const { error: insertError } = await supabaseClient
     .from('checkins')
     .insert({ user_id: currentUser.id, checkin_date: today });
 
-  if (error) {
-    alert("签到失败: " + error.message);
+  if (insertError) {
+    alert("签到失败: " + insertError.message);
     return;
   }
 
-  // 更新奖励（2 PAWLY + 5 积分，连续7天额外+10积分）
+  // 获取当前数据
   const stats = await calculateUserStats(currentUser.id);
 
-  let message = `✅ 签到成功！\n连续签到：${stats.streak} 天\n获得 2 PAWLY + 5 积分\n总计：${stats.totalPAWLY} PAWLY\n\n✅ Check-in successful!`;
+  // 更新奖励（2 PAWLY + 5 Points）
+  const newTotal = (stats.totalPAWLY || 0) + 2;
+  const newPoints = (stats.points || 0) + 5;
 
-  if (stats.streak % 7 === 0) {
-    message = `🎉 恭喜！你已连续签到 ${stats.streak} 天！\n额外获得 10 积分！\n目前已赚取 ${stats.totalPAWLY} PAWLY`;
+  await supabaseClient
+    .from('USERS')
+    .update({
+      total_earned: newTotal,
+      pawly_points: newPoints
+    })
+    .eq('id', currentUser.id);
+
+  // 连续签到7天额外奖励
+  let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY`;
+
+  if ((stats.streak + 1) % 7 === 0) {
+    const bonusPoints = newPoints + 10;
+    await supabaseClient
+      .from('USERS')
+      .update({ pawly_points: bonusPoints })
+      .eq('id', currentUser.id);
+
+    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY`;
   }
 
   alert(message);
+
+  await calculateUserStats(currentUser.id);
   updateDashboard();
   startCountdown(Date.now());
   showTab(1);
 }
-
 // ==================== 更新后的 calculateUserStats（简化版） ====================
 async function calculateUserStats(userId) {
-  const { data } = await supabaseClient
-    .from('USERS')
-    .select('checkin_streak, pawly_balance, pawly_points')
-    .eq('id', userId)
-    .single();
+  if (!userId) return { streak: 0, totalPAWLY: 0, points: 0 };
 
-  if (data) {
-    localStorage.setItem('streak_' + userId, data.checkin_streak || 0);
-    localStorage.setItem('totalPAWLY_' + userId, data.pawly_balance || 0);
-    localStorage.setItem('pawly_points_' + userId, data.pawly_points || 0);
+  try {
+    const { data: userData } = await supabaseClient
+      .from('USERS')
+      .select('checkin_streak, total_earned, pawly_points')
+      .eq('id', userId)
+      .single();
+
+    return {
+      streak: userData?.checkin_streak || 0,
+      totalPAWLY: userData?.total_earned || 0,
+      points: userData?.pawly_points || 0
+    };
+  } catch (error) {
+    console.error("计算用户数据失败:", error);
+    return { streak: 0, totalPAWLY: 0, points: 0 };
   }
 }
 
@@ -855,35 +882,26 @@ async function updateDashboard() {
   if (!currentUser) return;
 
   try {
-    const { data: dbData } = await supabaseClient
+    const { data: dbData, error } = await supabaseClient
       .from('USERS')
       .select('checkin_streak, total_earned, pawly_points')
       .eq('id', currentUser.id)
       .single();
 
-    let streak = 0;
-    let totalPAWLY = 0;
-    let points = 0;
-
-    if (dbData) {
-      streak = dbData.checkin_streak || 0;
-      totalPAWLY = dbData.total_earned || 0;
-      points = dbData.pawly_points || 0;
-    } else {
-      // 降级使用 localStorage
-      streak = parseInt(localStorage.getItem('streak_' + currentUser.id) || 0);
-      totalPAWLY = parseInt(localStorage.getItem('totalPAWLY_' + currentUser.id) || 0);
-      points = parseInt(localStorage.getItem('pawly_points_' + currentUser.id) || 0);
+    if (error) {
+      console.error("查询用户数据失败:", error);
+      return;
     }
 
-    // 更新原有显示
+    const streak = dbData?.checkin_streak || 0;
+    const totalPAWLY = dbData?.total_earned || 0;
+    const points = dbData?.pawly_points || 0;
+
     document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
     document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
 
-    // 显示 Pawly Points
     const pointsEl = document.getElementById('pointsDisplay');
     const redeemableEl = document.getElementById('redeemablePAWLY');
-
     if (pointsEl) pointsEl.innerText = points;
     if (redeemableEl) redeemableEl.innerText = Math.floor(points / 100) * 5;
 
