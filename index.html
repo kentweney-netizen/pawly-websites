@@ -715,7 +715,7 @@ async function calculateUserStats(userId) {
     if (error || !checkins || checkins.length === 0) {
       localStorage.setItem('streak_' + userId, 0);
       localStorage.setItem('totalPAWLY_' + userId, 0);
-      await supabaseClient.from('USERS').update({ streak: 0, total_earned: 0 }).eq('id', userId);
+      await supabaseClient.from('USERS').update({ streak: 0, total_earnd: 0 }).eq('id', userId);
       return { streak: 0, totalPAWLY: 0 };
     }
 
@@ -738,7 +738,7 @@ async function calculateUserStats(userId) {
     // 同步更新数据库
     await supabaseClient.from('USERS').update({
       streak: streak,
-      total_earned: totalPAWLY
+      total_earnd: totalPAWLY
     }).eq('id', userId);
 
     return { streak, totalPAWLY };
@@ -858,7 +858,7 @@ async function checkIn() {
   await supabaseClient
     .from('USERS')
     .update({
-      total_earned: newTotal,
+      total_earnd: newTotal,
       pawly_points: newPoints
     })
     .eq('id', currentUser.id);
@@ -890,13 +890,13 @@ async function calculateUserStats(userId) {
   try {
     const { data: userData } = await supabaseClient
       .from('USERS')
-      .select('checkin_streak, total_earned, pawly_points')
+      .select('streak, total_earnd, pawly_points')
       .eq('id', userId)
       .single();
 
     return {
-      streak: userData?.checkin_streak || 0,
-      totalPAWLY: userData?.total_earned || 0,
+      streak: userData?.streak || 0,
+      totalPAWLY: userData?.total_earnd || 0,
       points: userData?.pawly_points || 0
     };
   } catch (error) {
@@ -911,7 +911,7 @@ async function updateDashboard() {
   try {
     const { data: dbData, error } = await supabaseClient
       .from('USERS')
-      .select('checkin_streak, total_earned, pawly_points')
+      .select('streak, total_earnd, pawly_points')
       .eq('id', currentUser.id)
       .single();
 
@@ -920,8 +920,8 @@ async function updateDashboard() {
       return;
     }
 
-    const streak = dbData?.checkin_streak || 0;
-    const totalPAWLY = dbData?.total_earned || 0;
+    const streak = dbData?.streak || 0;
+    const totalPAWLY = dbData?.total_earnd || 0;
     const points = dbData?.pawly_points || 0;
 
     document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
