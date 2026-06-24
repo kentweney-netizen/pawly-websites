@@ -617,7 +617,7 @@ async function loginUser() {
   if (!email || !password) { alert("请输入邮箱和密码！\nPlease enter your email and password!"); return; }
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) { alert("登录失败: " + error.message); return; }
-  currentUser = data.user;
+    currentUser = data.user;
   await ensureUserRowExists(currentUser.id, currentUser.email);
 
   const { data: userData } = await supabaseClient.from('USERS')
@@ -632,6 +632,18 @@ async function loginUser() {
   }
 
   await calculateUserStats(currentUser.id);
+
+  // ========== 登录时清理旧提醒记录（针对旧用户最有效） ==========
+  try {
+    await supabaseClient
+      .from('email_reminders')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .lt('last_sign_in_time', Date.now() - (2 * 24 * 60 * 60 * 1000)); // 删除2天前的旧记录
+  } catch (e) {
+    console.warn("登录时清理旧提醒记录失败:", e);
+  }
+
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('logged-in-section').style.display = 'block';
   document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
@@ -679,13 +691,13 @@ async function bindWallet() {
   }
 }
 
-// ==================== checkIn（已加入保存 lastSignInTime） ====================
 async function checkIn() {
   if (!currentUser) {
     alert("请先登录！\nPlease login first!");
     return;
   }
 
+  // 检查是否已绑定钱包
   const { data: userData } = await supabaseClient
     .from('USERS')
     .select('wallet_address')
@@ -699,6 +711,8 @@ async function checkIn() {
   }
 
   const today = new Date().toISOString().split('T')[0];
+
+  // 检查今天是否已经签到
   const { data: existing } = await supabaseClient
     .from('checkins')
     .select('id')
@@ -712,6 +726,7 @@ async function checkIn() {
     return;
   }
 
+  // 插入新的签到记录
   const { error: insertError } = await supabaseClient
     .from('checkins')
     .insert({ user_id: currentUser.id, checkin_date: today });
@@ -721,33 +736,44 @@ async function checkIn() {
     return;
   }
 
+  // 获取当前数据并计算新值
   const stats = await calculateUserStats(currentUser.id);
   const newTotal = (stats.totalPAWLY || 0) + 2;
   const newPoints = (stats.points || 0) + 5;
 
+  // 更新用户数据
   await supabaseClient.from('USERS').update({
     total_earnd: newTotal,
     pawly_points: newPoints
   }).eq('id', currentUser.id);
 
-  // ========== 关键：新签到时清理旧提醒标记 ==========
-  const oldLastSignInTime = localStorage.getItem('lastSignInTime_' + currentUser.id);
-  if (oldLastSignInTime) {
-    localStorage.removeItem(`reminder_sent_for_${oldLastSignInTime}`);
-  }
-
+  // ========== 关键：保存最后签到时间 + 清理旧提醒记录 ==========
   localStorage.setItem('lastSignInTime_' + currentUser.id, Date.now());
 
+  // 清理该用户之前旧的提醒记录（防止旧倒数继续触发）
+  try {
+    await supabaseClient
+      .from('email_reminders')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .lt('last_sign_in_time', Date.now() - (1 * 24 * 60 * 60 * 1000));
+  } catch (e) {
+    console.warn("清理旧提醒记录失败:", e);
+  }
+
+  // 构建提示信息
   let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`;
 
+  // 7天连续签到奖励
   if ((stats.streak + 1) % 7 === 0) {
     const bonusPoints = newPoints + 10;
     await supabaseClient.from('USERS').update({ pawly_points: bonusPoints }).eq('id', currentUser.id);
-    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY\n\n🎉 Congratulations!`;
+    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak + 1} consecutive days!`;
   }
 
   alert(message);
 
+  // 更新界面
   await calculateUserStats(currentUser.id);
   updateDashboard();
   startCountdown(Date.now());
@@ -849,7 +875,7 @@ function startCountdown(lastSignInTime) {
       statusEl.innerHTML = `<span style="color:#00ff9d; font-weight:bold;">✅ 可以签到了! You May Check-in Now!</span>`;
       if (readyArea) readyArea.style.display = "block";
 
-      // 只调用一次
+      // 倒数结束时调用发送函数（最终判断还是在 sendEmailReminderOnce 里做）
       sendEmailReminderOnce();
     } else {
       const hours = Math.floor(remaining / (1000 * 60 * 60));
@@ -862,28 +888,66 @@ function startCountdown(lastSignInTime) {
   }, 1000);
 }
 
-function startCountdownFromStorage() {
+async function startCountdownFromStorage() {
   if (!currentUser) return;
-  const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
-  if (lastTime > 0) {
-    startCountdown(lastTime);
-  } else {
-    document.getElementById('countdownTimer').innerText = "00:00:00";
-    document.getElementById('countdownStatus').innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
+
+  // ========== 从 Supabase 获取用户最近一次真实的签到时间 ==========
+  try {
+    const { data: latestCheckin } = await supabaseClient
+      .from('checkins')
+      .select('created_at')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!latestCheckin) {
+      // 用户没有签到记录
+      document.getElementById('countdownTimer').innerText = "00:00:00";
+      document.getElementById('countdownStatus').innerHTML = `<span style="color:#00ff9d;">可以签到了！</span>`;
+      return;
+    }
+
+    const lastCheckinTime = new Date(latestCheckin.created_at).getTime();
+
+    // 用 Supabase 的真实签到时间来启动倒数
+    startCountdown(lastCheckinTime);
+
+  } catch (e) {
+    console.error("从 Supabase 获取最近签到时间失败:", e);
+    // 失败时降级使用 LocalStorage
+    const lastTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
+    if (lastTime > 0) {
+      startCountdown(lastTime);
+    }
   }
 }
-
-function goToCheckin() { showTab(0); }
+function goToCheckin() { 
+  showTab(0); 
+}
 
 async function logout() {
+  // 1. 确认弹窗（防止误操作）
   if (!confirm("确定要登出吗？\n\nAre you sure you want to logout?")) return;
+
+  // 2. 调用 Supabase 官方登出（最重要）
   await supabaseClient.auth.signOut();
+
+  // 3. 清除前端内存中的用户状态
   currentUser = null;
+
+  // 4. 停止倒数计时器（非常关键）
   if (countdownInterval) clearInterval(countdownInterval);
+
+  // 5. 切换界面：显示登录区，隐藏仪表盘
   document.getElementById('auth-section').style.display = 'block';
   document.getElementById('logged-in-section').style.display = 'none';
+
+  // 6. 重置钱包绑定输入框
   document.getElementById('bind-wallet').disabled = false;
   document.getElementById('bind-wallet').value = '';
+
+  // 7. 提示用户 + 跳转回签到页
   alert("已成功登出！\n\nLogged out successfully!");
   showTab(0);
 }
@@ -1113,25 +1177,52 @@ function isEmailReminderEnabled() {
   return localStorage.getItem(storageKey) === 'true';
 }
 
-// ==================== 最终版：使用 Supabase + 双语邮件 ====================
+// ==================== 极致版：完全依赖 Supabase（不再依赖 localStorage lastSignInTime） ====================
 async function sendEmailReminderOnce() {
   if (!currentUser || !currentUser.email) return;
   if (!isEmailReminderEnabled()) return;
 
-  const lastSignInTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
-  if (!lastSignInTime) return;
+  // ========== 从 Supabase 获取用户最近一次签到记录 ==========
+  let latestCheckin;
+  try {
+    const { data } = await supabaseClient
+      .from('checkins')
+      .select('id, created_at')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  // 1. 从 Supabase 检查这个签到周期是否已发送过
+    if (!data) {
+      console.log("用户没有签到记录");
+      return;
+    }
+    latestCheckin = data;
+  } catch (e) {
+    console.error("查询最近签到失败:", e);
+    return;
+  }
+
+  const checkinTime = new Date(latestCheckin.created_at).getTime();
+  const hoursSinceCheckin = (Date.now() - checkinTime) / (1000 * 60 * 60);
+
+  // 必须超过 24 小时才考虑发送
+  if (hoursSinceCheckin < 24) {
+    console.log("距离上次签到不足24小时，不发送提醒");
+    return;
+  }
+
+  // ========== 检查是否已经为这次签到发送过提醒 ==========
   try {
     const { data: existing } = await supabaseClient
       .from('email_reminders')
       .select('id')
       .eq('user_id', currentUser.id)
-      .eq('last_sign_in_time', lastSignInTime)
+      .eq('last_sign_in_time', checkinTime)   // 用签到时间戳作为唯一标识
       .maybeSingle();
 
     if (existing) {
-      console.log("这个签到周期已发送过提醒，跳过");
+      console.log("这次签到已经发送过提醒，跳过");
       return;
     }
   } catch (e) {
@@ -1139,26 +1230,7 @@ async function sendEmailReminderOnce() {
     return;
   }
 
-  // 2. 检查今天是否已经签到
-  const today = new Date().toISOString().split('T')[0];
-  try {
-    const { data: todayCheckin } = await supabaseClient
-      .from('checkins')
-      .select('id')
-      .eq('user_id', currentUser.id)
-      .eq('checkin_date', today)
-      .maybeSingle();
-
-    if (todayCheckin) {
-      console.log("今天已签到，不再发送提醒");
-      return;
-    }
-  } catch (e) {
-    console.error("检查签到失败:", e);
-    return;
-  }
-
-  // 3. 真正发送邮件（双语）
+  // ========== 真正发送邮件 ==========
   try {
     const response = await fetch('/.netlify/functions/send-email', {
       method: 'POST',
@@ -1171,14 +1243,14 @@ async function sendEmailReminderOnce() {
     });
 
     if (response.ok) {
-      // 4. 发送成功后写入 Supabase
+      // 发送成功后记录到 Supabase
       await supabaseClient.from('email_reminders').insert({
         user_id: currentUser.id,
-        last_sign_in_time: lastSignInTime,
+        last_sign_in_time: checkinTime,
         email: currentUser.email
       });
 
-      console.log("✅ 已发送提醒并记录到 Supabase:", currentUser.email);
+      console.log("✅ 已发送提醒并记录到数据库:", currentUser.email);
     }
   } catch (e) {
     console.error("发送失败:", e);
