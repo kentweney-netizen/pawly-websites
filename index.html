@@ -1113,7 +1113,7 @@ function isEmailReminderEnabled() {
   return localStorage.getItem(storageKey) === 'true';
 }
 
-// ==================== 最强最终版（已针对旧用户加强） ====================
+// ==================== 最终版：使用 Supabase + 双语邮件 ====================
 async function sendEmailReminderOnce() {
   if (!currentUser || !currentUser.email) return;
   if (!isEmailReminderEnabled()) return;
@@ -1121,29 +1121,25 @@ async function sendEmailReminderOnce() {
   const lastSignInTime = parseInt(localStorage.getItem('lastSignInTime_' + currentUser.id) || 0);
   if (!lastSignInTime) return;
 
-  // 1. 如果签到时间超过 72 小时，直接放弃（防止旧数据一直触发）
-  const hoursSinceSignIn = (Date.now() - lastSignInTime) / (1000 * 60 * 60);
-  if (hoursSinceSignIn > 72) {
-    console.log("签到时间太旧，跳过提醒");
+  // 1. 从 Supabase 检查这个签到周期是否已发送过
+  try {
+    const { data: existing } = await supabaseClient
+      .from('email_reminders')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('last_sign_in_time', lastSignInTime)
+      .maybeSingle();
+
+    if (existing) {
+      console.log("这个签到周期已发送过提醒，跳过");
+      return;
+    }
+  } catch (e) {
+    console.error("查询提醒记录失败:", e);
     return;
   }
 
-  const reminderKey = `reminder_sent_for_${lastSignInTime}`;
-
-  // 2. 这个签到周期已经发过
-  if (localStorage.getItem(reminderKey) === 'sent') {
-    return;
-  }
-
-  // 3. 全局 22 小时节流（最强防护）
-  const globalKey = `global_reminder_cooldown_${currentUser.id}`;
-  const lastGlobal = parseInt(localStorage.getItem(globalKey) || 0);
-  if (lastGlobal && (Date.now() - lastGlobal) < 22 * 60 * 60 * 1000) {
-    console.log("全局冷却中，跳过");
-    return;
-  }
-
-  // 4. 检查今天是否已签到
+  // 2. 检查今天是否已经签到
   const today = new Date().toISOString().split('T')[0];
   try {
     const { data: todayCheckin } = await supabaseClient
@@ -1154,56 +1150,38 @@ async function sendEmailReminderOnce() {
       .maybeSingle();
 
     if (todayCheckin) {
-      localStorage.setItem(reminderKey, 'sent');
+      console.log("今天已签到，不再发送提醒");
       return;
     }
   } catch (e) {
+    console.error("检查签到失败:", e);
     return;
   }
 
-  // 真正发送
+  // 3. 真正发送邮件（双语）
   try {
-    const res = await fetch('/.netlify/functions/send-email', {
+    const response = await fetch('/.netlify/functions/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: currentUser.email,
-        subject: "PAWLY 签到提醒 - 24小时已到，可以签到了！",
-        message: `你好！\n\n距离你上次签到已经过去 24 小时了，记得来签到领取今天的 PAWLY 奖励哦～\n\n立即去签到: https://pawlypets.netlify.app/`
+        subject: "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder",
+        message: `你好！\n\n距离你上次签到已经过去 24 小时了，记得来签到领取今天的 PAWLY 奖励哦～\n\n24 hours have passed since your last check-in. Don't forget to check in again today.\n\n立即去签到 / Check-in Now: https://pawlypets.netlify.app/\n\n感谢支持 PAWLY 社区！ / Thank you for supporting PAWLY!`
       })
     });
 
-    if (res.ok) {
-      localStorage.setItem(reminderKey, 'sent');
-      localStorage.setItem(globalKey, Date.now().toString());
-      console.log("✅ 已发送提醒给:", currentUser.email);
-    }
-  } catch (e) {}
-}
-async function sendTestEmailReminder() {
-  if (!currentUser || !currentUser.email) {
-    alert("请先登录！\nPlease login first!");
-    return;
-  }
+    if (response.ok) {
+      // 4. 发送成功后写入 Supabase
+      await supabaseClient.from('email_reminders').insert({
+        user_id: currentUser.id,
+        last_sign_in_time: lastSignInTime,
+        email: currentUser.email
+      });
 
-  try {
-    const res = await fetch('/.netlify/functions/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: currentUser.email,
-        subject: "PAWLY 测试邮件 - 邮箱提醒功能正常",
-        message: `这是一封测试邮件。\n如果你收到这封邮件，说明邮箱提醒功能已正常开启。\n\nThis is a test email.\nIf you received this email, the email reminder feature is working correctly.`
-      })
-    });
-
-    if (res.ok) {
-      alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。");
-    } else {
-      alert("发送失败，请稍后再试。");
+      console.log("✅ 已发送提醒并记录到 Supabase:", currentUser.email);
     }
   } catch (e) {
-    alert("发送失败，请稍后再试。");
+    console.error("发送失败:", e);
   }
 }
 
