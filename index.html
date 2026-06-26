@@ -1486,13 +1486,14 @@ window.onload = async function() {
   }
 };
 
-<!-- ========== PAWLY 成员表 新页面 ========== -->
+<!-- ==================== PAWLY 成员表 新页面（最终完美双语版） ==================== -->
 <div id="pawlyMembersPage" style="display:none; min-height:100vh; background: linear-gradient(135deg, #0f0022, #1a0033); padding:20px 15px; position:relative;">
 
   <div style="height:8px; background:linear-gradient(to right, #ff9ecd, #00ff9d, #00aaff); margin-bottom:25px; border-radius:4px;"></div>
 
   <div style="max-width:1100px; margin:0 auto;">
     
+    <!-- 头部 -->
     <div style="text-align:center; margin-bottom:25px;">
       <div style="font-size:4rem; margin-bottom:5px;">🐾</div>
       <h1 style="font-size:2.5rem; color:#00ff9d; margin:0 0 6px 0;">欢迎来到 PAWLY 大家庭</h1>
@@ -1503,18 +1504,20 @@ window.onload = async function() {
     <div style="background:rgba(255, 200, 220, 0.08); border:3px solid #ff9ecd; border-radius:24px; padding:25px 20px; margin-bottom:45px; text-align:center; box-shadow:0 10px 35px rgba(255, 158, 205, 0.2);">
       
       <h3 style="color:#ff9ecd; margin:0 0 12px 0; font-size:1.4rem;">和我们一起守护毛孩子吧～ / Let's protect every helpless animal together~</h3>
+      
       <p style="color:#ffccdd; font-size:1.05rem; line-height:1.7; max-width:620px; margin:0 auto 20px;">
-        每一位加入的你，都是 PAWLY 大家庭的重要成员。Every person who joint PAWLY, is our beloved Family's<br>
+        每一位加入的你，都是 PAWLY 大家庭的重要成员。<br>
         <span style="color:#ff99bb; font-size:0.95rem;">Every member is an important part of the PAWLY family.</span>
       </p>
 
+      <!-- 图片路径已修正为 image/ -->
       <div style="margin:15px auto 12px; max-width:520px; border-radius:20px; overflow:hidden; border:4px solid #ff9ecd; box-shadow:0 15px 40px rgba(255, 158, 205, 0.35);">
         <img src="image/pawly-welcome-girl.jpg" 
-             alt="欢迎来到PAWLY大家庭 / Wellcome to PAWLY Familys" 
+             alt="欢迎来到PAWLY大家庭 / Welcome to PAWLY Family" 
              style="width:100%; height:auto; display:block;">
       </div>
 
-      <p style="color:#ff9ecd; font-size:0.95rem; margin:0;">一起用爱与行动，让更多流浪动物找到温暖的家 / Let's our love keep warming every helpless animal</p>
+      <p style="color:#ff9ecd; font-size:0.95rem; margin:0;">一起用爱与行动，让更多流浪动物找到温暖的家 / Let's use love and action to help more stray animals find a warm home</p>
     </div>
 
     <!-- 三大数据卡片 -->
@@ -1523,34 +1526,37 @@ window.onload = async function() {
       <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15);">
         <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">🐾 REGISTERED MEMBERS</div>
         <div id="pageTotalMembers" style="font-size:3.9rem; font-weight:bold; color:#00ff9d; line-height:1;">--</div>
-        <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">已注册 PAWLY 成员 / Pawly Register Members</div>
-        <div style="margin-top:4px; color:#ff99bb; font-size:0.9rem;">More and more pet lovers are joining us</div>
+        <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">已注册 PAWLY 成员 / Registered PAWLY Members</div>
       </div>
 
       <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15);">
         <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">💖 TODAY'S CHECK-INS</div>
         <div id="pageTodaySignIns" style="font-size:3.9rem; font-weight:bold; color:#00ff9d; line-height:1;">--</div>
-        <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">今日签到人数 / Today Checkins</div>
-        <div style="margin-top:4px; color:#ff99bb; font-size:0.9rem;">Members who checked in today</div>
+        <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">今日签到人数 / Today's Check-ins</div>
       </div>
 
       <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15);">
         <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">🌟 TOTAL CHECK-INS</div>
         <div id="pageTotalSignIns" style="font-size:3.9rem; font-weight:bold; color:#00ff9d; line-height:1;">--</div>
-        <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">累计签到总次数 / Total Checkins</div>
-        <div style="margin-top:4px; color:#ff99bb; font-size:0.9rem;">All-time community dedication</div>
+        <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">累计签到总次数 / Total Check-ins</div>
       </div>
     </div>
 
-    <!-- 吸引眼球的文案区 -->
+    <!-- 吸引眼球的文案区（双语） -->
     <div style="background:rgba(255, 200, 220, 0.07); border:2px solid #ff9ecd; border-radius:22px; padding:32px 28px; margin-bottom:40px;">
-      <h3 style="color:#ff9ecd; text-align:center; margin-bottom:20px; font-size:1.35rem;">💕为什么大家越来越爱 PAWLY？ / 💕Why every one loves PAWLY</h3>
+      <h3 style="color:#ff9ecd; text-align:center; margin-bottom:20px; font-size:1.35rem;">💕 为什么大家越来越爱 PAWLY？ / 💕 Why Everyone Loves PAWLY</h3>
+      
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; color:#ffccdd; line-height:1.75; font-size:1.0rem;">
         <div>🐾 每天签到就能获得 PAWLY 奖励与积分<br><span style="color:#ff99bb; font-size:0.88rem;">Daily check-in rewards you with PAWLY & points</span></div>
+        
         <div>🐾 未来可按比例兑换真实 PAWLY Token<br><span style="color:#ff99bb; font-size:0.88rem;">Convert points to real PAWLY Token in the future</span></div>
+        
         <div>🐾 参与宠物慈善，用实际行动守护动物<br><span style="color:#ff99bb; font-size:0.88rem;">Join pet charity activities and protect animals</span></div>
+        
         <div>🐾 优先体验宠物支付与链上质押功能<br><span style="color:#ff99bb; font-size:0.88rem;">Priority access to pet payment & on-chain staking</span></div>
+        
         <div>🐾 成为早期成员，享受社区成长红利<br><span style="color:#ff99bb; font-size:0.88rem;">Early members enjoy community growth benefits</span></div>
+        
         <div>🐾 和全球爱宠人士一起守护毛孩子<br><span style="color:#ff99bb; font-size:0.88rem;">Protect pets together with global pet lovers</span></div>
       </div>
     </div>
@@ -1564,6 +1570,7 @@ window.onload = async function() {
 
   </div>
 </div>
+<!-- ==================== PAWLY 成员表 新页面 结束 ==================== -->
 
 // ==================== PWA Service Worker 注册 ====================
 if ('serviceWorker' in navigator) {
