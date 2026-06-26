@@ -829,7 +829,7 @@ async function checkIn() {
     return;
   }
 
-  // 1. 获取用户当前数据（包含 streak）
+  // 1. 获取用户当前完整数据
   const { data: userData, error: userError } = await supabaseClient
     .from('USERS')
     .select('wallet_address, checkin_streak, total_earnd, pawly_points')
@@ -897,11 +897,15 @@ async function checkIn() {
   const newTotal = (userData.total_earnd || 0) + 2;
   const newPoints = (userData.pawly_points || 0) + 5;
 
-  // 5. 更新用户数据（包含 streak）
+  // ========== 关键：设置下次提醒时间为 24 小时后 ==========
+  const nextReminderTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  // 5. 更新用户数据（包含 streak + next_reminder_at）
   await supabaseClient.from('USERS').update({
     total_earnd: newTotal,
     pawly_points: newPoints,
-    checkin_streak: newStreak
+    checkin_streak: newStreak,
+    next_reminder_at: nextReminderTime
   }).eq('id', currentUser.id);
 
   // 清理旧提醒记录
