@@ -1486,6 +1486,20 @@ window.onload = async function() {
   }
 };
 
+// ==================== PWA Service Worker 注册 ====================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('Service Worker 注册成功:', registration.scope);
+      })
+      .catch(error => {
+        console.log('Service Worker 注册失败:', error);
+      });
+  });
+}
+</script>
+
 <!-- ==================== PAWLY 成员表 新页面（最终完美双语版） ==================== -->
 <div id="pawlyMembersPage" style="display:none; min-height:100vh; background: linear-gradient(135deg, #0f0022, #1a0033); padding:20px 15px; position:relative;">
 
@@ -1572,18 +1586,5 @@ window.onload = async function() {
 </div>
 <!-- ==================== PAWLY 成员表 新页面 结束 ==================== -->
 
-// ==================== PWA Service Worker 注册 ====================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('Service Worker 注册成功:', registration.scope);
-      })
-      .catch(error => {
-        console.log('Service Worker 注册失败:', error);
-      });
-  });
-}
-</script>
 </body>
 </html>
