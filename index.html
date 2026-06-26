@@ -571,29 +571,21 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; color:#ffccdd; line-height:1.75; font-size:1.0rem;">
         <div>🐾 每天签到就能获得 PAWLY 奖励与积分<br><span style="color:#ff99bb; font-size:0.88rem;">Daily check-in rewards you with PAWLY & points</span></div>
-     
         <div>🐾 未来可按比例兑换真实 PAWLY Token<br><span style="color:#ff99bb; font-size:0.88rem;">Convert points to real PAWLY Token in the future</span></div>
-        
         <div>🐾 参与宠物慈善，用实际行动守护动物<br><span style="color:#ff99bb; font-size:0.88rem;">Join pet charity activities and protect animals</span></div>
-        
         <div>🐾 优先体验宠物支付与链上质押功能<br><span style="color:#ff99bb; font-size:0.88rem;">Priority access to pet payment & on-chain staking</span></div>
-        
         <div>🐾 成为早期成员，享受社区成长红利<br><span style="color:#ff99bb; font-size:0.88rem;">Early members enjoy community growth benefits</span></div>
-        
         <div>🐾 和全球爱宠人士一起守护毛孩子<br><span style="color:#ff99bb; font-size:0.88rem;">Protect pets together with global pet lovers</span></div>
       </div>
     </div>
-
     <div style="text-align:center; margin-bottom:35px;">
       <button onclick="hidePawlyMembersPage()" 
               style="background:transparent; color:#00ff9d; padding:15px 50px; border:2px solid #00ff9d; border-radius:18px; font-size:1.05em; cursor:pointer; font-weight:bold;">
         ← 返回我的仪表盘 / Back to Dashboard
       </button>
     </div>
-
   </div>
 </div>
-<!-- ==================== PAWLY 成员表 新页面 结束 ==================== -->
 
   <!-- 积分兑换确认弹窗 -->
   <div id="redeemModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
@@ -1298,7 +1290,17 @@ window.onload = async function() {
     console.error("初始化失败:", error);
   }
 };
+// ==================== 这里放 hide 函数 ====================
+function hidePawlyMembersPage() {
+  const page = document.getElementById('pawlyMembersPage');
+  if (page) page.style.display = 'none';
 
+  document.querySelectorAll('.tab').forEach(el => el.style.display = '');
+  document.querySelectorAll('.container').forEach(el => el.style.display = '');
+  document.querySelectorAll('.showcase').forEach(el => el.style.display = 'none');
+
+  showTab(1);
+}
 // ==================== PWA Service Worker 注册 ====================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
