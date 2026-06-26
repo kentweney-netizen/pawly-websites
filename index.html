@@ -1382,38 +1382,60 @@ async function sendEmailReminderOnce() {
 }
 
 // ==================== PAWLY 成员表 新页面功能（最终修复版） ====================
-function showPawlyMembersPage() {
-    // 1. 隐藏所有 tab
+async function showPawlyMembersPage() {
+    // 隐藏其他内容
     document.querySelectorAll('.tab').forEach(el => el.style.display = 'none');
-    
-    // 2. 隐藏所有独立的 container（Tokenomics、Roadmap、Team、FAQ 等）
     document.querySelectorAll('.container').forEach(el => {
-        if (el.id !== 'pawlyMembersPage') {
-            el.style.display = 'none';
-        }
+        if (el.id !== 'pawlyMembersPage') el.style.display = 'none';
     });
-    
-    // 3. 隐藏 showcase
     document.querySelectorAll('.showcase').forEach(el => el.style.display = 'none');
-    
-    // 4. 显示成员表页面
-    const page = document.getElementById('pawlyMembersPage');
-    if (page) {
-        page.style.display = 'block';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-}
 
-function hidePawlyMembersPage() {
     const page = document.getElementById('pawlyMembersPage');
-    if (page) page.style.display = 'none';
-    
-    // 恢复显示所有内容
-    document.querySelectorAll('.tab, .container, .showcase').forEach(el => {
-        el.style.display = '';
-    });
-    
-    showTab(1); // 返回仪表盘
+    if (page) page.style.display = 'block';
+
+    // 重置显示
+    const membersEl = document.getElementById('pageTotalMembers');
+    const todayEl = document.getElementById('pageTodaySignIns');
+    const totalEl = document.getElementById('pageTotalSignIns');
+
+    if (membersEl) membersEl.innerText = '...';
+    if (todayEl) todayEl.innerText = '...';
+    if (totalEl) totalEl.innerText = '...';
+
+    try {
+        // 1. 已注册成员数量
+        const { count: membersCount, error: membersError } = await supabaseClient
+            .from('USERS')
+            .select('*', { count: 'exact', head: true });
+
+        if (membersError) throw membersError;
+        if (membersEl) membersEl.innerText = membersCount || 0;
+
+        // 2. 今日签到人数
+        const today = new Date().toISOString().split('T')[0];
+        const { count: todayCount, error: todayError } = await supabaseClient
+            .from('checkins')
+            .select('*', { count: 'exact', head: true })
+            .eq('checkin_date', today);
+
+        if (todayError) throw todayError;
+        if (todayEl) todayEl.innerText = todayCount || 0;
+
+        // 3. 累计签到总次数
+        const { count: totalCheckins, error: totalError } = await supabaseClient
+            .from('checkins')
+            .select('*', { count: 'exact', head: true });
+
+        if (totalError) throw totalError;
+        if (totalEl) totalEl.innerText = totalCheckins || 0;
+
+    } catch (error) {
+        console.error('成员表数据加载失败:', error);
+        alert('加载成员数据失败，请稍后重试或联系管理员。\nData loading failed.');
+        if (membersEl) membersEl.innerText = '错误';
+        if (todayEl) todayEl.innerText = '错误';
+        if (totalEl) totalEl.innerText = '错误';
+    }
 }
 
 // ==================== 页面加载初始化 ====================
