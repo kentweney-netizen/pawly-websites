@@ -90,7 +90,7 @@
     <div class="container">
 <!-- ==================== PAWLY 欢迎图（新添加） ==================== -->
 <div style="text-align: center; margin: 20px 0 35px;">
-  <img src="https://i.postimg.cc/x8pmxVdP/pawly-token-helps.jpg" 
+  <img src="https://files.catbox.moe/1lhqif.mp4" 
        alt="PAWLY - 可爱的赛博宠物和美女" 
        style="max-width: 100%; width: 520px; height: auto; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 255, 150, 0.35);">
   <p style="margin-top: 18px; color: #00ff9d; font-size: 1.2em; font-weight: 500; line-height: 1.6;">
@@ -439,11 +439,12 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       <div style="text-align:left; line-height:1.8; margin:20px 0; font-size:0.97em;">
         <strong>中文：</strong><br>
         感谢你对 PAWLY 的信任与支持！当 Staking 功能正式开启时，我们会优先通知你，并为你准备早期质押奖励。我们希望每一位早期加入的伙伴，都能获得应有的回报与尊重。<br><br>
-        我们正在为 10,000 用户规模准备更公平、更可持续的奖励机制。你加入等待名单的行为，将成为 PAWLY 社区成长的重要见证。
+        我们正在为 5000 名用户以上规模准备更公平、更可持续的奖励机制。你加入等待名单的行为，将成为 PAWLY 社区成长的重要见证。
       </div>
       <div style="text-align:left; line-height:1.8; margin:20px 0; font-size:0.97em;">
         <strong>English：</strong><br>
-        Thank you for your trust and support! When staking officially launches, we will notify you first and prepare early staking rewards for you.
+        Thank you for your trust and support for PAWLY! When Staking officially launches, we will notify you first and prepare early staking rewards for you. We hope every early partner           will receive the rewards and respect they deserve.
+        We are preparing a fairer and more sustainable reward mechanism for a scale of over 5,000 users. Your decision to join the waitlist will serve as an important testament to PAWLY’s   community growth.
       </div>
       <button onclick="submitStakingWaitlist()" style="width:100%; padding:18px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:15px;">
         确认加入等待名单 / Confirm Join Waitlist
@@ -645,7 +646,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
 
       <!-- 图片路径已修正为 image/ -->
       <div style="margin:15px auto 12px; max-width:520px; border-radius:20px; overflow:hidden; border:4px solid #ff9ecd; box-shadow:0 15px 40px rgba(255, 158, 205, 0.35);">
-        <img src="https://i.postimg.cc/x8pmxVdP/pawly-token-helps.jpg" 
+        <img src="https://files.catbox.moe/gf5wmr.mp4" 
              alt="欢迎来到PAWLY大家庭 / Welcome to PAWLY Family" 
              style="width:100%; height:auto; display:block;">
       </div>
@@ -1215,44 +1216,83 @@ function submitCharityWaitlist() {
   showCharityShowcase();
 }
 
-// ==================== 修复后的邮箱提醒（已解决重复发送问题） ====================
-async function sendEmailReminder() {
+// ==================== 极致版：完全依赖 Supabase（不再依赖 localStorage lastSignInTime） ====================
+async function sendEmailReminderOnce() {
   if (!currentUser || !currentUser.email) return;
   if (!isEmailReminderEnabled()) return;
 
-  const today = new Date().toISOString().split('T')[0];
-
+  // ========== 从 Supabase 获取用户最近一次签到记录 ==========
+  let latestCheckin;
   try {
-    // ========== 关键修复：检查今天是否已经签到 ==========
-    const { data: todayCheckin } = await supabaseClient
+    const { data } = await supabaseClient
       .from('checkins')
-      .select('id')
+      .select('id, created_at')
       .eq('user_id', currentUser.id)
-      .eq('checkin_date', today)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    // 如果今天已经签到过，就不再发送提醒邮件
-    if (todayCheckin) {
-      console.log("今天已签到，不再发送邮箱提醒");
+    if (!data) {
+      console.log("用户没有签到记录");
       return;
     }
+    latestCheckin = data;
   } catch (e) {
-    console.error("检查今日签到状态失败:", e);
+    console.error("查询最近签到失败:", e);
     return;
   }
 
-  // 只有今天还没签到，才发送提醒邮件
-  const formData = new FormData();
-  formData.append("access_key", WEB3FORMS_KEY);
-  formData.append("email", currentUser.email);
-  formData.append("subject", "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder");
-  formData.append("message", `你好，\n你的 PAWLY 签到倒数已结束，现在可以进行签到了！\n请尽快登录网页进行签到：https://pawlypets.netlify.app/\n感谢支持 PAWLY 社区！\n\nHello,\nYour PAWLY check-in countdown has ended. You can check in now!\nPlease log in to check in: https://pawlypets.netlify.app/\nThank you for supporting PAWLY!`);
-  
+  const checkinTime = new Date(latestCheckin.created_at).getTime();
+  const hoursSinceCheckin = (Date.now() - checkinTime) / (1000 * 60 * 60);
+
+  // 必须超过 24 小时才考虑发送
+  if (hoursSinceCheckin < 24) {
+    console.log("距离上次签到不足24小时，不发送提醒");
+    return;
+  }
+
+  // ========== 检查是否已经为这次签到发送过提醒 ==========
   try {
-    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
-    console.log("邮箱提醒已发送给:", currentUser.email);
-  } catch(e) {
-    console.error("发送邮箱提醒失败:", e);
+    const { data: existing } = await supabaseClient
+      .from('email_reminders')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('last_sign_in_time', checkinTime)   // 用签到时间戳作为唯一标识
+      .maybeSingle();
+
+    if (existing) {
+      console.log("这次签到已经发送过提醒，跳过");
+      return;
+    }
+  } catch (e) {
+    console.error("查询提醒记录失败:", e);
+    return;
+  }
+
+  // ========== 真正发送邮件 ==========
+  try {
+    const response = await fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        subject: "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder",
+        message: `你好！距离你上次签到已经过去 24 小时了，记得来签到领取今天的 PAWLY 奖励哦～24 hours have passed since your last check-in. Don't forget to check in again today.\n\n立即去签到 / Check-in Now: https://pawlypets.netlify.app/ 感谢支持 PAWLY 社区！ / Thank you for supporting PAWLY!`
+      })
+    });
+
+    if (response.ok) {
+      // 发送成功后记录到 Supabase
+      await supabaseClient.from('email_reminders').insert({
+        user_id: currentUser.id,
+        last_sign_in_time: checkinTime,
+        email: currentUser.email
+      });
+
+      console.log("✅ 已发送提醒并记录到数据库:", currentUser.email);
+    }
+  } catch (e) {
+    console.error("发送失败:", e);
   }
 }
 
