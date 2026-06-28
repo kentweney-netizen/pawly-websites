@@ -933,7 +933,7 @@ async function checkIn() {
     return;
   }
 
-  const { error: insertError } = await supabaseClient
+   const { error: insertError } = await supabaseClient
     .from('checkins')
     .insert({ user_id: currentUser.id, checkin_date: today });
 
@@ -943,18 +943,22 @@ async function checkIn() {
   }
 
   const stats = await calculateUserStats(currentUser.id);
-
   const newTotal = (stats.totalPAWLY || 0) + 2;
   const newPoints = (stats.points || 0) + 5;
+
+  // ========== 关键修改：同时更新 last_checkin_at 和 next_reminder_at（用于24小时自动邮箱提醒） ==========
+  const newNextReminder = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
   await supabaseClient
     .from('USERS')
     .update({
+      last_checkin_at: new Date().toISOString(),
+      next_reminder_at: newNextReminder,
       total_earnd: newTotal,
       pawly_points: newPoints
     })
     .eq('id', currentUser.id);
-
+  
   let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`;
 
   if ((stats.streak + 1) % 7 === 0) {
