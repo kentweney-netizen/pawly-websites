@@ -819,7 +819,6 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
 // ==================== 完整修复版 JavaScript（字段统一为 checkin_streak + total_earnd） ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0';
-const WEB3FORMS_KEY = '43436864-9437-4f9b-82a5-5b9d219f911f';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let countdownInterval = null;
@@ -1314,11 +1313,10 @@ function submitCharityWaitlist() {
 }
 
 // ==================== 极致版：完全依赖 Supabase（不再依赖 localStorage lastSignInTime） ====================
-async function sendEmailReminderOnce() {
+async function sendCheckinReminder() {
   if (!currentUser || !currentUser.email) return;
-  if (!isEmailReminderEnabled()) return;
 
-  // ========== 从 Supabase 获取用户最近一次签到记录 ==========
+  // 1. 获取用户最近一次签到记录
   let latestCheckin;
   try {
     const { data } = await supabaseClient
@@ -1342,19 +1340,19 @@ async function sendEmailReminderOnce() {
   const checkinTime = new Date(latestCheckin.created_at).getTime();
   const hoursSinceCheckin = (Date.now() - checkinTime) / (1000 * 60 * 60);
 
-  // 必须超过 24 小时才考虑发送
+  // 必须超过 24 小时才发送
   if (hoursSinceCheckin < 24) {
     console.log("距离上次签到不足24小时，不发送提醒");
     return;
   }
 
-  // ========== 检查是否已经为这次签到发送过提醒 ==========
+  // 2. 检查是否已经为这次签到发送过提醒（防止重复发送）
   try {
     const { data: existing } = await supabaseClient
       .from('email_reminders')
       .select('id')
       .eq('user_id', currentUser.id)
-      .eq('last_sign_in_time', checkinTime)   // 用签到时间戳作为唯一标识
+      .eq('last_sign_in_time', checkinTime)
       .maybeSingle();
 
     if (existing) {
@@ -1366,44 +1364,119 @@ async function sendEmailReminderOnce() {
     return;
   }
 
-  // ========== 真正发送邮件 ==========
+  // 3. 调用 Supabase Edge Function 发送邮件（中英双语）
   try {
-    const response = await fetch('/.netlify/functions/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const { data, error } = await supabaseClient.functions.invoke('send-reminder', {
+      body: {
         email: currentUser.email,
         subject: "PAWLY 签到提醒 - 24小时已到，可以签到了！ / PAWLY Check-in Reminder",
-        message: `你好！距离你上次签到已经过去 24 小时了，记得来签到领取今天的 PAWLY 奖励哦～24 hours have passed since your last check-in. Don't forget to check in again today.\n\n立即去签到 / Check-in Now: https://pawlypets.netlify.app/ 感谢支持 PAWLY 社区！ / Thank you for supporting PAWLY!`
-      })
+        html: `
+          <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 620px; margin: 0 auto; padding: 28px 24px; background: #f8f9fa; border-radius: 16px;">
+            
+            <!-- 标题 -->
+            <h2 style="color: #00ff9d; margin: 0 0 24px 0; text-align: center; font-size: 24px;">
+              🐾 PAWLY 签到提醒<br>
+              <span style="font-size: 18px; font-weight: 600; color: #333;">PAWLY Check-in Reminder</span>
+            </h2>
+            
+            <!-- 正文 -->
+            <p style="font-size: 16px; line-height: 1.7; color: #333; margin: 0 0 12px 0;">
+              你好！距离你上次签到已经过去 <strong>24 小时</strong> 了。<br>
+              <span style="color: #555;">Hello! 24 hours have passed since your last check-in.</span>
+            </p>
+            
+            <p style="font-size: 16px; line-height: 1.7; color: #333; margin: 0 0 28px 0;">
+              记得来签到领取今天的 PAWLY 奖励哦～<br>
+              <span style="color: #555;">Don't forget to check in today to claim your PAWLY rewards!</span>
+            </p>
+            
+            <!-- CTA 按钮 -->
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="https://pawlypets.netlify.app/" 
+                 style="display: inline-block; background: #00ff9d; color: #000; 
+                        padding: 16px 52px; text-decoration: none; border-radius: 50px; 
+                        font-weight: bold; font-size: 17px; box-shadow: 0 4px 14px rgba(0,255,157,0.35);">
+                立即去签到 / Check-in Now
+              </a>
+            </div>
+            
+            <!-- 页脚 -->
+            <p style="color: #666; font-size: 14px; text-align: center; margin-top: 36px; line-height: 1.6;">
+              感谢你一直支持 PAWLY 社区！<br>
+              <span style="color: #888;">Thank you for supporting the PAWLY community!</span>
+            </p>
+          </div>
+        `
+      }
     });
 
-    if (response.ok) {
-      // 发送成功后记录到 Supabase
-      await supabaseClient.from('email_reminders').insert({
-        user_id: currentUser.id,
-        last_sign_in_time: checkinTime,
-        email: currentUser.email
-      });
-
-      console.log("✅ 已发送提醒并记录到数据库:", currentUser.email);
+    if (error) {
+      console.error("Edge Function 调用失败:", error);
+      return;
     }
+
+    // 4. 发送成功后记录到 Supabase
+    await supabaseClient.from('email_reminders').insert({
+      user_id: currentUser.id,
+      last_sign_in_time: checkinTime,
+      email: currentUser.email
+    });
+
+    console.log("✅ 邮箱提醒已发送（通过 Supabase Edge Function）:", currentUser.email);
+
   } catch (e) {
-    console.error("发送失败:", e);
+    console.error("发送提醒邮件失败:", e);
   }
 }
 
+/**
+ * 测试邮件功能（中英双语）
+ */
 async function sendTestEmailReminder() {
-  if (!currentUser || !currentUser.email) { alert("请先登录！\nPlease login first!"); return; }
-  const formData = new FormData();
-  formData.append("access_key", WEB3FORMS_KEY);
-  formData.append("email", currentUser.email);
-  formData.append("subject", "PAWLY 测试邮件 - 邮箱提醒功能正常 / PAWLY Test Email - Email Reminder Working");
-  formData.append("message", `这是一封测试邮件。\n如果你收到这封邮件，说明邮箱提醒功能已正常开启。\n当倒数结束时，你将收到类似提醒邮件。\n\nThis is a test email.\nIf you received this email, the email reminder feature is working correctly.\nWhen the countdown ends, you will receive a similar reminder email.`);
+  if (!currentUser || !currentUser.email) {
+    alert("请先登录！\nPlease login first!");
+    return;
+  }
+
   try {
-    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
-    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。\n✅ Test email sent! Please check your email (including spam folder).");
-  } catch(e) { alert("发送失败，请稍后再试。\nSending failed, please try again later."); }
+    const { data, error } = await supabaseClient.functions.invoke('send-reminder', {
+      body: {
+        email: currentUser.email,
+        subject: "PAWLY 测试邮件 - 邮箱提醒功能正常 / PAWLY Test Email",
+        html: `
+          <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 28px 24px; background: #f8f9fa; border-radius: 16px; text-align: center;">
+            
+            <h3 style="color: #00ff9d; margin: 0 0 20px 0; font-size: 22px;">
+              ✅ 测试成功！<br>
+              <span style="font-size: 17px; color: #333; font-weight: 600;">Test Successful!</span>
+            </h3>
+            
+            <p style="font-size: 15.5px; line-height: 1.75; color: #333; text-align: left; margin: 0 0 12px 0;">
+              如果你收到这封邮件，说明 <strong>Supabase Edge Function + Resend</strong> 已经正常工作。<br>
+              <span style="color: #555;">If you received this email, it means Supabase Edge Function + Resend is working correctly.</span>
+            </p>
+            
+            <p style="font-size: 15.5px; line-height: 1.75; color: #333; text-align: left; margin: 0;">
+              当24小时倒数结束时，你会收到正式的签到提醒邮件。<br>
+              <span style="color: #555;">When the 24-hour countdown ends, you will receive the official check-in reminder email.</span>
+            </p>
+            
+            <p style="margin-top: 30px; color: #888; font-size: 14px;">
+              感谢支持 PAWLY！<br>
+              Thank you for supporting PAWLY!
+            </p>
+          </div>
+        `
+      }
+    });
+
+    if (error) throw error;
+
+    alert("✅ 测试邮件已发送！请检查你的邮箱（包括垃圾邮件文件夹）。\n✅ Test email sent! Please check your inbox (including spam folder).");
+
+  } catch (e) {
+    alert("发送失败: " + e.message);
+  }
 }
 
 async function showPawlyMembersPage() {
