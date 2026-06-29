@@ -1627,10 +1627,10 @@ function unmuteVideo(videoId, button) {
   if (video) {
     video.muted = false;
     video.play();
-    button.innerHTML = '🔇 关闭声音';
+    button.innerHTML = '🔇 关闭声音 / Mute';
     button.onclick = () => {
       video.muted = true;
-      button.innerHTML = '🔊 开启声音';
+      button.innerHTML = '🔊 开启声音 / Unmute';
       button.onclick = () => unmuteVideo(videoId, button);
     };
   }
