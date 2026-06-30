@@ -656,12 +656,12 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </div>
     </div>
 
-    <div style="text-align:right; margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-      <a href="https://pawlypets-dapp.netlify.app" target="_blank"
-         style="display:inline-block; background:#00ff9d; color:black; padding:14px 36px; border-radius:9999px; font-weight:bold; text-decoration:none;">
-        返回我的仪表盘页面 / Back to My Dashboard →
-      </a>
-    </div>
+    <<div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
+  <button onclick="goToDashboard()"
+          style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
+    返回我的仪表盘页面 / Back to My Dashboard →
+  </button>
+</div>
   </div>
 </div>
 
@@ -691,11 +691,11 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
     </div>
 
     <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-      <a href="https://pawlypets-dapp.netlify.app" target="_blank"
-         style="display:inline-block; background:#00ff9d; color:black; padding:14px 36px; border-radius:9999px; font-weight:bold; text-decoration:none;">
-        返回我的仪表盘页面 / Back to My Dashboard →
-      </a>
-    </div>
+  <button onclick="goToDashboard()"
+          style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
+    返回我的仪表盘页面 / Back to My Dashboard →
+  </button>
+</div>
   </div>
 </div>
 
@@ -724,12 +724,12 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </div>
     </div>
 
-    <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-      <a href="https://pawlypets-dapp.netlify.app" target="_blank"
-         style="display:inline-block; background:#00ff9d; color:black; padding:14px 36px; border-radius:9999px; font-weight:bold; text-decoration:none;">
-        返回我的仪表盘页面 / Back to My Dashboard →
-      </a>
-    </div>
+   <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
+  <button onclick="goToDashboard()"
+          style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
+    返回我的仪表盘页面 / Back to My Dashboard →
+  </button>
+</div>
   </div>
 </div>
 
@@ -758,12 +758,12 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </div>
     </div>
 
-    <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-      <a href="https://pawlypets-dapp.netlify.app" target="_blank"
-         style="display:inline-block; background:#00ff9d; color:black; padding:14px 36px; border-radius:9999px; font-weight:bold; text-decoration:none;">
-        返回我的仪表盘页面 / Back to My Dashboard →
-      </a>
-    </div>
+  <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
+  <button onclick="goToDashboard()"
+          style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
+    返回我的仪表盘页面 / Back to My Dashboard →
+  </button>
+</div>
   </div>
 </div>
 
@@ -1698,6 +1698,15 @@ function showModal(type) {
 function hideModal(type) {
   const modal = document.getElementById('modal-' + type);
   if (modal) modal.style.display = 'none';
+}
+
+function goToDashboard() {
+  // 关闭所有 Modal
+  document.querySelectorAll('[id^="modal-"]').forEach(modal => {
+    modal.style.display = 'none';
+  });
+  // 切换到仪表盘（tab1）
+  showTab(1);
 }
 
 // ==================== PWA Service Worker 注册 ====================
