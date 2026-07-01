@@ -94,11 +94,20 @@
   <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
     <div class="container">
-      <div class="warning">
-        <strong>⚠️ 重要提示 / Important Notice</strong><br><br>
-        <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。<strong>同一天无论哪个设备签到，只算一次</strong>。<br><br>
-        <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before checking in. <strong>Same-day check-in counts only once</strong> regardless of device.
-      </div>
+     <div style="text-align:center; margin-bottom:25px;">
+  <button onclick="showImportantNoticeModal()" 
+          style="background: linear-gradient(135deg, #ff6b6b, #ff9f43); 
+                 color: white; 
+                 border: none; 
+                 padding: 14px 36px; 
+                 border-radius: 9999px; 
+                 font-size: 1.05em; 
+                 font-weight: bold; 
+                 cursor: pointer;
+                 box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);">
+    ⚠️ 重要提示 / Important Notice
+  </button>
+</div>
       <h1>🐾 签到挖矿 / Check-in Mining</h1>
       <div id="auth-section">
         <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
@@ -152,11 +161,11 @@
         <h3 style="color:#00ff9d; margin:0 0 12px 0;">🐾 Pawly Points</h3>
         <div style="display:flex; justify-content:center; gap:40px; margin:15px 0;">
           <div>
-            <div style="font-size:13px; color:#aaa;">当前积分</div>
+            <div style="font-size:13px; color:#aaa;">当前积分 / Current Points</div>
             <div id="pointsDisplay" style="font-size:28px; font-weight:bold; color:#00ff9d;">0</div>
           </div>
           <div>
-            <div style="font-size:13px; color:#aaa;">可兑换 PAWLY</div>
+            <div style="font-size:13px; color:#aaa;">可兑换 PAWLY / Redeemable PAWLY</div>
             <div id="redeemablePAWLY" style="font-size:28px; font-weight:bold; color:#ffaa00;">0</div>
           </div>
         </div>
@@ -190,21 +199,14 @@
         </button>
       </div>
 
-      <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:15px; padding:22px; margin:25px 0;">
-        <h3 style="margin-top:0;">📧 邮箱签到提醒 / Email Check-in Reminder</h3>
-        <div class="bilingual" style="margin:12px 0 18px; text-align:left; font-size:0.95em; line-height:1.6;">
-          <div><strong>中文：</strong>倒数结束时，系统会自动发送邮件到你的注册邮箱提醒签到（比浏览器通知更可靠）</div>
-          <div><strong>English：</strong>When the countdown ends, the system will automatically send an email to your registered email to remind you to check in (more reliable than browser notifications)</div>
-        </div>
-        <button onclick="toggleEmailReminder()" id="emailReminderBtn"
-                style="background:#00aaff; color:white; padding:12px 28px; border:none; border-radius:12px; margin:8px 5px; cursor:pointer; font-size:0.95em;">
-          开启邮箱提醒 / Enable Email Reminder
-        </button>
-        <button onclick="sendTestEmailReminder()"
-                style="background:#ffaa00; color:black; padding:12px 22px; border:none; border-radius:12px; margin:8px 5px; cursor:pointer; font-size:0.95em;">
-          发送测试邮件 / Send Test Email
-        </button>
-      </div>
+      <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:15px; padding:20px; margin:25px 0;">
+  <h3 style="margin-top:0; color:#00ff9d;">📧 邮箱签到提醒 / Email Check-in Reminder</h3>
+  
+  <button onclick="toggleEmailReminder()" id="emailReminderBtn"
+          style="background:#00aaff; color:white; padding:14px 32px; border:none; border-radius:12px; margin-top:12px; cursor:pointer; font-size:1em; font-weight:600;">
+    开启邮箱提醒 / Enable Email Reminder
+  </button>
+</div>
 
       <button onclick="enableNotifications()" style="background:#00aaff; color:white; padding:12px 25px; border:none; border-radius:12px; margin-top:10px; cursor:pointer;">
         🔔 开启浏览器通知 / Enable Notifications
@@ -645,6 +647,30 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </button>
     </div>
   </div>
+
+  <!-- ==================== 重要提示 Modal ==================== -->
+<div id="importantNoticeModal" onclick="hideImportantNoticeModal()" 
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
+  
+  <div onclick="event.stopImmediatePropagation()" 
+       style="background:#1a0033; border:3px solid #ff6b6b; border-radius:20px; max-width:680px; width:92%; padding:28px 24px; color:#ddd; text-align:left;">
+    
+    <h2 style="color:#ff6b6b; margin:0 0 16px 0; text-align:center;">⚠️ 重要提示 / Important Notice</h2>
+    
+    <div style="line-height:1.75; font-size:0.97rem;">
+      <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定钱包地址</strong>后才能签到。<strong>同一天无论哪个设备签到，只算一次</strong>。<br><br>
+      
+      <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a wallet address</strong> before checking in. <strong>Same-day check-in counts only once</strong> regardless of device.
+    </div>
+
+    <div style="text-align:center; margin-top:24px;">
+      <button onclick="hideImportantNoticeModal()" 
+              style="background:#ff6b6b; color:white; border:none; padding:12px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
+        我已了解 / I Understand
+      </button>
+    </div>
+  </div>
+</div>
 
   <!-- 展示页面 -->
   <div id="paymentShowcase" class="showcase">
@@ -1847,6 +1873,14 @@ function goToDashboard() {
   });
   // 切换到仪表盘（tab1）
   showTab(1);
+}
+
+  function showImportantNoticeModal() {
+  document.getElementById('importantNoticeModal').style.display = 'flex';
+}
+
+function hideImportantNoticeModal() {
+  document.getElementById('importantNoticeModal').style.display = 'none';
 }
 
 // ==================== PWA Service Worker 注册 ====================
