@@ -80,40 +80,17 @@
 </head>
 <body>
 
-  <!-- 导航栏 -->
+   <!-- 导航栏 -->
   <div class="nav">
-    <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
-    <button onclick="showTab(1)" id="nav1">我的仪表盘 / Dashboard</button>
-    <button onclick="showTab(2)" id="nav2">质押挖矿 / Staking</button>
-    <button onclick="showTab(3)" id="nav3">宠物支付 / Pet Payment</button>
-    <button onclick="showTab(4)" id="nav4">慈善基金 / Charity</button>
-    <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
-    <button onclick="showPawlyMembersPage()" 
+  <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
+  <button onclick="showTab(1)" id="nav1">我的仪表盘 / Dashboard</button>
+  <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
+  <button onclick="showPawlyMembersPage()" 
           style="background: linear-gradient(135deg, #ff9ecd, #f472b6); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 158, 205, 0.35);">
     🐾 PAWLY 成员表 / PAWLY Members
   </button>
-
-  <button onclick="showModal('tokenomics')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    Tokenomics / 代币经济模型
-  </button>
-  
-  <button onclick="showModal('roadmap')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    Roadmap / 发展路线图
-  </button>
-  
-  <button onclick="showModal('team')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    Team / 团队
-  </button>
-  
-  <button onclick="showModal('faq')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    FAQ / 常见问题
-  </button>
 </div>
-
+ 
   <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
     <div class="container">
@@ -439,43 +416,107 @@
 
   <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
-    <div class="container">
-      <h1>🌟 关于 PAWLY / About PAWLY</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
-渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
-于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。</div>
-          <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
-Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
-That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.</div>
-        </div>
-      </div>
-      <div class="section">
-        <h3>🎥 宣传视频 / Promo Videos</h3>
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>
-          <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：PAWLY 宣传片</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常温馨时刻</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事与愿景</a></div>
-          <div><strong>English：</strong><br>
-          <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">Video 1: PAWLY Promo Video</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">Video 2: Heartwarming Pet Daily Moments</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">Video 3: Community Story & Vision</a></div>
-        </div>
-      </div>
-      <div class="section">
-        <h3>📱 官方链接 / Official Links</h3>
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>
-          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
-          <div><strong>English：</strong><br>
-          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
-        </div>
+  <div class="container" style="max-width: 780px;">
+    
+    <h1 style="color:#00ff9d; font-size:1.9rem; margin-bottom:8px;">🌟 关于 PAWLY / About PAWLY</h1>
+    <p style="color:#ff9ecd; margin-bottom:30px; font-size:1.05rem;">宠物生态 · 爱与守护 · 区块链力量</p>
+
+    <!-- ==================== Staking 入口卡片 ==================== -->
+    <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:left;">
+      <h3 style="color:#a78bfa; margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">
+        🔥 质押挖矿 / Staking
+      </h3>
+      <p style="color:#ddd; line-height:1.7; margin-bottom:16px;">
+        当前处于预质押签到奖励阶段。达到 5000 名活跃用户后将正式开启链上质押挖矿。<br>
+        <span style="color:#aaa;">Pre-staking phase. On-chain staking will launch after reaching 5,000 active users.</span>
+      </p>
+      <button onclick="showTab(2)" 
+              style="background: linear-gradient(135deg, #7c3aed, #a78bfa); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
+        前往质押页面 / Go to Staking
+      </button>
+    </div>
+
+    <!-- ==================== Pet Payment 入口卡片 ==================== -->
+    <div style="background:rgba(33,150,243,0.1); border:2px solid #2196f3; border-radius:20px; padding:24px; margin:20px 0; text-align:left;">
+      <h3 style="color:#64b5f6; margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">
+        🐶 宠物支付 / Pet Payment
+      </h3>
+      <p style="color:#ddd; line-height:1.7; margin-bottom:16px;">
+        PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来可直接在合作宠物店、兽医诊所使用 PAWLY 支付。<br>
+        <span style="color:#aaa;">Long-term vision: Use PAWLY for everyday pet-related payments.</span>
+      </p>
+      <button onclick="showTab(3)" 
+              style="background: linear-gradient(135deg, #2196f3, #64b5f6); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
+        前往宠物支付 / Go to Pet Payment
+      </button>
+    </div>
+
+    <!-- ==================== Charity 入口卡片 ==================== -->
+    <div style="background:rgba(0,200,83,0.1); border:2px solid #00c853; border-radius:20px; padding:24px; margin:20px 0; text-align:left;">
+      <h3 style="color:#69f0ae; margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">
+        ❤️ 宠物慈善基金 / Pet Charity Fund
+      </h3>
+      <p style="color:#ddd; line-height:1.7; margin-bottom:16px;">
+        PAWLY 将把部分交易费用用于支持全球动物保护组织及流浪动物收容所。每季度公开捐款，社区持币者可投票决定捐款方向。<br>
+        <span style="color:#aaa;">Portion of fees goes to animal shelters & protection organizations worldwide.</span>
+      </p>
+      <button onclick="showTab(4)" 
+              style="background: linear-gradient(135deg, #00c853, #69f0ae); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
+        前往慈善基金 / Go to Charity
+      </button>
+    </div>
+
+    <!-- ==================== Tokenomics / Roadmap / Team / FAQ 按钮 ==================== -->
+    <div style="margin:30px 0 20px; text-align:center;">
+      <h3 style="color:#00ff9d; margin-bottom:16px;">更多项目信息 / More Project Info</h3>
+      <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
+        <button onclick="showModal('tokenomics')" class="modal-btn">Tokenomics / 代币经济模型</button>
+        <button onclick="showModal('roadmap')" class="modal-btn">Roadmap / 发展路线图</button>
+        <button onclick="showModal('team')" class="modal-btn">Team / 团队</button>
+        <button onclick="showModal('faq')" class="modal-btn">FAQ / 常见问题</button>
       </div>
     </div>
-  </div>
 
+    <!-- ==================== 保留原来的内容（宣传视频 + 官方链接 + 长文）==================== -->
+    <div class="section">
+      <h3>🎥 宣传视频 / Promo Videos</h3>
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>
+        <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：PAWLY 宣传片</a><br>
+        <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常温馨时刻</a><br>
+        <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事与愿景</a></div>
+        <div><strong>English：</strong><br>
+        <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">Video 1: PAWLY Promo Video</a><br>
+        <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">Video 2: Heartwarming Pet Daily Moments</a><br>
+        <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">Video 3: Community Story & Vision</a></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>📱 官方链接 / Official Links</h3>
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>
+        <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
+        <div><strong>English：</strong><br>
+        <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
+      </div>
+    </div>
+
+    <!-- ==================== 原来的长文（放在最底部）==================== -->
+    <div class="section">
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
+渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
+于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。</div>
+        
+        <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
+Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
+That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
   <!-- 各种 Modal 保持原样 -->
   <div id="stakingWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
