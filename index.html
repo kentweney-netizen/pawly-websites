@@ -9,136 +9,254 @@
   <link rel="manifest" href="/manifest.json">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
-    .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-    .nav button { background:transparent; color:#00ff9d; border:1px solid #00ff9d; padding:10px 16px; border-radius:20px; cursor:pointer; transition:0.3s; font-size:0.95em; }
-    .nav button.active { background:#00ff9d; color:black; }
-    .tab { display:none; padding:25px; }
-    .tab.active { display:block; }
-    .container { max-width:720px; margin:20px auto; background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:25px; padding:30px; box-shadow:0 0 30px rgba(0,255,150,0.2); }
-    h1 { text-shadow:0 0 20px #00ff9d; margin-bottom:10px; }
-    input, button { padding:15px; margin:12px; width:85%; border-radius:12px; font-size:1.1em; }
-    input { background:#1a0033; color:white; border:1px solid #00ff9d; }
-    button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; }
-    .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
-    .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
-    #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
-    .section { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; margin:15px 0; text-align:left; line-height:1.7; }
-    .bilingual { display:flex; flex-direction:column; gap:15px; }
-    .ready-to-checkin { background:#00ff9d; color:black; padding:20px; border-radius:15px; font-size:1.3em; font-weight:bold; margin:20px 0; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-    .showcase { display:none; max-width:900px; margin:40px auto; padding:30px; background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:25px; text-align:left; }
-    .showcase h1 { text-shadow:0 0 20px #00ff9d; }
-    .showcase .section { background:rgba(255,255,255,0.05); border-radius:18px; padding:25px; margin:25px 0; }
-    .showcase .feature, .showcase .org-card { background:#120022; padding:18px; border-radius:14px; margin:15px 0; border-left:4px solid #00ff9d; }
-    .showcase button { background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:14px; font-size:1.2em; font-weight:bold; cursor:pointer; margin-top:20px; }
-    .showcase .back-btn { background:transparent; color:#00ff9d; padding:12px 35px; border:2px solid #00ff9d; border-radius:12px; font-size:1em; cursor:pointer; margin-top:30px; }
-  </style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0a0a0a, #1a0033);
+    color: #fff;
+    text-align: center;
+  }
+
+  .hero-images {
+    max-width: 1100px;
+    margin: 30px auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+    padding: 0 20px;
+  }
+
+  .hero-images img {
+    width: 100%;
+    max-width: 520px;
+    border-radius: 24px;
+    box-shadow: 0 15px 45px rgba(255, 158, 205, 0.35);
+    border: 5px solid #ff9ecd;
+  }
+
+  .btn-grid {
+    max-width: 1100px;
+    margin: 50px auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 22px;
+    padding: 0 20px;
+  }
+
+  .pawly-btn {
+    background: linear-gradient(135deg, #ff9ecd, #00aaff);
+    color: white;
+    border: none;
+    padding: 22px 48px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(255, 158, 205, 0.45);
+    width: 100%;
+  }
+
+  .pawly-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(255, 158, 205, 0.55);
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.88);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .modal-content {
+    background: #1a0033;
+    border: 3px solid #ff9ecd;
+    border-radius: 24px;
+    max-width: 780px;
+    width: 100%;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 32px 28px;
+    color: #fff;
+    text-align: left;
+  }
+
+  .close-btn {
+    float: right;
+    font-size: 2rem;
+    color: #ff9ecd;
+    cursor: pointer;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  h1, h2 { color: #00ff9d; }
+  .section { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin: 18px 0; }
+  details { background: #120022; border: 2px solid #00ff9d; border-radius: 18px; padding: 18px; margin: 18px 0; }
+  summary { cursor: pointer; font-weight: bold; color: #00ff9d; font-size: 1.1rem; }
+</style>
 </head>
 <body>
 
-  <!-- 导航栏 -->
-  <div class="nav">
-    <button class="active" onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
-    <button onclick="showTab(1)" id="nav1">我的仪表盘 / Dashboard</button>
-    <button onclick="showTab(2)" id="nav2">质押挖矿 / Staking</button>
-    <button onclick="showTab(3)" id="nav3">宠物支付 / Pet Payment</button>
-    <button onclick="showTab(4)" id="nav4">慈善基金 / Charity</button>
-    <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
-    <div style="margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-  <button onclick="showModal('tokenomics')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    Tokenomics / 代币经济模型
-  </button>
-  
-  <button onclick="showModal('roadmap')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    Roadmap / 发展路线图
-  </button>
-  
-  <button onclick="showModal('team')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    Team / 团队
-  </button>
-  
-  <button onclick="showModal('faq')" 
-          style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
-    FAQ / 常见问题
-  </button>
-</div>
-    <button onclick="showPawlyMembersPage()" style="background:#ff9ecd; color:white; border-color:#ff9ecd;">🐾 PAWLY 成员表 / PAWLY Members Listing</button>
-</div>
-
-<!-- ==================== Hero 区域（路径二缩短版，放在导航栏之后） ==================== -->
-<section style="max-width: 1100px; margin: 35px auto 25px; padding: 0 20px; text-align: center;">
-  <h1 style="font-size: 2.55rem; margin-bottom: 12px; line-height: 1.25;">
-    🐾 PAWLY — 为宠物而生的实用型加密应用<br>
-    <span style="font-size: 1.3rem; color: #aaa;">PAWLY — Practical Crypto App Built for Pets</span>
+<!-- ==================== 页面标题（双语） ==================== -->
+  <h1 style="margin-top: 50px; font-size: 2.7rem; color: #00ff9d;">
+    🐾 PAWLY — 为宠物而生的实用型加密应用
   </h1>
-  
-  <p style="font-size: 1.15rem; color: #ccc; max-width: 720px; margin: 0 auto 28px; line-height: 1.55;">
-    每天签到赚 PAWLY，未来支持宠物支付与慈善<br>
-    <span style="font-size: 0.95rem; color: #aaa;">Daily check-in to earn PAWLY. Future support for pet payments & animal charity.</span>
+  <p style="color: #ffccdd; font-size: 1.25rem; margin-bottom: 20px;">
+    PAWLY — The Practical Crypto App Built for Pets
   </p>
 
-  <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
-    <button onclick="showTab(0)" 
-            style="background: #00ff9d; color: black; padding: 17px 44px; border: none; border-radius: 50px; font-size: 1.15rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,157,0.3);">
-      立即签到 / Check-in Now
-    </button>
-    <button onclick="showTab(1)" 
-            style="background: transparent; color: #00ff9d; padding: 17px 44px; border: 2px solid #00ff9d; border-radius: 50px; font-size: 1.15rem; font-weight: bold; cursor: pointer;">
-      我的仪表盘 / My Dashboard
+  <!-- ==================== 两张美女图 ==================== -->
+  <div class="hero-images">
+    <img src="https://i.postimg.cc/ncVNxPmH/pawly-pets-payment.jpg" alt="PAWLY 宠物支付">
+    <img src="https://i.postimg.cc/x8pmxVdP/pawly-token-helps.jpg" alt="PAWLY 可爱赛博宠物">
+  </div>
+
+  <!-- ==================== 统一蓝粉色大按钮（双语） ==================== -->
+  <div class="btn-grid">
+    <button class="pawly-btn" onclick="openModal('checkin')">✅ 签到挖矿 / Check-in</button>
+    <button class="pawly-btn" onclick="openModal('dashboard')">📊 我的仪表盘 / Dashboard</button>
+    <button class="pawly-btn" onclick="openModal('staking')">🔥 质押挖矿 / Staking</button>
+    <button class="pawly-btn" onclick="openModal('payment')">🐶 宠物支付 / Pet Payment</button>
+    <button class="pawly-btn" onclick="openModal('charity')">❤️ 宠物慈善基金 / Charity</button>
+    <button class="pawly-btn" onclick="openModal('about')">🌟 关于 PAWLY / About PAWLY</button>
+    <button onclick="showPawlyMembersPage()" 
+            style="background: linear-gradient(135deg, #ff9ecd, #ff6bcb); color: white; border: none; padding: 22px 48px; font-size: 1.2rem; font-weight: bold; border-radius: 9999px; cursor: pointer; box-shadow: 0 10px 30px rgba(255, 158, 205, 0.45);">
+      🐾 PAWLY 成员表 / Members
     </button>
   </div>
-</section>
 
-<!-- ==================== 核心功能快速入口卡片区（新增，路径二重点） ==================== -->
-<section id="core-features" style="max-width: 1100px; margin: 40px auto; padding: 0 20px;">
-  <h2 style="text-align: center; margin-bottom: 28px; font-size: 1.55rem;">
-    核心功能快速入口 / Core Features Quick Access
-  </h2>
-  
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 18px;">
-    
-    <!-- 签到挖矿 -->
-    <div onclick="showTab(0)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
-      <div style="font-size: 2.3rem; margin-bottom: 10px;">✅</div>
-      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">签到挖矿<br><span style="font-size: 0.82rem; color: #aaa;">Check-in Mining</span></h3>
-      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">每天签到赚 PAWLY + 积分<br><span style="font-size: 0.78rem;">Earn PAWLY + points daily</span></p>
+<!-- ==================== Modal 弹窗（全部双语 + 折叠式） ==================== -->
+
+  <!-- Check-in Modal -->
+  <div id="modal-checkin" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal('checkin')">&times;</span>
+      <h2>✅ 签到挖矿 / Check-in Mining</h2>
+      <div class="section">
+        <div class="warning" style="text-align:left;">
+          <strong>⚠️ 重要提示 / Important Notice</strong><br><br>
+          <strong>中文：</strong>这是 PAWLY 预挖矿签到页面。正式上市后网页签到功能将关闭。目前必须先完成<strong>邮箱验证</strong>并<strong>绑定 Solana 钱包</strong>后才能签到。<strong>同一天无论哪个设备签到，只算一次</strong>。<br><br>
+          <strong>English：</strong>This is the PAWLY pre-mining check-in page. After official launch, web check-in will be closed. You must complete <strong>email verification</strong> and <strong>bind a Solana wallet</strong> before checking in. <strong>Same-day check-in counts only once</strong> regardless of device.
+        </div>
+
+        <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:20px; margin:15px 0;">
+          <h3>邮箱注册 / Register</h3>
+          <input type="email" id="reg-email" placeholder="输入邮箱地址 / Enter your email" style="width:90%; margin:8px 0;">
+          <input type="password" id="reg-password" placeholder="设置密码 / Set password" style="width:90%; margin:8px 0;">
+          <button onclick="registerUser()" style="width:90%;">注册并发送验证邮件 / Register & Send Verification</button>
+        </div>
+
+        <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:20px; margin:15px 0;">
+          <h3>登录 / Login</h3>
+          <input type="email" id="login-email" placeholder="输入邮箱地址 / Enter your email" style="width:90%; margin:8px 0;">
+          <input type="password" id="login-password" placeholder="输入密码 / Enter password" style="width:90%; margin:8px 0;">
+          <button onclick="loginUser()" style="width:90%;">登录 / Login</button>
+        </div>
+      </div>
     </div>
-
-    <!-- 我的仪表盘 -->
-    <div onclick="showTab(1)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
-      <div style="font-size: 2.3rem; margin-bottom: 10px;">📊</div>
-      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">我的仪表盘<br><span style="font-size: 0.82rem; color: #aaa;">My Dashboard</span></h3>
-      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">查看连续签到与积分<br><span style="font-size: 0.78rem;">Track streaks & points</span></p>
-    </div>
-
-    <!-- 质押挖矿 -->
-    <div onclick="showTab(2)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
-      <div style="font-size: 2.3rem; margin-bottom: 10px;">🔥</div>
-      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">质押挖矿<br><span style="font-size: 0.82rem; color: #aaa;">Staking</span></h3>
-      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">未来开放链上质押<br><span style="font-size: 0.78rem;">On-chain staking coming soon</span></p>
-    </div>
-
-    <!-- 宠物支付 -->
-    <div onclick="showTab(3)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
-      <div style="font-size: 2.3rem; margin-bottom: 10px;">🐶</div>
-      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">宠物支付<br><span style="font-size: 0.82rem; color: #aaa;">Pet Payment</span></h3>
-      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">未来支持宠物店消费<br><span style="font-size: 0.78rem;">Pay at pet stores in the future</span></p>
-    </div>
-
-    <!-- 宠物慈善 -->
-    <div onclick="showTab(4)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
-      <div style="font-size: 2.3rem; margin-bottom: 10px;">❤️</div>
-      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">宠物慈善基金<br><span style="font-size: 0.82rem; color: #aaa;">Pet Charity Fund</span></h3>
-      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">支持动物保护与收容所<br><span style="font-size: 0.78rem;">Support animal shelters & protection</span></p>
-    </div>
-
   </div>
-</section>
 
+  <!-- Dashboard Modal -->
+  <div id="modal-dashboard" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal('dashboard')">&times;</span>
+      <h2>📊 我的仪表盘 / My Dashboard</h2>
+      <div id="dashboard-content">
+        <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
+        <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
+        <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
+        <button onclick="showRedeemModal()" style="background:#00ff9d; color:black; padding:14px 40px; border:none; border-radius:14px; font-weight:bold; margin-top:15px;">
+          兑换 PAWLY / Redeem PAWLY
+        </button>
+        <button onclick="logout()" style="background:#ff4d4d; color:white; padding:12px 30px; border:none; border-radius:12px; margin-top:15px;">
+          🚪 登出 / Logout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staking Modal（折叠式） -->
+  <div id="modal-staking" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal('staking')">&times;</span>
+      <h2>🔥 质押挖矿 / Staking</h2>
+      <div class="section">
+        <p>当前处于预质押签到奖励阶段。正式 Staking 需社区达到 5000 名活跃用户以上。</p>
+      </div>
+      <details>
+        <summary>📖 点击展开完整说明：为什么等到 5000 名用户？ / Click to read full explanation</summary>
+        <div style="margin-top:15px; line-height:1.85;">
+          <strong>中文：</strong>我们不希望 Staking 成为少数早期用户的专属福利。我们相信，一个真正有生命力的项目，应该让每一位支持者在合适的时机，都能公平地参与并获得回报。<br><br>
+          当社区达到 5000 名活跃用户以上时，我们将准备一个更庞大、更可持续的奖励池。我们也会设计更完善的质押机制，包括更灵活的锁定期选项、更高的长期持有奖励，以及未来可能开放的治理投票权。<br><br>
+          <strong>English：</strong>We don’t want staking to become a privilege reserved for a small group of early users. We believe a truly sustainable project should allow every supporter to participate fairly when the time is right. Once we reach 5000 active users or above, we will prepare a larger and more sustainable reward pool.
+        </div>
+      </details>
+      <a href="https://pawlypets-dapp.netlify.app" target="_blank" style="display:inline-block; margin-top:20px; background:#7c3aed; color:white; padding:14px 40px; border-radius:50px; text-decoration:none; font-weight:bold;">
+        立即质押赚奖励 / Stake Now
+      </a>
+    </div>
+  </div>
+
+  <!-- Pet Payment Modal（折叠式） -->
+  <div id="modal-payment" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal('payment')">&times;</span>
+      <h2>🐶 宠物支付 / Pet Payment</h2>
+      <details>
+        <summary>📖 点击展开完整愿景：让爱宠生活更简单 / Click to read full vision</summary>
+        <div style="margin-top:15px; line-height:1.85;">
+          <strong>中文：</strong>我们希望 PAWLY 不仅仅是一枚 meme 币，而是能真正走进宠物主人的日常生活。未来，你可以直接用 PAWLY 在合作的宠物店购买狗粮、猫砂、玩具，在兽医诊所支付看诊费用，甚至在宠物美容店结账。我们将从马来西亚开始，逐步扩展到更多国家和地区。<br><br>
+          <strong>English：</strong>We want PAWLY to be more than just a meme coin — we want it to become part of pet owners’ daily lives. In the future, you will be able to use PAWLY directly at partnered pet stores to buy dog food, cat litter, and toys, pay for veterinary visits, and even settle bills at pet grooming salons.
+        </div>
+      </details>
+      <button onclick="showPaymentWaitlistModal()" style="margin-top:25px; background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:16px; font-weight:bold; font-size:1.1em;">
+        加入宠物支付计划 / Join Pet Payment Program
+      </button>
+    </div>
+  </div>
+
+  <!-- Charity Modal（折叠式） -->
+  <div id="modal-charity" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal('charity')">&times;</span>
+      <h2>❤️ 宠物慈善基金 / Pet Charity Fund</h2>
+      <details>
+        <summary>📖 点击展开完整承诺：用爱与行动守护每一个生命 / Click to read full commitment</summary>
+        <div style="margin-top:15px; line-height:1.85;">
+          <strong>中文：</strong>PAWLY 的初心，不仅是陪伴宠物主人快乐生活，更希望用实际行动回馈那些需要帮助的动物。我们计划每季度从交易费用中提取一定比例，用于支持马来西亚及全球的动物收容所、流浪动物救援组织，以及濒危物种保护项目。我们承诺每一笔捐款都会公开透明，并定期公布详细报告。<br><br>
+          <strong>English：</strong>PAWLY’s original intention is not only to bring joy to pet owners, but also to give back through real action to animals in need. We plan to allocate a portion of transaction fees every quarter to support animal shelters, stray animal rescue organizations, and endangered species protection projects.
+        </div>
+      </details>
+      <button onclick="showCharityWaitlistModal()" style="margin-top:25px; background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:16px; font-weight:bold; font-size:1.1em;">
+        加入宠物慈善计划 / Join Pet Charity Program
+      </button>
+    </div>
+  </div>
+
+  <!-- About PAWLY Modal（折叠式） -->
+  <div id="modal-about" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal('about')">&times;</span>
+      <h2>🌟 关于 PAWLY / About PAWLY</h2>
+      <details>
+        <summary>🌟 点击展开完整故事 / Click to read the full story</summary>
+        <div style="margin-top:15px; line-height:1.8;">
+          <strong>中文：</strong>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？于是，我决定用区块链和加密货币的力量，创造 PAWLY。<br><br>
+          <strong>English：</strong>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem. I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time. Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will? That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY.
+        </div>
+      </details>
+    </div>
+  </div>
   <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
     <div class="container">
@@ -1762,6 +1880,13 @@ function goToDashboard() {
   // 切换到仪表盘（tab1）
   showTab(1);
 }
+
+function openModal(type) {
+      document.getElementById('modal-' + type).style.display = 'flex';
+    }
+    function closeModal(type) {
+      document.getElementById('modal-' + type).style.display = 'none';
+    }
 
 // ==================== PWA Service Worker 注册 ====================
 if ('serviceWorker' in navigator) {
