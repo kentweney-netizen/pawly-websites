@@ -10,9 +10,52 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
-    .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-    .nav button { background:transparent; color:#00ff9d; border:1px solid #00ff9d; padding:10px 16px; border-radius:20px; cursor:pointer; transition:0.3s; font-size:0.95em; }
-    .nav button.active { background:#00ff9d; color:black; }
+    /* ==================== 导航栏容器 ==================== */
+.nav { 
+  background:#120022; 
+  padding:12px; 
+  display:flex; 
+  flex-wrap:wrap; 
+  justify-content:center; 
+  gap:8px; 
+}
+
+/* ==================== 统一按钮样式（Tokenomics 类型 - 紫绿渐变） ==================== */
+.nav button {
+  background: linear-gradient(135deg, #8b5cf6, #10b981);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  font-size: 0.95em;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.nav button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.45);
+}
+
+.nav button.active {
+  background: linear-gradient(135deg, #10b981, #8b5cf6);
+  color: white;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+}
+
+/* Tokenomics / Roadmap / Team / FAQ 按钮额外样式 */
+.nav .modal-btn {
+  background: linear-gradient(135deg, #8b5cf6, #10b981);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  font-size: 0.95em;
+  cursor: pointer;
+  font-weight: 600;
+}
     .tab { display:none; padding:25px; }
     .tab.active { display:block; }
     .container { max-width:720px; margin:20px auto; background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:25px; padding:30px; box-shadow:0 0 30px rgba(0,255,150,0.2); }
@@ -45,28 +88,30 @@
     <button onclick="showTab(3)" id="nav3">宠物支付 / Pet Payment</button>
     <button onclick="showTab(4)" id="nav4">慈善基金 / Charity</button>
     <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
-    <div style="margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-  <button onclick="showModal('tokenomics')" 
+    <button onclick="showPawlyMembersPage()" 
+          style="background: linear-gradient(135deg, #ff9ecd, #f472b6); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 158, 205, 0.35);">
+    🐾 PAWLY 成员表 / PAWLY Members
+  </button>
+
+  <button onclick="showModal('tokenomics')" class="modal-btn">
           style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
     Tokenomics / 代币经济模型
   </button>
   
-  <button onclick="showModal('roadmap')" 
+  <button onclick="showModal('roadmap')" class="modal-btn">
           style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
     Roadmap / 发展路线图
   </button>
   
-  <button onclick="showModal('team')" 
+  <button onclick="showModal('team')" class="modal-btn">
           style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
     Team / 团队
   </button>
   
-  <button onclick="showModal('faq')" 
+  <button onclick="showModal('faq')" class="modal-btn">
           style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600;">
     FAQ / 常见问题
   </button>
-</div>
-    <button onclick="showPawlyMembersPage()" style="background:#ff9ecd; color:white; border-color:#ff9ecd;">🐾 PAWLY 成员表 / PAWLY Members Listing</button>
 </div>
 
   <!-- tab0 签到页面 -->
