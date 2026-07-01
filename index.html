@@ -129,9 +129,7 @@
          <!-- ==================== 绑定钱包区域（双语优化版）==================== -->
 <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:24px; margin:20px 0; text-align:left;">
   
-  <h3 style="color:#00ff9d; margin:0 0 16px 0; display:flex; align-items:center; gap:8px;">
-    🔗 绑定 Solana 钱包 / Bind Wallet
-  </h3>
+  <h3 style="color:#00ff9d; margin:0 0 16px 0;">🔗 绑定 Solana 钱包 / Bind Wallet</h3>
 
   <!-- 一键连接钱包按钮 -->
   <button onclick="connectSolanaWallet()" 
@@ -143,33 +141,39 @@
     <span style="font-size:0.85em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
   </button>
 
-  <div style="color:#888; font-size:0.9em; margin-bottom:8px;">
-    或手动输入 / 粘贴钱包地址
-  </div>
+  <div style="color:#888; font-size:0.9em; margin-bottom:8px;">或手动输入粘贴钱包地址 / manually input wallet address</div>
 
-  <!-- 钱包地址输入框（始终可编辑） -->
-  <input type="text" id="bind-wallet" placeholder="输入或粘贴你的钱包地址 / Paste your wallet address"
-         style="width:100%; padding:14px; background:#0f0022; border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.95rem; margin-bottom:12px;">
+  <!-- 手动输入框 + 清空按钮（已修复，永远可编辑） -->
+  <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+    <input type="text" id="bind-wallet" placeholder="输入或粘贴你的 Solana 钱包地址 / Paste your Solana wallet address"
+           style="flex:1; padding:14px; background:#0f0022; border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.95rem;">
+    
+    <button onclick="document.getElementById('bind-wallet').value=''; document.getElementById('bind-wallet').focus();"
+            style="background:#555; color:white; border:none; padding:12px 16px; border-radius:10px; cursor:pointer; font-size:0.9em; white-space:nowrap;">
+      清空 / clear
+    </button>
+  </div>
 
   <div style="display:flex; gap:12px; flex-wrap:wrap;">
     
     <!-- 绑定 / 更新按钮 -->
     <button onclick="bindWallet()" 
             style="flex:1; background:#00ff9d; color:black; padding:14px 20px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px;">
-      绑定或更新钱包 / Bind Your Wallet
+      绑定更新钱包 / bind wallet
     </button>
 
-    <!-- 解绑按钮（默认隐藏，绑定后显示） -->
+    <!-- 解绑按钮（已改成直接显示，永久可见） -->
     <button onclick="unbindWallet()" id="unbind-wallet-btn"
-            style="flex:1; background:#ff6b6b; color:white; padding:14px 20px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer; display:none; min-width:140px;">
+            style="flex:1; background:#ff6b6b; color:white; padding:14px 20px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px;">
       解绑钱包 / Unbind Wallet
     </button>
   </div>
 
   <p style="font-size:0.8em; color:#888; margin-top:12px; line-height:1.5;">
-    提示：一个邮箱可以绑定多个不同钱包。解绑后可重新选择其他钱包平台。<br>
-    <span style="color:#666;">Note: One email can bind multiple wallets. You can unbind and switch to another wallet platform anytime.</span>
+    提示：一个邮箱可绑定多个钱包，随时更新或解绑。绑定后可用于 PAWLY TOKEN Check-in 领奖励！<br>
+    <span style="color:#666;">Note: Bind multiple wallets. Update or unbind anytime for PAWLY TOKEN rewards.</span>
   </p>
+</div>
 </div>
         <button onclick="checkIn()" style="width:60%; font-size:1.3em; padding:18px; margin-top:20px; background:#00ff9d; color:black;">
           🚀 立即签到 / Check-in Now
