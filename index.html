@@ -69,6 +69,76 @@
     <button onclick="showPawlyMembersPage()" style="background:#ff9ecd; color:white; border-color:#ff9ecd;">🐾 PAWLY 成员表 / PAWLY Members Listing</button>
 </div>
 
+<!-- ==================== Hero 区域（路径二缩短版，放在导航栏之后） ==================== -->
+<section style="max-width: 1100px; margin: 35px auto 25px; padding: 0 20px; text-align: center;">
+  <h1 style="font-size: 2.55rem; margin-bottom: 12px; line-height: 1.25;">
+    🐾 PAWLY — 为宠物而生的实用型加密应用<br>
+    <span style="font-size: 1.3rem; color: #aaa;">PAWLY — Practical Crypto App Built for Pets</span>
+  </h1>
+  
+  <p style="font-size: 1.15rem; color: #ccc; max-width: 720px; margin: 0 auto 28px; line-height: 1.55;">
+    每天签到赚 PAWLY，未来支持宠物支付与慈善<br>
+    <span style="font-size: 0.95rem; color: #aaa;">Daily check-in to earn PAWLY. Future support for pet payments & animal charity.</span>
+  </p>
+
+  <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+    <button onclick="showTab(0)" 
+            style="background: #00ff9d; color: black; padding: 17px 44px; border: none; border-radius: 50px; font-size: 1.15rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,157,0.3);">
+      立即签到 / Check-in Now
+    </button>
+    <button onclick="showTab(1)" 
+            style="background: transparent; color: #00ff9d; padding: 17px 44px; border: 2px solid #00ff9d; border-radius: 50px; font-size: 1.15rem; font-weight: bold; cursor: pointer;">
+      我的仪表盘 / My Dashboard
+    </button>
+  </div>
+</section>
+
+<!-- ==================== 核心功能快速入口卡片区（新增，路径二重点） ==================== -->
+<section id="core-features" style="max-width: 1100px; margin: 40px auto; padding: 0 20px;">
+  <h2 style="text-align: center; margin-bottom: 28px; font-size: 1.55rem;">
+    核心功能快速入口 / Core Features Quick Access
+  </h2>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 18px;">
+    
+    <!-- 签到挖矿 -->
+    <div onclick="showTab(0)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
+      <div style="font-size: 2.3rem; margin-bottom: 10px;">✅</div>
+      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">签到挖矿<br><span style="font-size: 0.82rem; color: #aaa;">Check-in Mining</span></h3>
+      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">每天签到赚 PAWLY + 积分<br><span style="font-size: 0.78rem;">Earn PAWLY + points daily</span></p>
+    </div>
+
+    <!-- 我的仪表盘 -->
+    <div onclick="showTab(1)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
+      <div style="font-size: 2.3rem; margin-bottom: 10px;">📊</div>
+      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">我的仪表盘<br><span style="font-size: 0.82rem; color: #aaa;">My Dashboard</span></h3>
+      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">查看连续签到与积分<br><span style="font-size: 0.78rem;">Track streaks & points</span></p>
+    </div>
+
+    <!-- 质押挖矿 -->
+    <div onclick="showTab(2)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
+      <div style="font-size: 2.3rem; margin-bottom: 10px;">🔥</div>
+      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">质押挖矿<br><span style="font-size: 0.82rem; color: #aaa;">Staking</span></h3>
+      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">未来开放链上质押<br><span style="font-size: 0.78rem;">On-chain staking coming soon</span></p>
+    </div>
+
+    <!-- 宠物支付 -->
+    <div onclick="showTab(3)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
+      <div style="font-size: 2.3rem; margin-bottom: 10px;">🐶</div>
+      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">宠物支付<br><span style="font-size: 0.82rem; color: #aaa;">Pet Payment</span></h3>
+      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">未来支持宠物店消费<br><span style="font-size: 0.78rem;">Pay at pet stores in the future</span></p>
+    </div>
+
+    <!-- 宠物慈善 -->
+    <div onclick="showTab(4)" style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; text-align: left;">
+      <div style="font-size: 2.3rem; margin-bottom: 10px;">❤️</div>
+      <h3 style="margin: 0 0 6px 0; line-height: 1.3;">宠物慈善基金<br><span style="font-size: 0.82rem; color: #aaa;">Pet Charity Fund</span></h3>
+      <p style="color: #aaa; font-size: 0.92rem; margin: 0; line-height: 1.45;">支持动物保护与收容所<br><span style="font-size: 0.78rem;">Support animal shelters & protection</span></p>
+    </div>
+
+  </div>
+</section>
+
   <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
     <div class="container">
@@ -193,243 +263,227 @@
     </div>
   </div>
     
-  <!-- tab2 质押挖矿 -->
-  <div class="tab" id="tab2">
-    <!-- ========== Staking 页面顶部 Hero 视频 ========== -->
-<section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
-  <video 
-    id="staking-hero-video"
-    autoplay 
-    muted 
-    loop 
-    playsinline
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
-    <source src="https://files.catbox.moe/huj9ue.mp4" type="video/mp4">
-  </video>
-
-  <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
-    <div>
-      <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;"><br><span style="font-size: 2rem; font-weight: 600;"></span></h1>
-      <p style="font-size: 1.35rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
-      <br>
-      </p>
-     <a href="https://pawlypets-dapp.netlify.app" 
-           target="_blank"
-           rel="noopener noreferrer"
+  <!-- tab2 质押挖矿（已优化为折叠版，路径二） -->
+<div class="tab" id="tab2">
+  <!-- ========== Staking 页面顶部 Hero 视频 ========== -->
+  <section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
+    <video id="staking-hero-video" autoplay muted loop playsinline
+           style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
+      <source src="https://files.catbox.moe/huj9ue.mp4" type="video/mp4">
+    </video>
+    <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
+      <div>
+        <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;"><br><span style="font-size: 2rem; font-weight: 600;"></span></h1>
+        <p style="font-size: 1.35rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;"><br></p>
+        <a href="https://pawlypets-dapp.netlify.app" target="_blank" rel="noopener noreferrer"
            style="display: inline-block; background: #7c3aed; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 15px rgba(124,58,237,0.4);">
           立即质押赚奖励 / Stake Now
         </a>
       </div>
     </div>
+    <button onclick="unmuteVideo('staking-hero-video', this)"
+            style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      🔊 开启声音
+    </button>
+  </section>
 
-  <button onclick="unmuteVideo('staking-hero-video', this)"
-          style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-    🔊 开启声音
-  </button>
-</section>
-    <div class="container">
-      <h1>🔥 质押挖矿 / Staking</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            当前处于<strong>预质押签到奖励阶段</strong>。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
-            <strong>正式 Staking 开放条件：</strong>当 PAWLY 社区活跃用户数量超过 <strong>5000 人以上</strong> 时，我们将正式开启链上质押挖矿功能。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            We are currently in the <strong>pre-staking check-in reward phase</strong>. PAWLY accumulated through web check-ins will be airdropped after launch.<br><br>
-            <strong>Official Staking Opening Condition:</strong> When PAWLY reaches <strong> 5000 active users or above</strong>, we will officially launch on-chain staking.
-          </div>
-        </div>
+  <div class="container">
+    <h1>🔥 质押挖矿 / Staking</h1>
+
+    <div class="section">
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>当前处于<strong>预质押签到奖励阶段</strong>。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br><strong>正式 Staking 开放条件：</strong>当 PAWLY 社区活跃用户数量超过 <strong>5000 人以上</strong> 时，我们将正式开启链上质押挖矿功能。</div>
+        <div><strong>English：</strong><br>We are currently in the <strong>pre-staking check-in reward phase</strong>. PAWLY accumulated through web check-ins will be airdropped after launch.<br><br><strong>Official Staking Opening Condition:</strong> When PAWLY reaches <strong>5000 active users or above</strong>, we will officially launch on-chain staking.</div>
       </div>
-      <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin:25px 0; text-align:left; line-height:1.85;">
+    </div>
+
+    <!-- ==================== 长文改成折叠（重点修改处） ==================== -->
+    <details style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; margin: 25px 0; padding: 20px; text-align: left; cursor: pointer;">
+      <summary style="font-weight: bold; font-size: 1.15rem; color: #00ff9d; outline: none; list-style: none;">
+        📖 点击展开完整说明：为什么我们要等到 5000 名活跃用户才开启 Staking？ / Click to read full explanation
+      </summary>
+      <div style="margin-top: 20px; line-height: 1.85; color: #ddd; font-size: 0.98rem;">
         <h3 style="color:#00ff9d; margin-top:0;">为什么我们要等到 5000 名活跃用户才开启 Staking？Why we needs 5000 users or above to start the Staking?</h3>
         <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            我们不希望 Staking 成为少数早期用户的专属福利。我们相信，一个真正有生命力的项目，应该让每一位支持者在合适的时机，都能公平地参与并获得回报。<br><br>
-            当社区达到 5000 名活跃用户以上时，我们将准备一个更庞大、更可持续的奖励池。我们也会设计更完善的质押机制，包括更灵活的锁定期选项、更高的长期持有奖励，以及未来可能开放的治理投票权。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            We don’t want staking to become a privilege reserved for a small group of early users. We believe a truly sustainable project should allow every supporter to participate fairly when the time is right.<br><br>
-            Once we reach 5000 active users or above, we will prepare a larger and more sustainable reward pool. We will also design better staking mechanics, including flexible lock-up periods, higher rewards for long-term holders, and future governance voting rights.
-          </div>
+          <div><strong>中文：</strong><br>我们不希望 Staking 成为少数早期用户的专属福利。我们相信，一个真正有生命力的项目，应该让每一位支持者在合适的时机，都能公平地参与并获得回报。<br><br>当社区达到 5000 名活跃用户以上时，我们将准备一个更庞大、更可持续的奖励池。我们也会设计更完善的质押机制，包括更灵活的锁定期选项、更高的长期持有奖励，以及未来可能开放的治理投票权。</div>
+          <div><strong>English：</strong><br>We don’t want staking to become a privilege reserved for a small group of early users. We believe a truly sustainable project should allow every supporter to participate fairly when the time is right.<br><br>Once we reach 5000 active users or above, we will prepare a larger and more sustainable reward pool. We will also design better staking mechanics, including flexible lock-up periods, higher rewards for long-term holders, and future governance voting rights.</div>
         </div>
       </div>
-      <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
-        专业版 Staking 功能已在 dApp 中开发中<br>
-        Professional Staking features are being developed in the dApp
-      </p>
-    </div>
+    </details>
+
+    <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
+      专业版 Staking 功能已在 dApp 中开发中<br>
+      Professional Staking features are being developed in the dApp
+    </p>
   </div>
+</div>
 
-  <!-- tab3 宠物支付 -->
-  <div class="tab" id="tab3">
-    <!-- ========== Pet Payment 页面顶部 Hero 视频 ========== -->
-<section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
-  <video 
-    id="payment-hero-video"
-    autoplay 
-    muted 
-    loop 
-    playsinline
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
-    <source src="https://files.catbox.moe/ljsyu3.mp4" type="video/mp4">
-  </video>
-
-  <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
-    <div>
-      <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;"><br><span style="font-size: 2rem; font-weight: 600;"></span></h1>
-      <p style="font-size: 1.35rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
-      <br>
-      </p>
-      <a href="#payment-form" 
-         style="display: inline-block; background: #2196f3; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
-        立即支付 / Pay Now
-      </a>
-    </div>
-  </div>
-
-  <button onclick="unmuteVideo('payment-hero-video', this)"
-          style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-    🔊 开启声音
-  </button>
-</section>
-    <div class="container">
-      <h1>🐶 宠物支付 / Pet Payment</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。</div>
-          <div><strong>English：</strong><br>PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.</div>
-        </div>
+  <!-- tab3 宠物支付（已优化为折叠版，路径二） -->
+<div class="tab" id="tab3">
+  <!-- ========== Pet Payment 页面顶部 Hero 视频 ========== -->
+  <section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
+    <video id="payment-hero-video" autoplay muted loop playsinline
+           style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
+      <source src="https://files.catbox.moe/ljsyu3.mp4" type="video/mp4">
+    </video>
+    <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
+      <div>
+        <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;"><br><span style="font-size: 2rem; font-weight: 600;"></span></h1>
+        <p style="font-size: 1.35rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;"><br></p>
+        <a href="#payment-form" style="display: inline-block; background: #2196f3; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
+          立即支付 / Pay Now
+        </a>
       </div>
-      <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin:25px 0; text-align:left; line-height:1.85;">
+    </div>
+    <button onclick="unmuteVideo('payment-hero-video', this)"
+            style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      🔊 开启声音
+    </button>
+  </section>
+
+  <div class="container">
+    <h1>🐶 宠物支付 / Pet Payment</h1>
+
+    <div class="section">
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。</div>
+        <div><strong>English：</strong><br>PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.</div>
+      </div>
+    </div>
+
+    <!-- ==================== 长文改成折叠（重点修改处） ==================== -->
+    <details style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; margin: 25px 0; padding: 20px; text-align: left; cursor: pointer;">
+      <summary style="font-weight: bold; font-size: 1.15rem; color: #00ff9d; outline: none; list-style: none;">
+        📖 点击展开完整愿景：让爱宠生活更简单 —— PAWLY 支付的未来 / Click to read full vision
+      </summary>
+      <div style="margin-top: 20px; line-height: 1.85; color: #ddd; font-size: 0.98rem;">
         <h3 style="color:#00ff9d; margin-top:0;">让爱宠生活更简单 —— PAWLY 支付的未来</h3>
         <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            我们希望 PAWLY 不仅仅是一枚 meme 币，而是能真正走进宠物主人的日常生活。未来，你可以直接用 PAWLY 在合作的宠物店购买狗粮、猫砂、玩具，在兽医诊所支付看诊费用，甚至在宠物美容店结账。<br><br>
-            我们将从马来西亚开始，逐步扩展到更多国家和地区。我们会与值得信赖的商家合作，确保支付流程简单、安全、透明。加入等待名单后，当支付功能正式上线时，你将收到优先通知，并有机会成为首批体验者。我们希望每一位爱宠的人，都能用 PAWLY 轻松表达对毛孩子的爱。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            We want PAWLY to be more than just a meme coin — we want it to become part of pet owners’ daily lives. In the future, you will be able to use PAWLY directly at partnered pet stores to buy dog food, cat litter, and toys, pay for veterinary visits, and even settle bills at pet grooming salons.<br><br>
-            We will start in Malaysia and gradually expand to more countries. We will work with trusted merchants to ensure the payment experience is simple, secure, and transparent.
-          </div>
+          <div><strong>中文：</strong><br>我们希望 PAWLY 不仅仅是一枚 meme 币，而是能真正走进宠物主人的日常生活。未来，你可以直接用 PAWLY 在合作的宠物店购买狗粮、猫砂、玩具，在兽医诊所支付看诊费用，甚至在宠物美容店结账。<br><br>我们将从马来西亚开始，逐步扩展到更多国家和地区。我们会与值得信赖的商家合作，确保支付流程简单、安全、透明。加入等待名单后，当支付功能正式上线时，你将收到优先通知，并有机会成为首批体验者。我们希望每一位爱宠的人，都能用 PAWLY 轻松表达对毛孩子的爱。</div>
+          <div><strong>English：</strong><br>We want PAWLY to be more than just a meme coin — we want it to become part of pet owners’ daily lives. In the future, you will be able to use PAWLY directly at partnered pet stores to buy dog food, cat litter, and toys, pay for veterinary visits, and even settle bills at pet grooming salons.<br><br>We will start in Malaysia and gradually expand to more countries. We will work with trusted merchants to ensure the payment experience is simple, secure, and transparent.</div>
         </div>
       </div>
-      <div style="text-align:center; margin:40px 0 20px;">
-        <button onclick="showPaymentWaitlistModal()"
-                style="background:#00ff9d; color:black; padding:18px 55px; font-size:1.2em; font-weight:bold; border:none; border-radius:16px; cursor:pointer;">
-          加入宠物支付计划<br>Join Pet Payment Program
-        </button>
-      </div>
+    </details>
+
+    <div style="text-align:center; margin:40px 0 20px;">
+      <button onclick="showPaymentWaitlistModal()"
+              style="background:#00ff9d; color:black; padding:18px 55px; font-size:1.2em; font-weight:bold; border:none; border-radius:16px; cursor:pointer;">
+        加入宠物支付计划<br>Join Pet Payment Program
+      </button>
     </div>
   </div>
+</div>
 
-  <!-- tab4 慈善基金 -->
-  <div class="tab" id="tab4">
-    <!-- ========== Charity 页面顶部 Hero 视频 ========== -->
-<section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
-  <video 
-    id="charity-hero-video"
-    autoplay 
-    muted 
-    loop 
-    playsinline
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
-    <source src="https://files.catbox.moe/9269o6.mp4" type="video/mp4">
-  </video>
-
-  <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
-    <div>
-      <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;"><br><span style="font-size: 2rem; font-weight: 600;"></span></h1>
-      <p style="font-size: 1.35rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
-      <br>
-      </p>
-      <a href="#donate-form" 
-         style="display: inline-block; background: #00c853; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
-        立即捐款 / Donate Now
-      </a>
-    </div>
-  </div>
-
-  <button onclick="unmuteVideo('charity-hero-video', this)"
-          style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-    🔊 开启声音
-  </button>
-</section>
-    <div class="container">
-      <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 将把部分交易费用用于宠物慈善。每季度公开捐款给马来西亚及全球的动物收容所。社区持币者可通过投票参与决定捐款方向。</div>
-          <div><strong>English：</strong><br>PAWLY will allocate a portion of transaction fees to pet charity. Quarterly public donations to animal shelters. Token holders can vote on donation directions.</div>
-        </div>
+  <!-- tab4 慈善基金（已优化为折叠版，路径二） -->
+<div class="tab" id="tab4">
+  <!-- ========== Charity 页面顶部 Hero 视频 ========== -->
+  <section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
+    <video id="charity-hero-video" autoplay muted loop playsinline
+           style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
+      <source src="https://files.catbox.moe/9269o6.mp4" type="video/mp4">
+    </video>
+    <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
+      <div>
+        <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;"><br><span style="font-size: 2rem; font-weight: 600;"></span></h1>
+        <p style="font-size: 1.35rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;"><br></p>
+        <a href="#donate-form" style="display: inline-block; background: #00c853; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
+          立即捐款 / Donate Now
+        </a>
       </div>
-      <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin:25px 0; text-align:left; line-height:1.85;">
+    </div>
+    <button onclick="unmuteVideo('charity-hero-video', this)"
+            style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      🔊 开启声音
+    </button>
+  </section>
+
+  <div class="container">
+    <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
+
+    <div class="section">
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>PAWLY 将把部分交易费用用于宠物慈善。每季度公开捐款给马来西亚及全球的动物收容所。社区持币者可通过投票参与决定捐款方向。</div>
+        <div><strong>English：</strong><br>PAWLY will allocate a portion of transaction fees to pet charity. Quarterly public donations to animal shelters. Token holders can vote on donation directions.</div>
+      </div>
+    </div>
+
+    <!-- ==================== 长文改成折叠（重点修改处） ==================== -->
+    <details style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; margin: 25px 0; padding: 20px; text-align: left; cursor: pointer;">
+      <summary style="font-weight: bold; font-size: 1.15rem; color: #00ff9d; outline: none; list-style: none;">
+        📖 点击展开完整承诺：用爱与行动守护每一个生命 / Click to read full commitment
+      </summary>
+      <div style="margin-top: 20px; line-height: 1.85; color: #ddd; font-size: 0.98rem;">
         <h3 style="color:#00ff9d; margin-top:0;">用爱与行动守护每一个生命 / Loves to protect every lifes in earth</h3>
         <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            PAWLY 的初心，不仅是陪伴宠物主人快乐生活，更希望用实际行动回馈那些需要帮助的动物。我们计划每季度从交易费用中提取一定比例，用于支持马来西亚及全球的动物收容所、流浪动物救援组织，以及濒危物种保护项目。<br><br>
-            我们承诺每一笔捐款都会公开透明，并定期公布详细报告。未来，社区持币者还可以通过投票参与决定捐款方向。加入慈善等待名单的你，将会第一时间收到捐款启动通知，并有机会参与我们早期的慈善活动。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            PAWLY’s original intention is not only to bring joy to pet owners, but also to give back through real action to animals in need. We plan to allocate a portion of transaction fees every quarter to support animal shelters, stray animal rescue organizations, and endangered species protection projects.
-          </div>
+          <div><strong>中文：</strong><br>PAWLY 的初心，不仅是陪伴宠物主人快乐生活，更希望用实际行动回馈那些需要帮助的动物。我们计划每季度从交易费用中提取一定比例，用于支持马来西亚及全球的动物收容所、流浪动物救援组织，以及濒危物种保护项目。<br><br>我们承诺每一笔捐款都会公开透明，并定期公布详细报告。未来，社区持币者还可以通过投票参与决定捐款方向。加入慈善等待名单的你，将会第一时间收到捐款启动通知，并有机会参与我们早期的慈善活动。</div>
+          <div><strong>English：</strong><br>PAWLY’s original intention is not only to bring joy to pet owners, but also to give back through real action to animals in need. We plan to allocate a portion of transaction fees every quarter to support animal shelters, stray animal rescue organizations, and endangered species protection projects.<br><br>We are committed to transparent donations and will regularly publish detailed reports. Token holders will also be able to vote on donation directions in the future. By joining the charity waitlist, you will be the first to receive notification when donation activities begin and have the opportunity to participate in our early charity events.</div>
         </div>
       </div>
-      <div style="text-align:center; margin:40px 0 20px;">
-        <button onclick="showCharityWaitlistModal()"
-                style="background:#00ff9d; color:black; padding:18px 55px; font-size:1.2em; font-weight:bold; border:none; border-radius:16px; cursor:pointer;">
-          加入宠物慈善计划<br>Join Pet Charity Program
-        </button>
-      </div>
+    </details>
+
+    <div style="text-align:center; margin:40px 0 20px;">
+      <button onclick="showCharityWaitlistModal()"
+              style="background:#00ff9d; color:black; padding:18px 55px; font-size:1.2em; font-weight:bold; border:none; border-radius:16px; cursor:pointer;">
+        加入宠物慈善计划<br>Join Pet Charity Program
+      </button>
     </div>
   </div>
+</div>
 
-  <!-- tab5 关于 PAWLY -->
-  <div class="tab" id="tab5">
-    <div class="container">
-      <h1>🌟 关于 PAWLY / About PAWLY</h1>
-      <div class="section">
+  <!-- tab5 关于 PAWLY（已优化为折叠版，路径二） -->
+<div class="tab" id="tab5">
+  <div class="container">
+    <h1>🌟 关于 PAWLY / About PAWLY</h1>
+
+    <!-- ==================== 核心故事改成折叠（重点修改处） ==================== -->
+    <details style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 20px; margin-bottom: 20px; padding: 20px; text-align: left; cursor: pointer;">
+      <summary style="font-weight: bold; font-size: 1.15rem; color: #00ff9d; outline: none; list-style: none;">
+        🌟 点击展开完整故事 / Click to read the full story
+      </summary>
+      <div style="margin-top: 20px; line-height: 1.8; color: #ddd; font-size: 0.98rem;">
         <div class="bilingual">
           <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
 渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
 于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。</div>
-          <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
+          
+          <div style="margin-top: 18px;"><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem. I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
 Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
 That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.</div>
         </div>
       </div>
-      <div class="section">
-        <h3>🎥 宣传视频 / Promo Videos</h3>
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>
+    </details>
+
+    <!-- 宣传视频（保持原样） -->
+    <div class="section">
+      <h3>🎥 宣传视频 / Promo Videos</h3>
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>
           <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：PAWLY 宣传片</a><br>
           <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常温馨时刻</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事与愿景</a></div>
-          <div><strong>English：</strong><br>
+          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事与愿景</a>
+        </div>
+        <div><strong>English：</strong><br>
           <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">Video 1: PAWLY Promo Video</a><br>
           <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">Video 2: Heartwarming Pet Daily Moments</a><br>
-          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">Video 3: Community Story & Vision</a></div>
+          <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">Video 3: Community Story & Vision</a>
         </div>
       </div>
-      <div class="section">
-        <h3>📱 官方链接 / Official Links</h3>
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>
-          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
-          <div><strong>English：</strong><br>
-          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a></div>
+    </div>
+
+    <!-- 官方链接（保持原样） -->
+    <div class="section">
+      <h3>📱 官方链接 / Official Links</h3>
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>
+          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a>
+        </div>
+        <div><strong>English：</strong><br>
+          <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a>
         </div>
       </div>
     </div>
   </div>
+</div>
 
   <!-- 各种 Modal 保持原样 -->
   <div id="stakingWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
@@ -656,7 +710,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </div>
     </div>
 
-    <<div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
+    <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
   <button onclick="goToDashboard()"
           style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
     返回我的仪表盘页面 / Back to My Dashboard →
@@ -724,7 +778,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </div>
     </div>
 
-   <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
+    <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
   <button onclick="goToDashboard()"
           style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
     返回我的仪表盘页面 / Back to My Dashboard →
@@ -758,7 +812,7 @@ That’s why I decided to use the power of blockchain and cryptocurrency to crea
       </div>
     </div>
 
-  <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
+    <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
   <button onclick="goToDashboard()"
           style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
     返回我的仪表盘页面 / Back to My Dashboard →
