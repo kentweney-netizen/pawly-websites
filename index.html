@@ -1315,53 +1315,116 @@ async function unbindWallet() {
   }
 }
 
-  // ==================== 新增：Solana 钱包一键连接功能 ====================
+ // ==================== 改进版：支持桌面 + 手机 ====================
 async function connectSolanaWallet() {
+  // 1. 先尝试桌面扩展 / 钱包内置浏览器
   try {
     let publicKey = null;
 
-    // 优先尝试 Phantom
     if (window.phantom?.solana?.isPhantom) {
       const resp = await window.phantom.solana.connect();
       publicKey = resp.publicKey.toString();
     } 
-    // 尝试 Solflare
     else if (window.solflare?.isSolflare) {
       await window.solflare.connect();
       publicKey = window.solflare.publicKey.toString();
     } 
-    // 尝试 Trust Wallet
     else if (window.trustwallet?.solana) {
       const resp = await window.trustwallet.solana.connect();
       publicKey = resp.publicKey.toString();
-    } 
-    // 尝试 Jupiter Wallet
-    else if (window.Jupiterwallet?.solana) {
-      const resp = await window.jupiterwallet.solana.connect();
-      publicKey = resp.publicKey.toString();
-    } 
-
-    else {
-      alert("未检测到支持的 Solana 钱包！\n请安装 Phantom 或 Solflare 钱包扩展。\n\nNo supported Solana wallet detected!\nPlease install Phantom or Solflare extension.");
-      return;
     }
 
     if (publicKey) {
-      // 自动填入输入框
+      // 自动填入并绑定
       const input = document.getElementById('bind-wallet');
-      if (input) {
-        input.value = publicKey;
-      }
+      if (input) input.value = publicKey;
 
-      // 自动调用绑定逻辑
       await bindWallet();
-
       alert(`✅ 钱包连接成功！\nWallet connected successfully!\n\n地址: ${publicKey}`);
+      return;
     }
-  } catch (error) {
-    console.error("钱包连接失败:", error);
-    alert("钱包连接失败，请重试。\nWallet connection failed, please try again.");
+  } catch (err) {
+    console.log("扩展连接失败:", err);
   }
+
+  // 2. 如果上面没成功 → 判断是否手机
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // 弹出手机钱包选择弹窗
+    showMobileWalletModal();
+  } else {
+    // 电脑端还是没检测到 → 提示安装扩展
+    alert("未检测到支持的 Solana 钱包！\nNo supported Solana wallet detected!\n\n请安装 Phantom 或 Solflare 浏览器扩展后重试。\nPlease install Phantom or Solflare extension and try again.");
+  }
+}
+
+// ==================== 手机端钱包选择弹窗 ====================
+function showMobileWalletModal() {
+  // 先移除旧的弹窗（防止重复）
+  const oldModal = document.getElementById('mobile-wallet-modal');
+  if (oldModal) oldModal.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'mobile-wallet-modal';
+  modal.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); z-index: 999999;
+    display: flex; align-items: center; justify-content: center;
+  `;
+
+  modal.innerHTML = `
+    <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:20px; 
+                padding:28px 24px; width:92%; max-width:420px; text-align:center;">
+      
+      <h3 style="color:#00ff9d; margin:0 0 20px 0;">请选择钱包连接方式 / please choose your wallet</h3>
+      
+      <button onclick="connectWithPhantomDeepLink(); closeMobileWalletModal();"
+              style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195);
+                     color:white; border:none; padding:16px; border-radius:9999px; 
+                     font-size:1.05em; font-weight:bold; margin-bottom:12px;">
+        🦊 用 Phantom App 连接 / Use Phantom App
+      </button>
+
+      <button onclick="connectWithSolflareDeepLink(); closeMobileWalletModal();"
+              style="width:100%; background: linear-gradient(135deg, #00C2FF, #00FF9D);
+                     color:white; border:none; padding:16px; border-radius:9999px; 
+                     font-size:1.05em; font-weight:bold; margin-bottom:12px;">
+        🔷 用 Solflare App 连接 / Use Solflare App
+      </button>
+
+      <button onclick="closeMobileWalletModal();"
+              style="width:100%; background:#555; color:white; border:none; 
+                     padding:14px; border-radius:9999px; font-size:1em; margin-top:8px;">
+        取消 / Cancel
+      </button>
+
+      <p style="font-size:0.85em; color:#aaa; margin-top:20px; line-height:1.6;">
+        推荐:用 Phantom 或 Solflare App 打开本网站，体验最好 / Recommended:using Phantom or Solflare Wallet App<br>
+        （在钱包内置浏览器中打开可直接一键连接）/ (You can Connect Directly By Using The Wallet Browser)
+      </p>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+function closeMobileWalletModal() {
+  const modal = document.getElementById('mobile-wallet-modal');
+  if (modal) modal.remove();
+}
+
+// Phantom 深链接（推荐)
+function connectWithPhantomDeepLink() {
+  const currentUrl = encodeURIComponent(window.location.href);
+  // 简单版本（可直接跳转）
+  window.location.href = `https://phantom.app/ul/v1/connect?app_url=${currentUrl}`;
+}
+
+// Solflare 深链接
+function connectWithSolflareDeepLink() {
+  const currentUrl = encodeURIComponent(window.location.href);
+  window.location.href = `https://solflare.com/ul/v1/connect?app_url=${currentUrl}`;
 }
 
 // ==================== 强制绑定钱包 + 正确字段 ====================
