@@ -126,12 +126,12 @@
       <div id="logged-in-section" style="display:none;">
         <p id="user-email-display" style="font-weight:bold; margin-bottom:20px;"></p>
         
-         <!-- ==================== 绑定钱包区域（最终干净版）==================== -->
+         <!-- ==================== 绑定钱包区域（最终完美对齐版）==================== -->
 <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:24px; margin:20px 0; text-align:left;">
   
   <h3 style="color:#00ff9d; margin:0 0 16px 0; font-size:1.15em;">🔗 绑定钱包 / Connect Wallet</h3>
 
-  <!-- 一键连接钱包按钮（独立、干净） -->
+  <!-- 一键连接钱包按钮 -->
   <button onclick="connectSolanaWallet()" 
           style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195);
                  color: white; border: none; padding: 14px 28px; border-radius: 9999px;
@@ -141,17 +141,17 @@
     <span style="font-size:0.82em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
   </button>
 
-  <div style="color:#888; font-size:0.92em; margin-bottom:10px;">
+  <div style="color:#888; font-size:0.92em; margin-bottom:10px; line-height:1.5;">
     或手动输入 / 粘贴钱包地址（可随时修改）<br>
     <span style="font-size:0.85em;">Or manually enter / paste your wallet address (editable anytime)</span>
   </div>
 
-  <!-- 手动输入框 + 清空按钮 -->
+  <!-- 输入框 + 清空按钮 -->
   <div style="display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap;">
     <input type="text" id="bind-wallet" 
-           placeholder="请输入或粘贴你的钱包地址 / Please enter or paste your wallet address（可随时修改 / Editable anytime）"
+           placeholder="请输入或粘贴钱包地址 / Enter or paste wallet address"
            style="flex:1; min-width:200px; padding:14px 16px; background:#0f0022; 
-                  border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.95rem;">
+                  border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.92rem;">
     
     <button onclick="document.getElementById('bind-wallet').value=''; document.getElementById('bind-wallet').focus();"
             style="background:#555; color:white; border:none; padding:12px 18px; border-radius:10px; 
@@ -160,18 +160,18 @@
     </button>
   </div>
 
-  <!-- 绑定/更新 + 解绑按钮 -->
+  <!-- 绑定/更新 + 解绑按钮（已统一 padding） -->
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
     
     <button onclick="bindWallet()" 
-            style="flex:1; background:#00ff9d; color:black; padding:14px 20px; border:none; 
+            style="flex:1; background:#00ff9d; color:black; padding:14px 28px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
       绑定或更新钱包<br>
       <span style="font-size:0.85em; font-weight:400;">Connect or Update Wallet</span>
     </button>
 
     <button onclick="unbindWallet()" id="unbind-wallet-btn"
-            style="flex:1; background:#ff6b6b; color:white; padding:14px 20px; border:none; 
+            style="flex:1; background:#ff6b6b; color:white; padding:14px 28px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
       解绑当前钱包<br>
       <span style="font-size:0.85em; font-weight:400;">Disconnect Current Wallet</span>
@@ -180,7 +180,7 @@
 
   <p style="font-size:0.82em; color:#888; margin-top:14px; line-height:1.65;">
     提示：想换其他钱包平台？请先点击「解绑当前钱包」，再重新绑定新地址即可。<br>
-    <span style="color:#666;">Tip: To switch wallet, please disconnect wallet address first, then connect a new wallet address.</span>
+    <span style="color:#666;">Tip: To switch wallet, please unbind first, then connect a new address.</span>
   </p>
 </div>
 
@@ -206,7 +206,8 @@
 </div>
 <!-- ==================== 欢迎图结束 ==================== -->
       <h1>📊 我的仪表盘 / My Dashboard</h1>
-      <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:16px; padding:18px 20px; margin:20px 0; text-align:left;">
+     <!-- ==================== Dashboard 钱包地址（最终漂亮卡片版）==================== -->
+<div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:16px; padding:18px 20px; margin:20px 0; text-align:left;">
   <div style="color:#888; font-size:0.9em; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
     <span>🔗 当前绑定钱包 / Connected Wallet</span>
   </div>
