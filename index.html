@@ -131,10 +131,8 @@
   <h3 style="color:#00ff9d; margin:0 0 16px 0; font-size:1.15em;">
   <!-- 一键连接钱包按钮 -->
   <button onclick="connectSolanaWallet()" 
-          style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195);
-                 color: white; border: none; padding: 14px 28px; border-radius: 9999px;
-                 font-size: 1.05em; font-weight: bold; cursor: pointer; margin-bottom: 18px;
-                 box-shadow: 0 6px 20px rgba(153, 69, 255, 0.4);">
+        style="flex:1; background:#ff6b6b; color:white; padding:14px 28px; border:none; 
+                   border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
     🦊 一键连接钱包 / Connect Wallet<br>
     <span style="font-size:0.85em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
   </button>
@@ -142,8 +140,8 @@
   <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
     <input type="text" id="bind-wallet" 
            placeholder="请输入或粘贴钱包地址 / Enter or paste wallet address"
-           style="flex:1; min-width:200px; padding:14px 16px; background:#0f0022; 
-                  border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.92rem;">
+           style="flex:1; background:#ff6b6b; color:white; padding:14px 28px; border:none; 
+                   border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
     
     <button onclick="document.getElementById('bind-wallet').value=''; document.getElementById('bind-wallet').focus();"
             style="background:#555; color:white; border:none; padding:12px 18px; border-radius:10px; 
