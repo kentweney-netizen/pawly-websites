@@ -126,16 +126,16 @@
       <div id="logged-in-section" style="display:none;">
         <p id="user-email-display" style="font-weight:bold; margin-bottom:20px;"></p>
         
-         <!-- ==================== 绑定钱包区域（最终优化版：全双语 + 对齐 + 可编辑）==================== -->
+         <!-- ==================== 绑定钱包区域（最终干净版）==================== -->
 <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:24px; margin:20px 0; text-align:left;">
   
   <h3 style="color:#00ff9d; margin:0 0 16px 0; font-size:1.15em;">🔗 绑定钱包 / Connect Wallet</h3>
 
-  <!-- 一键连接钱包（最推荐的方式） -->
+  <!-- 一键连接钱包按钮（独立、干净） -->
   <button onclick="connectSolanaWallet()" 
-          style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195); 
-                 color: white; border: none; padding: 16px 20px; border-radius: 9999px; 
-                 font-size: 1.05em; font-weight: bold; cursor: pointer; margin-bottom: 20px;
+          style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195);
+                 color: white; border: none; padding: 14px 28px; border-radius: 9999px;
+                 font-size: 1.05em; font-weight: bold; cursor: pointer; margin-bottom: 18px;
                  box-shadow: 0 6px 20px rgba(153, 69, 255, 0.4);">
     🦊 一键连接钱包 / Connect Wallet<br>
     <span style="font-size:0.82em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
@@ -146,10 +146,10 @@
     <span style="font-size:0.85em;">Or manually enter / paste your wallet address (editable anytime)</span>
   </div>
 
-  <!-- 手动输入框 + 清空按钮（永远可编辑） -->
+  <!-- 手动输入框 + 清空按钮 -->
   <div style="display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap;">
     <input type="text" id="bind-wallet" 
-           placeholder="输入粘贴你的钱包地址 / Enter or paste your wallet address"
+           placeholder="请输入或粘贴你的钱包地址 / Please enter or paste your wallet address（可随时修改 / Editable anytime）"
            style="flex:1; min-width:200px; padding:14px 16px; background:#0f0022; 
                   border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.95rem;">
     
@@ -160,10 +160,9 @@
     </button>
   </div>
 
-  <!-- 按钮区域：绑定/更新 + 解绑（清晰分离） -->
+  <!-- 绑定/更新 + 解绑按钮 -->
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
     
-    <!-- 绑定 / 更新钱包按钮 -->
     <button onclick="bindWallet()" 
             style="flex:1; background:#00ff9d; color:black; padding:14px 20px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
@@ -171,7 +170,6 @@
       <span style="font-size:0.85em; font-weight:400;">Connect or Update Wallet</span>
     </button>
 
-    <!-- 解绑钱包按钮（常显，红色，清晰分离） -->
     <button onclick="unbindWallet()" id="unbind-wallet-btn"
             style="flex:1; background:#ff6b6b; color:white; padding:14px 20px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
@@ -182,7 +180,7 @@
 
   <p style="font-size:0.82em; color:#888; margin-top:14px; line-height:1.65;">
     提示：想换其他钱包平台？请先点击「解绑当前钱包」，再重新绑定新地址即可。<br>
-    <span style="color:#666;">Tip: To switch to another wallet platform, please unbind first, then connect a new address.</span>
+    <span style="color:#666;">Tip: To switch wallet, please disconnect wallet address first, then connect a new wallet address.</span>
   </p>
 </div>
 
@@ -208,7 +206,15 @@
 </div>
 <!-- ==================== 欢迎图结束 ==================== -->
       <h1>📊 我的仪表盘 / My Dashboard</h1>
-      <p>钱包地址：<span id="walletDisplay">未连接 / Not connected</span></p>
+      <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:16px; padding:18px 20px; margin:20px 0; text-align:left;">
+  <div style="color:#888; font-size:0.9em; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+    <span>🔗 当前绑定钱包 / Connected Wallet</span>
+  </div>
+  <div id="walletDisplay" 
+       style="color:#00ff9d; font-family:monospace; font-size:0.95em; word-break:break-all; line-height:1.5; min-height:24px;">
+    未连接 / Not connected
+  </div>
+</div>
       <h2 id="streakText">连续签到 0 天 🔥 / Streak: 0 days</h2>
       <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
 
@@ -1203,28 +1209,25 @@ async function loginUser() {
   .eq('id', currentUser.id)
   .single();
 
+// ==================== 处理已绑定钱包地址 ====================
 if (userData?.wallet_address) {
   const bindInput = document.getElementById('bind-wallet');
   if (bindInput) {
     bindInput.value = userData.wallet_address;
-    // 不要加 disabled = true！让用户可以随时修改
+    // 重要：不要加 disabled = true，让用户可以随时修改和删除
   }
-  
+
   const walletDisplay = document.getElementById('walletDisplay');
-  if (walletDisplay) walletDisplay.innerText = userData.wallet_address;
+  if (walletDisplay) {
+    walletDisplay.innerText = userData.wallet_address;
+  }
 }
 
-  // 显示解绑按钮
-  const unbindBtn = document.getElementById('unbind-wallet-btn');
-  if (unbindBtn) {
-    unbindBtn.style.display = 'block';
-  }
-} else {
-  // 如果没有绑定钱包，确保解绑按钮是隐藏状态
-  const unbindBtn = document.getElementById('unbind-wallet-btn');
-  if (unbindBtn) {
-    unbindBtn.style.display = 'none';
-  }
+// ==================== 解绑按钮保持永久显示（符合你的要求） ====================
+// 无论用户有没有绑定钱包，解绑按钮都直接显示
+const unbindBtn = document.getElementById('unbind-wallet-btn');
+if (unbindBtn) {
+  unbindBtn.style.display = 'block';
 }
 
   await calculateUserStats(currentUser.id);
@@ -1297,38 +1300,40 @@ async function bindWallet() {
   }
 }
 
-// ==================== 解绑钱包功能 ====================
+// ==================== 解绑钱包功能（最终版：不隐藏按钮，保持永久可见） ====================
 async function unbindWallet() {
-  if (!currentUser) return;
-
-  if (!confirm("确定要解绑当前钱包吗？\n解绑后可以重新绑定其他钱包。\n\nAre you sure you want to unbind the current wallet?")) {
+  if (!currentUser) {
+    alert("请先登录！\nPlease login first!");
+    return;
+  }
+  
+  if (!confirm("🐶 确定要解绑当前钱包吗？\n\n解绑后可以重新绑定其他钱包平台。\n\nAre you sure you want to disconnect the current wallet?")) {
     return;
   }
 
   try {
-    const { error } = await supabaseClient.from('USERS').update({
-      wallet_address: null
-    }).eq('id', currentUser.id);
+    const { error } = await supabaseClient
+      .from('USERS')
+      .update({ wallet_address: null })
+      .eq('id', currentUser.id);
 
     if (error) throw error;
 
-    // 清空输入框并启用
+    // 清空输入框（保持可编辑）
     const input = document.getElementById('bind-wallet');
     if (input) {
       input.value = '';
-      input.disabled = false;
+      input.disabled = false;   // 确保可编辑
     }
-
-    // 隐藏解绑按钮
-    const unbindBtn = document.getElementById('unbind-wallet-btn');
-    if (unbindBtn) unbindBtn.style.display = 'none';
 
     // 更新 Dashboard 显示
     const walletDisplay = document.getElementById('walletDisplay');
     if (walletDisplay) walletDisplay.innerText = '未连接 / Not connected';
 
-    alert("✅ 钱包已成功解绑！\n你可以重新绑定其他钱包了。");
+    alert("✅ 钱包已成功解绑！\n你可以重新绑定其他钱包了。\n\nWallet disconnect successfully! You can connect another wallet now.");
+
   } catch (error) {
+    console.error('解绑失败:', error);
     alert("解绑失败: " + error.message);
   }
 }
@@ -1962,7 +1967,6 @@ window.onload = async function() {
           const bindInput = document.getElementById('bind-wallet');
           if (bindInput) {
             bindInput.value = userData.wallet_address;
-            bindInput.disabled = true;
           }
           const walletDisplay = document.getElementById('walletDisplay');
           if (walletDisplay) walletDisplay.innerText = userData.wallet_address;
