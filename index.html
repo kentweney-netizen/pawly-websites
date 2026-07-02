@@ -126,31 +126,34 @@
       <div id="logged-in-section" style="display:none;">
         <p id="user-email-display" style="font-weight:bold; margin-bottom:20px;"></p>
         
-         <!-- ==================== 绑定钱包区域（双语优化版）==================== -->
+         <!-- ==================== 绑定钱包区域（已修复输入框对齐问题）==================== -->
 <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:24px; margin:20px 0; text-align:left;">
   
-  <h3 style="color:#00ff9d; margin:0 0 16px 0;">🔗 绑定 Solana 钱包 / Bind Wallet</h3>
+  <h3 style="color:#00ff9d; margin:0 0 16px 0; font-size:1.15em;">🔗 绑定钱包 / Connect Wallet</h3>
 
   <!-- 一键连接钱包按钮 -->
   <button onclick="connectSolanaWallet()" 
           style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195); 
                  color: white; border: none; padding: 16px 20px; border-radius: 9999px; 
-                 font-size: 1.05em; font-weight: bold; cursor: pointer; margin-bottom: 16px;
+                 font-size: 1.05em; font-weight: bold; cursor: pointer; margin-bottom: 18px;
                  box-shadow: 0 6px 20px rgba(153, 69, 255, 0.4);">
     🦊 一键连接钱包 / Connect Wallet<br>
-    <span style="font-size:0.85em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
+    <span style="font-size:0.82em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
   </button>
 
-  <div style="color:#888; font-size:0.9em; margin-bottom:8px;">或手动输入粘贴钱包地址 / manually input wallet address</div>
+  <div style="color:#888; font-size:0.92em; margin-bottom:10px;">手动输入粘贴钱包地址 / You can paste your wallet address here</div>
 
-  <!-- 手动输入框 + 清空按钮（已修复，永远可编辑） -->
-  <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
-    <input type="text" id="bind-wallet" placeholder="输入或粘贴你的 Solana 钱包地址 / Paste your Solana wallet address"
-           style="flex:1; padding:14px; background:#0f0022; border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.95rem;">
+  <!-- 手动输入框 + 清空按钮（已修复对齐） -->
+  <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+    <input type="text" id="bind-wallet" 
+           placeholder="输入或粘贴你的钱包地址 / Please Insert Your Wallet Address"
+           style="flex:1; min-width:200px; padding:14px 16px; background:#0f0022; 
+                  border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.95rem;">
     
     <button onclick="document.getElementById('bind-wallet').value=''; document.getElementById('bind-wallet').focus();"
-            style="background:#555; color:white; border:none; padding:12px 16px; border-radius:10px; cursor:pointer; font-size:0.9em; white-space:nowrap;">
-      清空 / clear
+            style="background:#555; color:white; border:none; padding:12px 18px; border-radius:10px; 
+                   cursor:pointer; font-size:0.9em; white-space:nowrap; height:48px;">
+      清空
     </button>
   </div>
 
@@ -158,23 +161,25 @@
     
     <!-- 绑定 / 更新按钮 -->
     <button onclick="bindWallet()" 
-            style="flex:1; background:#00ff9d; color:black; padding:14px 20px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px;">
-      绑定更新钱包 / bind wallet
+            style="flex:1; background:#00ff9d; color:black; padding:14px 20px; border:none; 
+                   border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
+      绑定或更新钱包 / Connect Wallet
     </button>
 
-    <!-- 解绑按钮（已改成直接显示，永久可见） -->
+    <!-- 解绑按钮（永久显示） -->
     <button onclick="unbindWallet()" id="unbind-wallet-btn"
-            style="flex:1; background:#ff6b6b; color:white; padding:14px 20px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px;">
-      解绑钱包 / Unbind Wallet
+            style="flex:1; background:#ff6b6b; color:white; padding:14px 20px; border:none; 
+                   border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
+      解绑钱包 / Disconnect Wallet
     </button>
   </div>
 
-  <p style="font-size:0.8em; color:#888; margin-top:12px; line-height:1.5;">
-    提示：一个邮箱可绑定多个钱包，随时更新或解绑。绑定后可用于 PAWLY TOKEN Check-in 领奖励！<br>
-    <span style="color:#666;">Note: Bind multiple wallets. Update or unbind anytime for PAWLY TOKEN rewards.</span>
+  <p style="font-size:0.82em; color:#888; margin-top:16px; line-height:1.6;">
+    提示：一个邮箱可多个钱包平台，随时更新或解绑。绑定后可用于 PAWLY Check-in 领奖励！<br>
+    <span style="color:#666;">Note: One email can connect multiple wallet platforms. You can disconnect and switch platforms anytime.</span>
   </p>
 </div>
-</div>
+
         <button onclick="checkIn()" style="width:60%; font-size:1.3em; padding:18px; margin-top:20px; background:#00ff9d; color:black;">
           🚀 立即签到 / Check-in Now
         </button>
