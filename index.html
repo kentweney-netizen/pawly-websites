@@ -126,57 +126,63 @@
       <div id="logged-in-section" style="display:none;">
         <p id="user-email-display" style="font-weight:bold; margin-bottom:20px;"></p>
         
-         <!-- ==================== 绑定钱包区域（已修复输入框对齐问题）==================== -->
+         <!-- ==================== 绑定钱包区域（最终优化版：全双语 + 对齐 + 可编辑）==================== -->
 <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:24px; margin:20px 0; text-align:left;">
   
   <h3 style="color:#00ff9d; margin:0 0 16px 0; font-size:1.15em;">🔗 绑定钱包 / Connect Wallet</h3>
 
-  <!-- 一键连接钱包按钮 -->
+  <!-- 一键连接钱包（最推荐的方式） -->
   <button onclick="connectSolanaWallet()" 
           style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195); 
                  color: white; border: none; padding: 16px 20px; border-radius: 9999px; 
-                 font-size: 1.05em; font-weight: bold; cursor: pointer; margin-bottom: 18px;
+                 font-size: 1.05em; font-weight: bold; cursor: pointer; margin-bottom: 20px;
                  box-shadow: 0 6px 20px rgba(153, 69, 255, 0.4);">
     🦊 一键连接钱包 / Connect Wallet<br>
     <span style="font-size:0.82em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
   </button>
 
-  <div style="color:#888; font-size:0.92em; margin-bottom:10px;">手动输入粘贴钱包地址 / You can paste your wallet address here</div>
+  <div style="color:#888; font-size:0.92em; margin-bottom:10px;">
+    或手动输入 / 粘贴钱包地址（可随时修改）<br>
+    <span style="font-size:0.85em;">Or manually enter / paste your wallet address (editable anytime)</span>
+  </div>
 
-  <!-- 手动输入框 + 清空按钮（已修复对齐） -->
-  <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+  <!-- 手动输入框 + 清空按钮（永远可编辑） -->
+  <div style="display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap;">
     <input type="text" id="bind-wallet" 
-           placeholder="输入或粘贴你的钱包地址 / Please Insert Your Wallet Address"
+           placeholder="输入粘贴你的钱包地址 / Enter or paste your wallet address"
            style="flex:1; min-width:200px; padding:14px 16px; background:#0f0022; 
                   border:2px solid #00ff9d; border-radius:12px; color:#fff; font-size:0.95rem;">
     
     <button onclick="document.getElementById('bind-wallet').value=''; document.getElementById('bind-wallet').focus();"
             style="background:#555; color:white; border:none; padding:12px 18px; border-radius:10px; 
                    cursor:pointer; font-size:0.9em; white-space:nowrap; height:48px;">
-      清空
+      清空 / Clear
     </button>
   </div>
 
-  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+  <!-- 按钮区域：绑定/更新 + 解绑（清晰分离） -->
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
     
-    <!-- 绑定 / 更新按钮 -->
+    <!-- 绑定 / 更新钱包按钮 -->
     <button onclick="bindWallet()" 
             style="flex:1; background:#00ff9d; color:black; padding:14px 20px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
-      绑定或更新钱包 / Connect Wallet
+      绑定或更新钱包<br>
+      <span style="font-size:0.85em; font-weight:400;">Connect or Update Wallet</span>
     </button>
 
-    <!-- 解绑按钮（永久显示） -->
+    <!-- 解绑钱包按钮（常显，红色，清晰分离） -->
     <button onclick="unbindWallet()" id="unbind-wallet-btn"
             style="flex:1; background:#ff6b6b; color:white; padding:14px 20px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
-      解绑钱包 / Disconnect Wallet
+      解绑当前钱包<br>
+      <span style="font-size:0.85em; font-weight:400;">Disconnect Current Wallet</span>
     </button>
   </div>
 
-  <p style="font-size:0.82em; color:#888; margin-top:16px; line-height:1.6;">
-    提示：一个邮箱可多个钱包平台，随时更新或解绑。绑定后可用于 PAWLY Check-in 领奖励！<br>
-    <span style="color:#666;">Note: One email can connect multiple wallet platforms. You can disconnect and switch platforms anytime.</span>
+  <p style="font-size:0.82em; color:#888; margin-top:14px; line-height:1.65;">
+    提示：想换其他钱包平台？请先点击「解绑当前钱包」，再重新绑定新地址即可。<br>
+    <span style="color:#666;">Tip: To switch to another wallet platform, please unbind first, then connect a new address.</span>
   </p>
 </div>
 
@@ -1201,13 +1207,12 @@ if (userData?.wallet_address) {
   const bindInput = document.getElementById('bind-wallet');
   if (bindInput) {
     bindInput.value = userData.wallet_address;
-    // 注意：不要再禁用输入框，允许用户随时修改
+    // 不要加 disabled = true！让用户可以随时修改
   }
-
+  
   const walletDisplay = document.getElementById('walletDisplay');
-  if (walletDisplay) {
-    walletDisplay.innerText = userData.wallet_address;
-  }
+  if (walletDisplay) walletDisplay.innerText = userData.wallet_address;
+}
 
   // 显示解绑按钮
   const unbindBtn = document.getElementById('unbind-wallet-btn');
