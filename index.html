@@ -128,21 +128,20 @@
         
          <!-- ==================== 绑定钱包区域（最终完美对齐版）==================== -->
 <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:24px; margin:20px 0; text-align:left;">
+  
   <h3 style="color:#00ff9d; margin:0 0 16px 0; font-size:1.15em;">
   <!-- 一键连接钱包按钮 -->
   <button onclick="connectSolanaWallet()" 
-        style="flex:1; background:#ff6b6b; color:white; padding:14px 28px; border:none; 
+        style="flex:1; background:#ff6b6b; color:nion; padding:14px 28px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
     🦊 一键连接钱包 / Connect Wallet<br>
     <span style="font-size:0.85em; font-weight:400;">(Phantom / Solflare / Jupiter / Trust)</span>
   </button>
 
   <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
-    <input type="text" id="bind-wallet" 
-           placeholder="请输入或粘贴钱包地址 / Enter or paste wallet address"
-           style="flex:1; background:#ff6b6b; color:white; padding:14px 28px; border:none; 
-                   border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
-    
+  <input type="text" id="bind-wallet" 
+  <span style="font-size:0.85em; font-weight:400;">placeholder="请输入或粘贴钱包地址 / Enter or paste wallet address"</span>
+           
     <button onclick="document.getElementById('bind-wallet').value=''; document.getElementById('bind-wallet').focus();"
             style="background:#555; color:white; border:none; padding:12px 18px; border-radius:10px; 
                    cursor:pointer; font-size:0.9em; white-space:nowrap; height:48px;">
@@ -154,14 +153,14 @@
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
     
     <button onclick="bindWallet()" 
-            style="flex:1; background:#00ff9d; color:black; padding:14px 28px; border:none; 
+            style="flex:1; background:#00ff9d; color:green; padding:14px 28px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
       绑定或更新钱包<br>
       <span style="font-size:0.85em; font-weight:400;">Connect or Update Wallet</span>
     </button>
 
     <button onclick="unbindWallet()" id="unbind-wallet-btn"
-            style="flex:1; background:#ff6b6b; color:white; padding:14px 28px; border:none; 
+            style="flex:1; background:#ff6b6b; color:yellow; padding:14px 28px; border:none; 
                    border-radius:9999px; font-weight:bold; cursor:pointer; min-width:140px; font-size:1em;">
       解绑当前钱包<br>
       <span style="font-size:0.85em; font-weight:400;">Disconnect Current Wallet</span>
