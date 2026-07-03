@@ -2052,67 +2052,6 @@ async function showPawlyMembersPage() {
     }
 }
 
-// ==================== PWA 安装引导（科技感 + 双语版） ====================
-let deferredPrompt;
-
-function isIOS() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-}
-
-function isRunningStandalone() {
-  return (window.matchMedia('(display-mode: standalone)').matches) ||
-         (window.navigator.standalone === true);
-}
-
-function showInstallPrompt() {
-  const installSection = document.getElementById('installSection');
-  const installBtn = document.getElementById('installBtn');
-  const iosGuide = document.getElementById('iosInstallGuide');
-  const installDesc = document.getElementById('installDesc');
-
-  if (!installSection || isRunningStandalone() || !currentUser) return;
-
-  installSection.style.display = 'block';
-
-  if (isIOS()) {
-    if (installBtn) installBtn.style.display = 'none';
-    if (iosGuide) iosGuide.style.display = 'block';
-    if (installDesc) installDesc.innerText = '在 iPhone / iPad 上安装 PAWLY 的方法：';
-  } else {
-    if (installBtn) installBtn.style.display = 'inline-block';
-    if (iosGuide) iosGuide.style.display = 'none';
-    if (installDesc) installDesc.innerText = '安装后像原生 App 一样使用，体验更流畅';
-  }
-}
-
-// 监听安装事件（电脑 + Android）
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  showInstallPrompt();
-});
-
-// 点击安装按钮
-document.addEventListener('click', async (e) => {
-  if (e.target && e.target.id === 'installBtn') {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('用户已安装 PAWLY');
-    }
-    deferredPrompt = null;
-    const installSection = document.getElementById('installSection');
-    if (installSection) installSection.style.display = 'none';
-  }
-});
-
-// 安装成功后隐藏
-window.addEventListener('appinstalled', () => {
-  const installSection = document.getElementById('installSection');
-  if (installSection) installSection.style.display = 'none';
-});
-
 // ==================== 页面加载初始化 ====================
 window.onload = async function() {
   showTab(0);
@@ -2133,7 +2072,6 @@ window.onload = async function() {
         emailDisplay.innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
       }
 
-      // 获取钱包地址
       try {
         const { data: userData } = await supabaseClient
           .from('USERS')
@@ -2143,8 +2081,10 @@ window.onload = async function() {
 
         if (userData?.wallet_address) {
           const bindInput = document.getElementById('bind-wallet');
-          if (bindInput) bindInput.value = userData.wallet_address;
-
+          if (bindInput) {
+            bindInput.value = userData.wallet_address;
+            bindInput.disabled = true;
+          }
           const walletDisplay = document.getElementById('walletDisplay');
           if (walletDisplay) walletDisplay.innerText = userData.wallet_address;
         }
@@ -2155,16 +2095,9 @@ window.onload = async function() {
       await calculateUserStats(currentUser.id);
       updateDashboard();
       initEmailReminderButton();
+
       await requestNotificationPermission();
 
-      // ==================== 新增：显示 PWA 安装引导 ====================
-      if (!isRunningStandalone()) {
-        setTimeout(() => {
-          showInstallPrompt();
-        }, 1000);
-      }
-
-      // 倒计时
       const { data: lastCheckin } = await supabaseClient
         .from('checkins')
         .select('created_at')
@@ -2189,7 +2122,7 @@ window.onload = async function() {
     console.error("初始化失败:", error);
   }
 };
-  
+
 // ==================== 这里放 hide 函数 ====================
 function hidePawlyMembersPage() {
   const page = document.getElementById('pawlyMembersPage');
