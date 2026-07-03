@@ -1,18 +1,22 @@
 // service-worker.js
-const CACHE_NAME = 'pawly-pets-v3';
+const CACHE_NAME = 'pawly-pwa-v3';
+
 const urlsToCache = [
   '/',
-  '/index.html'
-  // 如果以后有其他静态资源（如图片、CSS），可以在这里添加
+  '/index.html',
+  '/manifest.json',
+  '/OvKdJ1.png',
+  '/OvKdJ2.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('Service Worker: 正在缓存核心资源...');
       return cache.addAll(urlsToCache);
     })
   );
-  self.skipWaiting(); // 强制立即激活新版本
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -21,7 +25,8 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName); // 删除旧缓存
+            console.log('Service Worker: 删除旧缓存', cacheName);
+            return caches.delete(cacheName);
           }
         })
       );
@@ -33,8 +38,26 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // 有缓存就用缓存，没有就去网络请求
-      return response || fetch(event.request);
+      if (response) {
+        return response;
+      }
+
+      return fetch(event.request).then((fetchResponse) => {
+        if (!fetchResponse || fetchResponse.status !== 200 || event.request.method !== 'GET') {
+          return fetchResponse;
+        }
+
+        const responseToCache = fetchResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return fetchResponse;
+      }).catch(() => {
+        if (event.request.destination === 'document') {
+          return caches.match('/index.html');
+        }
+      });
     })
   );
 });
