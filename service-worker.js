@@ -7,6 +7,7 @@ const urlsToCache = [
   '/manifest.json',
   '/OvKdJ1.png',
   '/OvKdJ2.png'
+  '/pawly-token-helps.webp'
 ];
 
 self.addEventListener('install', (event) => {
