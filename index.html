@@ -276,69 +276,6 @@
         🚪 登出 / Logout
       </button>
 
-<!-- ==================== PWA 安装引导（科技感 + 双语版） ==================== -->
-<div id="installSection" style="display: none; margin: 35px 0 10px 0;">
-  <div style="background: linear-gradient(135deg, #0f0022, #1a0033); 
-              border: 2px solid #00f0ff; 
-              border-radius: 20px; 
-              padding: 24px 20px; 
-              text-align: center;
-              box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);">
-    
-    <!-- 标题 -->
-    <h3 style="color: #00f0ff; margin: 0 0 12px 0; font-size: 1.25em; font-weight: 700;">
-      🚀 安装 PAWLY 到桌面<br>
-      <span style="font-size: 0.95em; font-weight: 500; color: #aaa;">Install PAWLY to Home Screen</span>
-    </h3>
-    
-    <!-- 描述 -->
-    <p id="installDesc" style="color: #ccc; font-size: 0.95em; margin: 0 0 22px 0; line-height: 1.65;">
-      安装后像原生 App 一样使用，体验更流畅、无浏览器地址栏<br>
-      <span style="color: #888;">Get a native app-like experience with faster access</span>
-    </p>
-
-    <!-- 一键安装按钮（电脑 + Android） -->
-    <button id="installBtn" 
-            style="display: none; 
-                   background: transparent; 
-                   color: #00f0ff; 
-                   border: 2px solid #00f0ff; 
-                   padding: 14px 48px; 
-                   border-radius: 9999px; 
-                   font-weight: 700; 
-                   font-size: 1.05em; 
-                   cursor: pointer;
-                   transition: all 0.3s ease;
-                   box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);"
-            onmouseover="this.style.background='#00f0ff'; this.style.color='#000'; this.style.boxShadow='0 0 25px rgba(0, 240, 255, 0.5)'"
-            onmouseout="this.style.background='transparent'; this.style.color='#00f0ff'; this.style.boxShadow='0 0 15px rgba(0, 240, 255, 0.3)'">
-      立即安装 / Install Now
-    </button>
-
-    <!-- iOS 手动安装引导（双语） -->
-    <div id="iosInstallGuide" style="display: none; text-align: left; background: #120022; 
-                                     padding: 18px; border-radius: 16px; margin-top: 18px; border: 1px solid #333;">
-      <p style="margin: 0 0 14px 0; color: #ddd; font-size: 0.95em; line-height: 1.75;">
-        <strong style="color: #00f0ff;">iPhone / iPad 安装方法：</strong><br>
-        1. 点击下方 <strong>分享按钮</strong> <br>
-        2. 向下滑动，找到并点击 <strong>「添加到主屏幕」</strong><br>
-        3. 点击右上角「添加」<br><br>
-        <span style="color: #aaa; font-size: 0.9em;">
-          iPhone / iPad Installation:<br>
-          1. Tap the Share button<br>
-          2. Scroll down and tap “Add to Home Screen”<br>
-          3. Tap “Add” in the top right
-        </span>
-      </p>
-      <button onclick="hideInstallSection()" 
-              style="background: transparent; color: #888; border: 1px solid #555; 
-                     padding: 10px 28px; border-radius: 9999px; font-size: 0.9em; cursor: pointer;">
-        我知道了 / Got it
-      </button>
-    </div>
-  </div>
-</div>
-  
   <!-- tab2 质押挖矿 -->
   <div class="tab" id="tab2">
     <!-- ========== Staking 页面顶部 Hero 视频 ========== -->
