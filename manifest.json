@@ -1,14 +1,14 @@
 {
   "name": "PAWLY PETS",
   "short_name": "PAWLY",
-  "description": "PAWLY - 宠物主题的 Web3 签到与未来支付系统",
+  "description": "PAWLY - 宠物主题的 Web3 签到与未来支付系统 | Cute cyber pet + Daily check-in rewards + Future Token utility ecosystem",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#00ff9d",
   "icons": [
     {
-      "src": "/OvKdJ1.png",
+      "src": "/pawly-token-helps.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
