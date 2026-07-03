@@ -2245,27 +2245,14 @@ function hideImportantNoticeModal() {
 
 // ==================== 优化版 PWA Service Worker 注册 ====================
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
-      console.log('✅ Service Worker 注册成功:', registration.scope);
-
-      // 监听新版本更新
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('🔄 发现新版本可用！');
-            // 生产环境推荐用更美观的弹窗，这里先用 confirm 演示
-            if (confirm('PAWLY 有新版本可用，是否立即刷新页面以获取最新功能？')) {
-              window.location.reload();
-            }
-          }
-        });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('✅ Service Worker 注册成功');
+      })
+      .catch(error => {
+        console.error('❌ Service Worker 注册失败:', error);
       });
-    } catch (error) {
-      console.error('❌ Service Worker 注册失败:', error);
-    }
   });
 }
 </script>
