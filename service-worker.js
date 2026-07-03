@@ -1,14 +1,4 @@
-// service-worker.js
-const CACHE_NAME = 'pawly-pwa-v3';
-
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/pawly-token-helps.png',
-  '/OvKdJ2.png'
-  '/pawly-token-helps.webp'
-];
+const CACHE_NAME = 'pawly-pwa-v9';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
