@@ -1787,7 +1787,7 @@ function goToDApp() {
     url += "?" + params.toString();
   }
 
-  window.open(url, "_blank");
+  window.location.href = url;
 }
   
 async function requestNotificationPermission() {
