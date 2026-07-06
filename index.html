@@ -1760,6 +1760,36 @@ function updateReminderButtonText(btn, isEnabled) {
   }
 }
 
+function goToDApp() {
+  if (!currentUser) {
+    alert("请先登录后再进入 dApp");
+    return;
+  }
+
+  // 从页面上获取当前数据显示
+  const streak = document.getElementById("streakText")?.innerText.match(/\d+/)?.[0] || 0;
+  const totalPAWLY = document.getElementById("totalText")?.innerText.match(/\d+/)?.[0] || 0;
+
+  // 获取已绑定的钱包地址
+  const walletInput = document.getElementById("bind-wallet");
+  const wallet = walletInput ? walletInput.value.trim() : "";
+
+  // 构建跳转 URL
+  let url = "https://pawlypets-dapp.netlify.app";
+  const params = new URLSearchParams();
+
+  if (currentUser.email) params.append("email", currentUser.email);
+  if (wallet) params.append("wallet", wallet);
+  if (streak) params.append("streak", streak);
+  if (totalPAWLY) params.append("total_pawly", totalPAWLY);
+
+  if (params.toString()) {
+    url += "?" + params.toString();
+  }
+
+  window.open(url, "_blank");
+}
+  
 async function requestNotificationPermission() {
   if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
