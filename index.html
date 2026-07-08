@@ -1269,6 +1269,13 @@ async function checkIn() {
     }
   }
 
+  // 3. 客户端额外防护：如果倒计时还在走，也禁止签到
+  const timerEl = document.getElementById('countdownTimer');
+  if (timerEl && timerEl.innerText !== "00:00:00") {
+    alert("⏳ 倒计时还没结束，请等待倒计时归零后再签到！\nPlease wait until the countdown reaches 00:00:00.");
+    return;
+  }
+
   const today = new Date().toISOString().split('T')[0];
 
   const { data: existing } = await supabaseClient
