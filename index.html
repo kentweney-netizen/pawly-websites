@@ -1243,16 +1243,30 @@ async function checkIn() {
     return;
   }
 
+  // 一次查询同时拿到 wallet 和 last_checkin_at
   const { data: userData } = await supabaseClient
     .from('USERS')
-    .select('wallet_address')
+    .select('wallet_address, last_checkin_at')
     .eq('id', currentUser.id)
     .single();
 
   if (!userData?.wallet_address) {
-    alert("请先绑定 Solana 钱包才能签到！\nPlease bind your Solana wallet before checking in.");
+    alert("请先绑定钱包才能签到！\nPlease connect your wallet before checking in.");
     showTab(1);
     return;
+  }
+
+  // 【核心防刷】严格 24 小时冷却检查
+  if (userData.last_checkin_at) {
+    const lastTime = new Date(userData.last_checkin_at).getTime();
+    const hoursPassed = (Date.now() - lastTime) / (1000 * 60 * 60);
+
+    if (hoursPassed < 24) {
+      const remaining = (24 - hoursPassed).toFixed(1);
+      alert(`⏳ 签到冷却中！\n距离上次签到仅 ${hoursPassed.toFixed(1)} 小时\n请等待 ${remaining} 小时后再签到。\n\nCooling down! Wait ${remaining} more hours.`);
+      showTab(1);
+      return;
+    }
   }
 
   const today = new Date().toISOString().split('T')[0];
@@ -1310,7 +1324,7 @@ async function checkIn() {
   startCountdown(Date.now());
   showTab(1);
 }
-
+  
 async function updateDashboard() {
   if (!currentUser) return;
   try {
