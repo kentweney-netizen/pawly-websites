@@ -1137,104 +1137,23 @@ async function unbindWallet() {
 }
 
 async function connectSolanaWallet() {
-  try {
-    let publicKey = null;
+  const input = document.getElementById('bind-wallet');
 
-    if (window.phantom?.solana?.isPhantom) {
-      const resp = await window.phantom.solana.connect();
-      publicKey = resp.publicKey.toString();
-    } 
-    else if (window.solflare?.isSolflare) {
-      await window.solflare.connect();
-      publicKey = window.solflare.publicKey.toString();
-    } 
-    else if (window.trustwallet?.solana) {
-      const resp = await window.trustwallet.solana.connect();
-      publicKey = resp.publicKey.toString();
-    }
-
-    if (publicKey) {
-      const input = document.getElementById('bind-wallet');
-      if (input) input.value = publicKey;
-
-      await bindWallet();
-      alert(`✅ 钱包连接成功！\nWallet connected successfully!\n\n地址: ${publicKey}`);
-      return;
-    }
-  } catch (err) {
-    console.log("扩展连接失败:", err);
+  if (!input) {
+    alert("找不到钱包输入框，请刷新页面后再试。\nWallet input not found, please refresh the page.");
+    return;
   }
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  // 清空并聚焦输入框
+  input.value = '';
+  input.focus();
+  input.placeholder = "请粘贴你的 Solana 钱包地址 / Please paste your Solana wallet address";
 
-  if (isMobile) {
-    showMobileWalletModal();
-  } else {
-    alert("未检测到支持的 Solana 钱包！\nNo supported Solana wallet detected!\n\n请安装 Phantom 或 Solflare 浏览器扩展后重试。\nPlease install Phantom or Solflare extension and try again.");
-  }
-}
+  // 滚动到输入框位置
+  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-function showMobileWalletModal() {
-  const oldModal = document.getElementById('mobile-wallet-modal');
-  if (oldModal) oldModal.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'mobile-wallet-modal';
-  modal.style.cssText = `
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85); z-index: 999999;
-    display: flex; align-items: center; justify-content: center;
-  `;
-
-  modal.innerHTML = `
-    <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:20px; 
-                padding:28px 24px; width:92%; max-width:420px; text-align:center;">
-      
-      <h3 style="color:#00ff9d; margin:0 0 20px 0;">请选择钱包连接方式 / please choose your wallet</h3>
-      
-      <button onclick="connectWithPhantomDeepLink(); closeMobileWalletModal();"
-              style="width:100%; background: linear-gradient(135deg, #9945FF, #14F195);
-                     color:white; border:none; padding:16px; border-radius:9999px; 
-                     font-size:1.05em; font-weight:bold; margin-bottom:12px;">
-        🦊 用 Phantom App 连接 / Use Phantom App
-      </button>
-
-      <button onclick="connectWithSolflareDeepLink(); closeMobileWalletModal();"
-              style="width:100%; background: linear-gradient(135deg, #00C2FF, #00FF9D);
-                     color:white; border:none; padding:16px; border-radius:9999px; 
-                     font-size:1.05em; font-weight:bold; margin-bottom:12px;">
-        🔷 用 Solflare App 连接 / Use Solflare App
-      </button>
-
-      <button onclick="closeMobileWalletModal();"
-              style="width:100%; background:#555; color:white; border:none; 
-                     padding:14px; border-radius:9999px; font-size:1em; margin-top:8px;">
-        取消 / Cancel
-      </button>
-
-      <p style="font-size:0.85em; color:#aaa; margin-top:20px; line-height:1.6;">
-        推荐:用 Phantom 或 Solflare App 打开本网站，体验最好 / Recommended:using Phantom or Solflare Wallet App<br>
-        （在钱包内置浏览器中打开可直接一键连接）/ (You can Connect Directly By Using The Wallet Browser)
-      </p>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-}
-
-function closeMobileWalletModal() {
-  const modal = document.getElementById('mobile-wallet-modal');
-  if (modal) modal.remove();
-}
-
-function connectWithPhantomDeepLink() {
-  const currentUrl = encodeURIComponent(window.location.href);
-  window.location.href = `https://phantom.app/ul/v1/connect?app_url=${currentUrl}`;
-}
-
-function connectWithSolflareDeepLink() {
-  const currentUrl = encodeURIComponent(window.location.href);
-  window.location.href = `https://solflare.com/ul/v1/connect?app_url=${currentUrl}`;
+  // 双语提示
+  alert("请在下方输入框中粘贴你的 Solana 钱包地址，然后点击「绑定或更新钱包」。\n\nPlease paste your Solana wallet address in the input box below, then click “Connect or Update Wallet”.");
 }
 
 async function checkIn() {
@@ -1269,7 +1188,7 @@ async function checkIn() {
     }
   }
 
-  // 3. 客户端额外防护：如果倒计时还在走，也禁止签到
+ // 3. 客户端额外防护：如果倒计时还在走，也禁止签到
   const timerEl = document.getElementById('countdownTimer');
   if (timerEl && timerEl.innerText !== "00:00:00") {
     alert("⏳ 倒计时还没结束，请等待倒计时归零后再签到！\nPlease wait until the countdown reaches 00:00:00.");
@@ -1301,8 +1220,8 @@ async function checkIn() {
   }
 
   const stats = await calculateUserStats(currentUser.id);
-  const newTotal = (stats.totalPAWLY || 0) + 2;
-  const newPoints = (stats.points || 0) + 5;
+  const currentPoints = stats.points || 0;
+  const newPoints = currentPoints + 5;
 
   const newNextReminder = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -1311,20 +1230,24 @@ async function checkIn() {
     .update({
       last_checkin_at: new Date().toISOString(),
       next_reminder_at: newNextReminder,
-      total_earnd: newTotal,
       pawly_points: newPoints
     })
     .eq('id', currentUser.id);
   
-  let message = `✅ 签到成功！\n获得 2 PAWLY + 5 积分\n总计：${newTotal} PAWLY\n\n✅ Check-in successful!`;
+  let message = `✅ 签到成功！\n获得 5 PAWLY Points\n当前 Points：${newPoints}\n\n✅ Check-in successful!\nYou received 5 PAWLY Points\nCurrent Points: ${newPoints}`;
 
   if ((stats.streak + 1) % 7 === 0) {
     const bonusPoints = newPoints + 10;
     await supabaseClient.from('USERS').update({ pawly_points: bonusPoints }).eq('id', currentUser.id);
-    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 积分！\n目前已赚取 ${newTotal} PAWLY\n\n🎉 Congratulations! You have checked in for ${stats.streak + 1} consecutive days!`;
+    message = `🎉 恭喜！你已连续签到 ${stats.streak + 1} 天！\n额外获得 10 PAWLY Points！\n\n🎉 Congratulations! You have checked in for ${stats.streak + 1} consecutive days!\nYou received an extra 10 PAWLY Points!`;
   }
 
   alert(message);
+
+// 自动跳转 dApp
+  setTimeout(() => {
+    goToDAppWithData();
+  }, 1000);
 
   await calculateUserStats(currentUser.id);
   updateDashboard();
