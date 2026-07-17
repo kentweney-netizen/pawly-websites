@@ -478,18 +478,55 @@
         </div>
       </div>
 
-      <div class="section">
+ <!-- ==================== 折叠式 About PAWLY 长文 ==================== -->
+    <div style="margin: 35px 0 15px 0;">
+      <button onclick="toggleAboutLongText()" 
+              style="width:100%; padding:16px; background:#1a0033; color:#00ff9d; 
+                     border:2px solid #00ff9d; border-radius:16px; font-size:1.05em; 
+                     cursor:pointer; font-weight:600;">
+        📖 点击展开完整故事 / Click to read the full story
+      </button>
+
+      <!-- 折叠内容（默认隐藏） -->
+      <div id="aboutLongText" style="display:none; margin-top:20px; background:rgba(255,255,255,0.04); 
+                                    border:1px solid #444; border-radius:18px; padding:28px; text-align:left; line-height:1.75;">
         <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
-渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
-于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。</div>
-          <div><strong>English：</strong><br>PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem.I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
-Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
-That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.</div>
+          <div>
+            <strong>中文：</strong><br>
+            PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
+            渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
+            于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。
+          </div>
+          <div>
+            <strong>English：</strong><br>
+            PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem. I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
+            Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
+            That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- ==================== APK 下载按钮（放在折叠内容下方） ==================== -->
+    <div style="text-align: center; margin: 30px 0 50px;">
+      <a href="https://github.com/kentweney-netizen/pawly-websites/releases/download/v1.0.0/pawlypets-app.apk" 
+         download="pawlypets-app.apk"
+         style="display: inline-block; 
+                background: linear-gradient(135deg, #00ff9d, #00c2ff); 
+                color: #000; font-weight: bold; 
+                padding: 18px 50px; border-radius: 50px; 
+                text-decoration: none; font-size: 1.15em;
+                box-shadow: 0 6px 20px rgba(0, 255, 157, 0.5);">
+        📥 下载 PAWLY PETS APK<br>
+        <span style="font-size: 0.9em; font-weight: normal;">Download PAWLY PETS App</span>
+      </a>
+      <p style="margin-top: 12px; font-size: 0.95em; color: #888;">
+        适用于 Android 手机 | For Android devices
+      </p>
+    </div>
+
   </div>
+</div>
 
   <!-- ==================== Pet Payment Showcase ==================== -->
   <div id="paymentShowcase" class="showcase">
@@ -1751,6 +1788,19 @@ function goToDApp() {
   }
 
   window.location.href = url;
+}
+
+function toggleAboutLongText() {
+  const content = document.getElementById('aboutLongText');
+  const btn = event.currentTarget;
+
+  if (content.style.display === 'none' || content.style.display === '') {
+    content.style.display = 'block';
+    btn.innerHTML = '📕 收起完整故事 / Click to collapse';
+  } else {
+    content.style.display = 'none';
+    btn.innerHTML = '📖 点击展开完整故事 / Click to read the full story';
+  }
 }
   
 async function requestNotificationPermission() {
