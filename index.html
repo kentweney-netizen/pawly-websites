@@ -1199,7 +1199,7 @@ async function checkIn() {
     return;
   }
 
-  // 1. 检查钱包
+  // 1. 检查钱包 + last_checkin_at
   const { data: userData } = await supabaseClient
     .from('USERS')
     .select('wallet_address, last_checkin_at')
@@ -1224,7 +1224,7 @@ async function checkIn() {
     }
   }
 
-  // 3. 倒计时检查
+  // 3. 倒计时额外防护
   const timerEl = document.getElementById('countdownTimer');
   if (timerEl && timerEl.innerText !== "00:00:00") {
     alert("⏳ 倒计时还没结束，请等待倒计时归零后再签到！\nPlease wait until the countdown reaches 00:00:00.");
@@ -1232,7 +1232,7 @@ async function checkIn() {
   }
 
   // 4. 检查今日是否已签到
-  const today = new Date().toLocaleDateString('en-CA'); // 使用本地日期（推荐）
+  const today = new Date().toLocaleDateString('en-CA');
   const { data: existing } = await supabaseClient
     .from('checkins')
     .select('id')
@@ -1246,7 +1246,7 @@ async function checkIn() {
     return;
   }
 
-  // 5. 插入签到记录
+  // 5. 插入签到记录（Trigger 会自动计算 streak 和加 Points）
   const { error: insertError } = await supabaseClient
     .from('checkins')
     .insert({ user_id: currentUser.id, checkin_date: today });
@@ -1256,60 +1256,32 @@ async function checkIn() {
     return;
   }
 
-  // 6. 计算连续签到天数（核心修复）
-  const { data: recentCheckins } = await supabaseClient
-    .from('checkins')
-    .select('checkin_date')
-    .eq('user_id', currentUser.id)
-    .order('checkin_date', { ascending: false })
-    .limit(30);
-
-  let newStreak = 1;
-  if (recentCheckins && recentCheckins.length > 1) {
-    let currentDate = new Date(today);
-    for (let i = 1; i < recentCheckins.length; i++) {
-      const prevDate = new Date(recentCheckins[i].checkin_date);
-      const diffDays = Math.floor((currentDate - prevDate) / (1000 * 60 * 60 * 24));
-      if (diffDays === 1) {
-        newStreak++;
-        currentDate = prevDate;
-      } else {
-        break;
-      }
-    }
-  }
-
-  // 7. 更新用户数据
-  const currentPoints = (await calculateUserStats(currentUser.id)).points || 0;
-  const newPoints = currentPoints + 5;
+  // 6. 更新 last_checkin_at 和 next_reminder_at（Points 和 streak 由 Trigger 处理）
   const newNextReminder = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
   await supabaseClient
     .from('USERS')
     .update({
       last_checkin_at: new Date().toISOString(),
-      next_reminder_at: newNextReminder,
-      pawly_points: newPoints,
-      checkin_streak: newStreak
+      next_reminder_at: newNextReminder
     })
     .eq('id', currentUser.id);
 
-  // 8. 7天奖励判断
-  let message = `✅ 签到成功！\n获得 5 PAWLY Points\n当前 Points：${newPoints}\n连续签到：${newStreak} 天\n\n✅ Check-in successful!`;
-  
-  if (newStreak % 7 === 0) {
-    const bonusPoints = newPoints + 10;
-    await supabaseClient.from('USERS').update({ pawly_points: bonusPoints }).eq('id', currentUser.id);
-    message = `🎉 恭喜！你已连续签到 ${newStreak} 天！\n额外获得 10 PAWLY Points！\n当前 Points：${bonusPoints}\n\n🎉 Congratulations! You have checked in for ${newStreak} consecutive days!`;
+  // 7. 重新获取最新数据（包含 Trigger 计算后的 streak 和 points）
+  const stats = await calculateUserStats(currentUser.id);
+  const newPoints = stats.points || 0;
+  const newStreak = stats.streak || 0;
+
+  // 8. 成功提示
+  let message = `✅ 签到成功！\n获得 5 PAWLY Points\n当前 Points：${newPoints}\n连续签到：${newStreak} 天\n\n✅ Check-in successful!\nYou received 5 PAWLY Points\nCurrent Points: ${newPoints}\nStreak: ${newStreak} days`;
+
+  if (newStreak % 7 === 0 && newStreak > 0) {
+    message = `🎉 恭喜！你已连续签到 ${newStreak} 天！\n额外获得 10 PAWLY Points！\n当前 Points：${newPoints}\n\n🎉 Congratulations! You have checked in for ${newStreak} consecutive days!\nYou received an extra 10 PAWLY Points!`;
   }
 
   alert(message);
 
   // 9. 更新界面
-  setTimeout(() => {
-    goToDAppWithData();
-  }, 1000);
-
   await calculateUserStats(currentUser.id);
   updateDashboard();
   startCountdown(Date.now());
