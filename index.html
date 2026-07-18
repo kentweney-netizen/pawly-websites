@@ -1306,7 +1306,7 @@ async function updateDashboard() {
     const totalPAWLY = dbData?.total_earnd || 0;
     const points = dbData?.pawly_points || 0;
 
-    document.getElementById("streakText").innerHTML = `连续签到 ${streak} 天 🔥 / Streak: ${streak} days`;
+    document.getElementById('streakText').innerText = `累计签到 ${stats.streak} 天 🔥 / Total Check-in Days: ${stats.streak} days`;
     document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
 
     const pointsEl = document.getElementById('pointsDisplay');
