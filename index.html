@@ -1306,11 +1306,16 @@ async function updateDashboard() {
     const totalPAWLY = dbData?.total_earnd || 0;
     const points = dbData?.pawly_points || 0;
 
-    document.getElementById('streakText').innerText = `累计签到 ${stats.streak} 天 🔥 / Total Check-in Days: ${stats.streak} days`;
-    document.getElementById("totalText").innerHTML = `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
+    // 这里已经改成累计签到 + 使用正确变量
+    document.getElementById('streakText').innerText = 
+      `累计签到 ${streak} 天 🔥 / Total Check-in Days: ${streak} days`;
+
+    document.getElementById("totalText").innerHTML = 
+      `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
 
     const pointsEl = document.getElementById('pointsDisplay');
     const redeemableEl = document.getElementById('redeemablePAWLY');
+
     if (pointsEl) pointsEl.innerText = points;
     if (redeemableEl) redeemableEl.innerText = Math.floor(points / 100) * 5;
 
