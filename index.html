@@ -48,6 +48,7 @@
     <button class="active" onclick="showTab(1)" id="nav1">我的仪表盘 / Dashboard</button>
     <button onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
     <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
+    <button onclick="showTab(4)" id="nav4">🐾 Pet Charity / 宠物慈善</button>
     <button onclick="showPawlyMembersPage()" 
             style="background: linear-gradient(135deg, #ff9ecd, #f472b6); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 158, 205, 0.35);">
       🐾 PAWLY 成员表 / PAWLY Members
@@ -343,56 +344,81 @@
   </div>
 
   <!-- tab4 慈善基金 -->
-  <div class="tab" id="tab4">
-    <section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
-      <video id="charity-video" muted loop playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
-        <source src="pawly-charity.mp4" type="video/mp4">
-      </video>
-      <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
-        <div>
-          <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;"><br><span style="font-size: 2rem; font-weight: 600;"></span></h1>
-          <p style="font-size: 1.35rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;"><br></p>
-          <a href="#donate-form" style="display: inline-block; background: #00c853; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
-            立即捐款 / Donate Now
-          </a>
-        </div>
-      </div>
-      <button onclick="unmuteVideo('charity-video', this)"
-              style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-        🔊 开启声音
-      </button>
-    </section>
-    <div class="container">
-      <h1>❤️ 宠物慈善基金 / Pet Charity Fund</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 将把部分交易费用用于宠物慈善。每季度公开捐款给马来西亚及全球的动物收容所。社区持币者可通过投票参与决定捐款方向。</div>
-          <div><strong>English：</strong><br>PAWLY will allocate a portion of transaction fees to pet charity. Quarterly public donations to animal shelters. Token holders can vote on donation directions.</div>
-        </div>
-      </div>
-      <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin:25px 0; text-align:left; line-height:1.85;">
-        <h3 style="color:#00ff9d; margin-top:0;">用爱与行动守护每一个生命 / Loves to protect every lifes in earth</h3>
-        <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            PAWLY 的初心，不仅是陪伴宠物主人快乐生活，更希望用实际行动回馈那些需要帮助的动物。我们计划每季度从交易费用中提取一定比例，用于支持马来西亚及全球的动物收容所、流浪动物救援组织，以及濒危物种保护项目。<br><br>
-            我们承诺每一笔捐款都会公开透明，并定期公布详细报告。未来，社区持币者还可以通过投票参与决定捐款方向。加入慈善等待名单的你，将会第一时间收到捐款启动通知，并有机会参与我们早期的慈善活动。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            PAWLY’s original intention is not only to bring joy to pet owners, but also to give back through real action to animals in need. We plan to allocate a portion of transaction fees every quarter to support animal shelters, stray animal rescue organizations, and endangered species protection projects.
-          </div>
-        </div>
-      </div>
-      <div style="text-align:center; margin:40px 0 20px;">
-        <button onclick="showCharityWaitlistModal()"
-                style="background:#00ff9d; color:black; padding:18px 55px; font-size:1.2em; font-weight:bold; border:none; border-radius:16px; cursor:pointer;">
-          加入宠物慈善计划<br>Join Pet Charity Program
+<div class="tab" id="tab4">
+
+  <!-- 视频背景区域 -->
+  <section style="position: relative; width: 100%; height: 70vh; overflow: hidden; margin-bottom: 40px;">
+    <video id="charity-video" muted loop playsinline 
+           style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
+      <source src="pawly-charity.mp4" type="video/mp4">
+    </video>
+    
+    <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
+      <div>
+        <h1 style="font-size: 2.8rem; font-weight: 800; margin-bottom: 16px;">
+          🐾 Pet Charity / 宠物慈善
+        </h1>
+        <p style="font-size: 1.2rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
+          支持马来西亚的流浪动物收容所与救助组织<br>
+          Support trusted animal shelters and rescue groups across Malaysia
+        </p>
+
+        <!-- 主按钮：点击后展开收容所列表 -->
+        <button onclick="toggleShelterList()" 
+                style="background: #00ff9d; color: black; border: none; padding: 16px 40px; border-radius: 50px; font-size: 1.15rem; font-weight: bold; cursor: pointer;">
+          查看可捐款的收容所 / View Shelters
         </button>
       </div>
     </div>
-  </div>
 
+    <button onclick="unmuteVideo('charity-video', this)"
+            style="position: absolute; bottom: 30px; right: 30px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      🔊 开启声音 / Unmute
+    </button>
+  </section>
+
+  <!-- 收容所列表（默认隐藏） -->
+  <div id="shelterList" style="display: none; max-width: 900px; margin: 0 auto; padding: 0 20px 60px;">
+
+    <div style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
+      <h3 style="color: #fff; margin: 0 0 8px 0;">SPCA Selangor</h3>
+      <p style="color: #ccc; font-size: 0.95rem; margin-bottom: 16px;">马来西亚历史最悠久的动物福利组织（成立于1958年）</p>
+      <button onclick="window.open('https://www.spca.org.my/', '_blank')" 
+              style="width: 100%; background: #00ff9d; color: black; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+        前往官网捐款 / Donate via Official Website
+      </button>
+    </div>
+
+    <div style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
+      <h3 style="color: #fff; margin: 0 0 8px 0;">PAWS Animal Welfare Society</h3>
+      <p style="color: #ccc; font-size: 0.95rem; margin-bottom: 16px;">大型非营利动物福利组织，提供医疗与领养服务</p>
+      <button onclick="window.open('https://www.paws.org.my/', '_blank')" 
+              style="width: 100%; background: #00ff9d; color: black; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+        前往官网捐款 / Donate via Official Website
+      </button>
+    </div>
+
+    <div style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
+      <h3 style="color: #fff; margin: 0 0 8px 0;">CARES JB（柔佛）</h3>
+      <p style="color: #ccc; font-size: 0.95rem; margin-bottom: 16px;">位于柔佛 Gelang Patah，照顾约350只猫狗</p>
+      <button onclick="window.open('https://www.caresjb.com/', '_blank')" 
+              style="width: 100%; background: #00ff9d; color: black; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+        前往官网捐款 / Donate via Official Website
+      </button>
+    </div>
+
+    <div style="background: #1a0033; border: 2px solid #00ff9d; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
+      <h3 style="color: #fff; margin: 0 0 8px 0;">HOPE JB（柔佛）</h3>
+      <p style="color: #ccc; font-size: 0.95rem; margin-bottom: 16px;">位于柔佛 Pekan Nenas，专注救助流浪动物</p>
+      <button onclick="window.open('https://www.hopejb.org.my/', '_blank')" 
+              style="width: 100%; background: #00ff9d; color: black; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+        前往官网捐款 / Donate via Official Website
+      </button>
+    </div>
+
+  </div>
+</div>
+  
   <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
     <div class="container" style="max-width: 780px;">
@@ -528,6 +554,14 @@
   </div>
 </div>
 
+  <!-- ==================== 单一 Legal 按钮 ==================== -->
+<div style="margin: 40px 0 30px 0; text-align: center;">
+  <a href="policies.html" 
+     style="display: inline-block; background: transparent; color: #00ff9d; border: 1px solid #00ff9d; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-size: 0.95rem;">
+    © 2026 PAWLY PETS. All rights reserved. & Policies / 版权所有 & 政策
+  </a>
+</div>
+
   <!-- ==================== Pet Payment Showcase ==================== -->
   <div id="paymentShowcase" class="showcase">
     <h1>🐶 PAWLY 宠物支付系统愿景 / PAWLY Pet Payment System Vision</h1>
@@ -572,77 +606,6 @@
       </div>
     </div>
     <button onclick="showComingSoon()">立即使用 PAWLY 支付 / Pay with PAWLY Now</button>
-    <button class="back-btn" onclick="hideShowcase()">返回主页面 / Back to Main Page</button>
-  </div>
-
-  <!-- ==================== Charity Showcase ==================== -->
-  <div id="charityShowcase" class="showcase">
-    <h1>❤️ PAWLY 宠物慈善影响力 / PAWLY Pet Charity Impact</h1>
-    <div class="section">
-      <h3>为什么动物保护如此重要？ / Why is Animal Protection So Important?</h3>
-      <div class="bilingual">
-        <div>
-          <strong>中文：</strong><br>
-          每年有数百万只动物被遗弃、虐待或面临灭绝。保护动物不仅是对生命的尊重，更是对地球生态平衡的守护。每一只被救助的动物，都是对人性的一次温暖呼唤。爱护动物，就是爱护我们共同的家园。
-        </div>
-        <div>
-          <strong>English：</strong><br>
-          Millions of animals are abandoned, abused, or facing extinction every year. Protecting animals is not only respecting life, but also safeguarding the ecological balance of our planet. Every rescued animal is a warm call to humanity. Caring for animals means caring for our shared home.
-        </div>
-      </div>
-    </div>
-    <div class="section">
-      <h3>全球主要动物保护组织 / Major World Animal Protection Organizations</h3>
-      <div class="bilingual">
-        <div class="org-card">
-          <strong>World Animal Protection（世界动物保护协会）</strong><br>
-          全球领先的动物保护组织，致力于消除动物苦难，推动动物福利立法和国际合作。<br>
-          A global leading animal protection organization dedicated to ending animal suffering and promoting animal welfare legislation and international cooperation.
-        </div>
-        <div class="org-card">
-          <strong>Humane Society International（国际人道协会）</strong><br>
-          全球最大动物保护组织之一，长期救助流浪动物、反对动物试验与虐待，推动动物福利政策。<br>
-          One of the world’s largest animal protection organizations, long-term rescue of stray animals, opposition to animal testing and abuse, and promotion of animal welfare policies.
-        </div>
-        <div class="org-card">
-          <strong>WWF（世界自然基金会）</strong><br>
-          保护濒危物种与栖息地，推动全球生物多样性保护和气候行动。<br>
-          Protects endangered species and habitats, promotes global biodiversity conservation and climate action.
-        </div>
-        <div class="org-card">
-          <strong>International Fund for Animal Welfare (IFAW)</strong><br>
-          专注于野生动物救援与栖息地保护的国际组织，长期从事动物救援与政策倡导。<br>
-          An international organization focused on wildlife rescue and habitat protection, long-term engaged in animal rescue and policy advocacy.
-        </div>
-      </div>
-    </div>
-    <div class="section">
-      <h3>马来西亚及全球收容所 / Shelters in Malaysia & Worldwide</h3>
-      <div class="bilingual">
-        <div>
-          <strong>中文：</strong><br>
-          马来西亚有许多值得支持的动物收容所，例如 SPCA Selangor、PAWS、Furry Friends Farm、SPCA Penang 等。他们每天都在救助流浪狗猫，提供医疗、绝育、领养和教育服务。全球还有无数类似的组织需要帮助与支持。
-        </div>
-        <div>
-          <strong>English：</strong><br>
-          Malaysia has many shelters doing amazing work, such as SPCA Selangor, PAWS, Furry Friends Farm, and SPCA Penang. They rescue stray dogs and cats daily, providing medical care, sterilization, adoption services and education. Countless similar organizations worldwide need support and resources.
-        </div>
-      </div>
-    </div>
-    <div class="section">
-      <h3>PAWLY 的慈善承诺 / PAWLY's Charity Commitment</h3>
-      <div class="bilingual">
-        <div>
-          <strong>中文：</strong><br>
-          PAWLY 将把部分交易费用用于支持全球动物保护组织及流浪动物收容所。我们承诺每一笔捐款都公开透明，并定期公布详细报告。未来社区持币者也可通过投票参与决定捐款方向。加入慈善等待名单的你，将会第一时间收到捐款启动通知，并有机会参与我们早期的慈善活动。
-        </div>
-        <div>
-          <strong>English：</strong><br>
-          PAWLY will allocate a portion of transaction fees to support animal protection organizations and shelters worldwide. We are committed to transparent donations and will regularly publish detailed reports. Token holders will also be able to vote on donation directions in the future. By joining the charity waitlist, you will be the first to receive notification when donation activities begin and have the opportunity to participate in our early charity events.
-        </div>
-      </div>
-    </div>
-    <button class="donate-btn" onclick="showComingSoon()">立即捐款 / Donate Now</button>
     <button class="back-btn" onclick="hideShowcase()">返回主页面 / Back to Main Page</button>
   </div>
 
@@ -869,27 +832,6 @@
         确认加入 / Confirm Join
       </button>
       <button onclick="closePaymentWaitlistModal()" style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
-        取消 / Cancel
-      </button>
-    </div>
-  </div>
-
-  <!-- Charity Waitlist Modal -->
-  <div id="charityWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
-    <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
-      <h2 style="color:#00ff9d; margin-bottom:15px;">加入宠物慈善计划<br>Join Pet Charity Program</h2>
-      <div style="background:#120022; padding:18px; border-radius:14px; margin:25px 0; text-align:left;">
-        <p style="margin:0 0 8px 0; color:#aaa; font-size:0.95em;">你的钱包地址 / Your Wallet Address:</p>
-        <p id="charityWalletDisplay" style="color:#00ff9d; word-break:break-all; margin:0; font-size:0.95em;"></p>
-      </div>
-      <div style="text-align:left; line-height:1.8; margin:20px 0; font-size:0.97em;">
-        <strong>中文：</strong><br>感谢你的支持！当慈善基金正式启动捐款计划时，我们会优先通知你，并公开每一笔捐款的去向与影响。</div>
-      <div style="text-align:left; line-height:1.8; margin:20px 0; font-size:0.97em;">
-        <strong>English：</strong><br>Thank you for your support! When the charity fund officially starts the donation plan, we will notify you first and publicly disclose where every donation goes and its impact.</div>
-      <button onclick="submitCharityWaitlist()" style="width:100%; padding:18px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:15px;">
-        确认加入 / Confirm Join
-      </button>
-      <button onclick="closeCharityWaitlistModal()" style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
         取消 / Cancel
       </button>
     </div>
@@ -1483,24 +1425,19 @@ function showPaymentWaitlistModal() {
 
 function closePaymentWaitlistModal() { document.getElementById('paymentWaitlistModal').style.display = 'none'; }
 
-function showCharityWaitlistModal() {
-  const modal = document.getElementById('charityWaitlistModal');
-  const walletDisplay = document.getElementById('charityWalletDisplay');
-  let wallet = document.getElementById('bind-wallet')?.value || localStorage.getItem('userWallet') || "未检测到钱包地址";
-  walletDisplay.innerText = wallet;
-  modal.style.display = 'flex';
-}
-
-function closeCharityWaitlistModal() { document.getElementById('charityWaitlistModal').style.display = 'none'; }
-
 function submitPaymentWaitlist() {
   alert("✅ 成功加入宠物支付计划！\n\n✅ You have successfully joined the Pet Payment Program!\n\n我们会在支付功能上线时优先通知你。感谢你的支持！We will notify you first when the feature officially launches and prepare early usage rewards for you. Thank you for your support！");
   closePaymentWaitlistModal();
 }
 
-function submitCharityWaitlist() {
-  alert("✅ 成功加入宠物慈善计划！\n\n✅ You have successfully joined the Pet Charity Program!\n\n我们会在捐款计划启动时优先通知你，并公开透明每一笔捐款。感谢你的支持！We will notify you first when the donation activities begin and publicly disclose where every donation goes. Thank you for your support!");
-  closeCharityWaitlistModal();
+// 折叠/展开收容所列表
+function toggleShelterList() {
+  const list = document.getElementById('shelterList');
+  if (list.style.display === 'none' || list.style.display === '') {
+    list.style.display = 'block';
+  } else {
+    list.style.display = 'none';
+  }
 }
 
 async function sendEmailReminder() {
