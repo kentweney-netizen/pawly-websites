@@ -1,98 +1,318 @@
-// ==================== Pet Payment 优化版（方便后期接链上价格） ====================
-
-const PAYMENT_CONFIG = {
-  // 暂时使用，等 PAWLY Token 上线后，改成从链上获取真实价格
-  pawlyPerUsdc: 5,   // 临时比例：5 PAWLY = 1 USDC
-};
-
-// 打开弹窗
-function openPetPaymentModal() {
-  document.getElementById('petPaymentModal').style.display = 'flex';
-  document.getElementById('paymentAmount').value = '';
-  document.getElementById('usdcAmount').innerText = '计算中...';
-  document.getElementById('myrAmount').innerText = '获取汇率中...';
-  
-  // 打开时获取最新汇率
-  fetchLatestRates();
-}
-
-// 关闭弹窗
-function closePetPaymentModal() {
-  document.getElementById('petPaymentModal').style.display = 'none';
-}
-
-// 获取实时 USD → MYR 汇率
-async function fetchLatestRates() {
-  try {
-    const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-    
-    if (!response.ok) {
-      throw new Error('汇率接口请求失败');
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pet Payment / 宠物支付 - PAWLY PETS</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    
-    const data = await response.json();
-    
-    if (!data.rates || !data.rates.MYR) {
-      throw new Error('无法获取 MYR 汇率');
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
     }
-    
-    window.currentMyrRate = data.rates.MYR;
-    console.log('✅ 成功获取今日汇率 USD → MYR:', window.currentMyrRate);
-    
-    // 重新计算一次
-    calculatePayment();
-    
-  } catch (error) {
-    console.error('获取汇率失败:', error);
-    window.currentMyrRate = null;
-    
-    document.getElementById('usdcAmount').innerText = '—';
-    document.getElementById('myrAmount').innerText = '汇率获取失败，请稍后重试';
-  }
-}
+    .container {
+      max-width: 480px;
+      width: 100%;
+    }
+    h1 {
+      color: #00ff9d;
+      font-size: 1.8rem;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #aaa;
+      font-size: 0.95rem;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+    .card {
+      background: #1a0033;
+      border: 2px solid #00ff9d;
+      border-radius: 18px;
+      padding: 28px 22px;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      color: #ccc;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 14px 16px;
+      background: #0f0022;
+      border: 2px solid #00ff9d;
+      border-radius: 12px;
+      color: white;
+      font-size: 1.15rem;
+      outline: none;
+    }
+    .rate-box {
+      background: #120022;
+      border-radius: 14px;
+      padding: 18px;
+      margin: 20px 0;
+    }
+    .rate-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+    .rate-row:last-child {
+      margin-bottom: 0;
+    }
+    .rate-label {
+      color: #aaa;
+    }
+    .rate-value {
+      font-weight: bold;
+    }
+    .usdc {
+      color: #00ff9d;
+    }
+    .myr {
+      color: #ffaa00;
+    }
+    .method-title {
+      color: #ccc;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+    .method-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .method-option input {
+      accent-color: #00ff9d;
+    }
+    .disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      width: 100%;
+      background: #00ff9d;
+      color: black;
+      border: none;
+      padding: 16px;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .btn-secondary {
+      width: 100%;
+      background: transparent;
+      color: #aaa;
+      border: 1px solid #555;
+      padding: 14px;
+      border-radius: 14px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    .merchant-box {
+      margin-top: 30px;
+      padding-top: 22px;
+      border-top: 1px solid #333;
+      text-align: center;
+    }
+    .merchant-title {
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+    .btn-merchant {
+      background: transparent;
+      color: #00ff9d;
+      border: 1px dashed #00ff9d;
+      padding: 10px 22px;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-top: 28px;
+      color: #00ff9d;
+      text-decoration: none;
+      border: 1px solid #00ff9d;
+      padding: 11px 28px;
+      border-radius: 9999px;
+      font-size: 0.95rem;
+    }
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #555;
+      font-size: 0.85rem;
+    }
+    .note {
+      color: #666;
+      font-size: 0.8rem;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
 
-// 实时计算
-function calculatePayment() {
-  const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
-  
-  if (amount <= 0) {
-    document.getElementById('usdcAmount').innerText = '0.00 USDC';
-    document.getElementById('myrAmount').innerText = 'RM 0.00';
-    return;
-  }
-  
-  // 使用配置的 PAWLY 比例（后期可替换为链上真实价格）
-  const usdc = amount / PAYMENT_CONFIG.pawlyPerUsdc;
-  
-  document.getElementById('usdcAmount').innerText = usdc.toFixed(2) + ' USDC';
-  
-  // 如果汇率获取成功才显示 MYR
-  if (window.currentMyrRate) {
-    const myr = usdc * window.currentMyrRate;
-    document.getElementById('myrAmount').innerText = 'RM ' + myr.toFixed(2);
-  } else {
-    document.getElementById('myrAmount').innerText = '汇率获取中...';
-  }
-}
+    <h1>🐾 Pet Payment</h1>
+    <p class="subtitle">
+      用 PAWLY 支付 · 自动换成 USDC<br>
+      Pay with PAWLY · Auto convert to USDC
+    </p>
 
-// 确认支付（目前模拟）
-function confirmPetPayment() {
-  const amount = parseFloat(document.getElementById('paymentAmount').value);
-  
-  if (!amount || amount <= 0) {
-    alert('请输入有效的支付金额\nPlease enter a valid amount');
-    return;
-  }
-  
-  if (!window.currentMyrRate) {
-    alert('汇率尚未获取成功，请稍后重试\nExchange rate not available, please try again later');
-    return;
-  }
-  
-  const usdc = (amount / PAYMENT_CONFIG.pawlyPerUsdc).toFixed(2);
-  const myr = (usdc * window.currentMyrRate).toFixed(2);
-  
-  alert(`✅ 支付确认成功！\n\n支付金额：${amount} PAWLY\n≈ ${usdc} USDC\n≈ RM ${myr}\n\n（目前为模拟支付，正式链上支付将在代币上线后开放）\n\n✅ Payment confirmed!\nThis is a simulated payment. Real on-chain payment will be available after token launch.`);
-  
-  closePetPaymentModal();
-}
+    <div class="card">
+      <!-- 输入金额 -->
+      <label>支付金额（PAWLY） / Amount in PAWLY</label>
+      <input type="number" id="paymentAmount" placeholder="例如：25" min="1" oninput="calculatePayment()">
+
+      <!-- 换算结果 -->
+      <div class="rate-box">
+        <div class="rate-row">
+          <span class="rate-label">≈ USDC</span>
+          <span class="rate-value usdc" id="usdcAmount">0.00 USDC</span>
+        </div>
+        <div class="rate-row">
+          <span class="rate-label">≈ MYR（今日汇率）</span>
+          <span class="rate-value myr" id="myrAmount">RM 0.00</span>
+        </div>
+        <p class="note">
+          当前临时比例：5 PAWLY ≈ 1 USDC<br>
+          Temporary rate: 5 PAWLY ≈ 1 USDC<br>
+          （代币上线后将自动使用链上真实价格）
+        </p>
+      </div>
+
+      <!-- 支付方式 -->
+      <p class="method-title">支付方式 / Payment Method</p>
+      <label class="method-option">
+        <input type="radio" name="payMethod" value="usdc" checked>
+        <span>USDC（推荐 / Recommended）</span>
+      </label>
+      <label class="method-option disabled">
+        <input type="radio" name="payMethod" value="usdt" disabled>
+        <span>USDT（即将开放 / Coming Soon）</span>
+      </label>
+
+      <!-- 确认按钮 -->
+      <button class="btn-primary" onclick="confirmPetPayment()">
+        确认支付 / Confirm Payment
+      </button>
+      <button class="btn-secondary" onclick="window.location.href='index.html'">
+        取消 / Cancel
+      </button>
+    </div>
+
+    <!-- 商户预留入口 -->
+    <div class="merchant-box">
+      <p class="merchant-title">商户合作 / For Merchants</p>
+      <button class="btn-merchant" onclick="alert('商户扫码收款功能即将开放\nMerchant QR payment feature coming soon')">
+        📷 商户扫码收款（预留） / Merchant QR (Coming Soon)
+      </button>
+    </div>
+
+    <div style="text-align:center;">
+      <a href="index.html" class="back-btn">← 返回主页 / Back to Home</a>
+    </div>
+
+    <div class="footer">
+      © 2026 PAWLY PETS. All rights reserved.
+    </div>
+  </div>
+
+  <script>
+    // ==================== Pet Payment 优化版 ====================
+    const PAYMENT_CONFIG = {
+      // 暂时使用，等 PAWLY Token 上线后改成从链上获取真实价格
+      pawlyPerUsdc: 5
+    };
+
+    // 页面加载时获取汇率
+    window.onload = function() {
+      fetchLatestRates();
+    };
+
+    // 获取实时 USD → MYR 汇率
+    async function fetchLatestRates() {
+      try {
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        if (!response.ok) throw new Error('汇率接口请求失败');
+        
+        const data = await response.json();
+        if (!data.rates || !data.rates.MYR) throw new Error('无法获取 MYR 汇率');
+        
+        window.currentMyrRate = data.rates.MYR;
+        console.log('✅ 今日汇率 USD → MYR:', window.currentMyrRate);
+        calculatePayment();
+        
+      } catch (error) {
+        console.error('获取汇率失败:', error);
+        window.currentMyrRate = null;
+        document.getElementById('myrAmount').innerText = '汇率获取失败，请刷新重试';
+      }
+    }
+
+    // 实时计算
+    function calculatePayment() {
+      const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
+      
+      if (amount <= 0) {
+        document.getElementById('usdcAmount').innerText = '0.00 USDC';
+        document.getElementById('myrAmount').innerText = 'RM 0.00';
+        return;
+      }
+      
+      const usdc = amount / PAYMENT_CONFIG.pawlyPerUsdc;
+      document.getElementById('usdcAmount').innerText = usdc.toFixed(2) + ' USDC';
+      
+      if (window.currentMyrRate) {
+        const myr = usdc * window.currentMyrRate;
+        document.getElementById('myrAmount').innerText = 'RM ' + myr.toFixed(2);
+      } else {
+        document.getElementById('myrAmount').innerText = '汇率获取中...';
+      }
+    }
+
+    // 确认支付（目前模拟）
+    function confirmPetPayment() {
+      const amount = parseFloat(document.getElementById('paymentAmount').value);
+      
+      if (!amount || amount <= 0) {
+        alert('请输入有效的支付金额\nPlease enter a valid amount');
+        return;
+      }
+      
+      if (!window.currentMyrRate) {
+        alert('汇率尚未获取成功，请稍后重试\nExchange rate not available, please try again later');
+        return;
+      }
+      
+      const usdc = (amount / PAYMENT_CONFIG.pawlyPerUsdc).toFixed(2);
+      const myr = (usdc * window.currentMyrRate).toFixed(2);
+      
+      alert(`✅ 支付确认成功！\n\n支付金额：${amount} PAWLY\n≈ ${usdc} USDC\n≈ RM ${myr}\n\n（目前为模拟支付，正式链上支付将在代币上线后开放）\n\n✅ Payment confirmed!\nThis is a simulated payment. Real on-chain payment will be available after token launch.`);
+    }
+  </script>
+</body>
+</html>
