@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>More Project Info / 更多项目信息 - PAWLY PETS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.7;
+      min-height: 100vh;
+      padding: 40px 16px 60px;
+    }
+    .container { max-width: 780px; margin: 0 auto; }
+    h1 {
+      color: #00ff9d;
+      font-size: 1.9rem;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #aaa;
+      font-size: 0.95rem;
+      margin-bottom: 36px;
+    }
+    .card {
+      background: #1a0033;
+      border: 2px solid #00ff9d;
+      border-radius: 18px;
+      padding: 28px 24px;
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      color: #00ff9d;
+      font-size: 1.35rem;
+      margin-bottom: 6px;
+    }
+    .card .en-title {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .info-box {
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .info-box .label {
+      color: #00ff9d;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+    }
+    .info-box .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .alloc-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.95rem;
+    }
+    .alloc-row:last-child { border-bottom: none; }
+    .roadmap-item {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .roadmap-q {
+      width: 70px;
+      color: #00ff9d;
+      font-family: monospace;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+    .team-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .team-card .role {
+      color: #00ff9d;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .faq-item { margin-bottom: 20px; }
+    .faq-q {
+      color: #00ff9d;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .faq-a { color: #ccc; font-size: 0.95rem; }
+    .link-list a {
+      color: #00ff9d;
+      text-decoration: none;
+      display: inline-block;
+      margin: 6px 12px 6px 0;
+    }
+    .link-list a:hover { text-decoration: underline; }
+    .back-btn {
+      display: inline-block;
+      margin-top: 20px;
+      color: #00ff9d;
+      text-decoration: none;
+      border: 1px solid #00ff9d;
+      padding: 12px 28px;
+      border-radius: 9999px;
+      font-size: 0.95rem;
+    }
+    .center { text-align: center; }
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #555;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <h1>更多项目信息</h1>
+    <p class="subtitle">More Project Info</p>
+
+    <!-- Tokenomics -->
+    <div class="card">
+      <h2>PAWLY Tokenomics</h2>
+      <p class="en-title">代币经济模型 / Token Economic Model</p>
+
+      <div class="grid-2">
+        <div class="info-box">
+          <div class="label">Total Supply 总供应量</div>
+          <div class="value">50,000,000 PAWLY</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Utility 实用场景</div>
+          <ul style="margin:0; padding-left:18px; line-height:1.8; color:#ddd; font-size:0.95rem;">
+            <li>质押挖矿奖励 / Staking Rewards</li>
+            <li>宠物店支付 / Pet Store Payment</li>
+            <li>慈善捐赠 / Animals Shelter Charity</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <div class="label" style="color:#00ff9d; font-weight:600; margin-bottom:12px;">Token Allocation 代币分配</div>
+        <div class="alloc-row"><span>Community & Staking Rewards 社区与质押奖励</span><span>25%</span></div>
+        <div class="alloc-row"><span>Liquidity Pool 流动性池</span><span>20%</span></div>
+        <div class="alloc-row"><span>Team (24个月线性释放) 团队</span><span>10%</span></div>
+        <div class="alloc-row"><span>Marketing & KOL 市场与KOL</span><span>5%</span></div>
+        <div class="alloc-row"><span>Charity & Animal Welfare 慈善与动物福利基金</span><span>20%</span></div>
+        <div class="alloc-row"><span>Ecosystem Development 生态发展</span><span>20%</span></div>
+      </div>
+    </div>
+
+    <!-- Roadmap -->
+    <div class="card">
+      <h2>PAWLY Roadmap</h2>
+      <p class="en-title">发展路线图 / Development Roadmap</p>
+
+      <div class="roadmap-item">
+        <div class="roadmap-q">Q1</div>
+        <div><strong>dApp Beta 上线</strong><br><span style="color:#aaa;">DApp Beta launch + Pre-mining check-in system</span></div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-q">Q2</div>
+        <div><strong>Token 正式上线 + Staking</strong><br><span style="color:#aaa;">Official Token launch + On-chain Staking</span></div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-q">Q3</div>
+        <div><strong>宠物店支付集成</strong><br><span style="color:#aaa;">Pet shop payment integration + QR Code</span></div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-q">Q4</div>
+        <div><strong>完整生态闭环</strong><br><span style="color:#aaa;">Full ecosystem (Payment + Charity + Staking)</span></div>
+      </div>
+    </div>
+
+    <!-- Team -->
+    <div class="card">
+      <h2>PAWLY Team</h2>
+      <p class="en-title">团队 / Our Team</p>
+
+      <div class="grid-2">
+        <div class="team-card">
+          <div class="role">Founder & Vision 创始人与愿景</div>
+          <div style="color:#ddd; font-size:0.95rem;">宠物生态长期主义者，专注实用型 crypto 应用 / Pet ecosystem long-termist focused on practical crypto applications</div>
+        </div>
+        <div class="team-card">
+          <div class="role">Tech Lead 技术负责人</div>
+          <div style="color:#ddd; font-size:0.95rem;">Solana + Supabase 全栈开发，dApp 架构设计 / Full-stack developer specializing in Solana + Supabase and dApp architecture</div>
+        </div>
+        <div class="team-card">
+          <div class="role">Marketing & Community 市场与社区</div>
+          <div style="color:#ddd; font-size:0.95rem;">数字营销 + KOL 合作，宠物社区运营 / Digital marketing & KOL partnerships, pet community operations</div>
+        </div>
+        <div class="team-card">
+          <div class="role">Pet Welfare Advisor 宠物福利顾问</div>
+          <div style="color:#ddd; font-size:0.95rem;">动物保护从业者，慈善与福利计划顾问 / Animal welfare practitioner and charity program advisor</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="card">
+      <h2>PAWLY FAQ</h2>
+      <p class="en-title">常见问题 / Frequently Asked Questions</p>
+
+      <div class="faq-item">
+        <div class="faq-q">Q1: PAWLY Token 什么时候正式上线？</div>
+        <div class="faq-a">预计 Q1 正式上线。目前处于预挖矿阶段，签到积分后期可按比例兑换 PAWLY。<br><span style="color:#888;">Expected to officially launch in Q1. Check-in points will be convertible to PAWLY after launch.</span></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q2: Staking 什么时候开启？</div>
+        <div class="faq-a">预计 Q2 上线。早期用户可通过签到积累积分，获得优先质押资格。<br><span style="color:#888;">Expected to launch in Q2. Early users will get priority staking access.</span></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q3: 我的积分怎么换成 PAWLY Token？</div>
+        <div class="faq-a">正式上线后，系统会按照一定比例把预挖矿期间积累的积分自动或手动兑换成 PAWLY。<br><span style="color:#888;">Points accumulated during pre-mining will be converted to PAWLY at a set ratio.</span></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q4: 资金和合约安全吗？</div>
+        <div class="faq-a">我们正在进行合约审计，审计报告将在正式上线前公布。所有用户资产通过非托管钱包管理。<br><span style="color:#888;">Smart contract audit is in progress. All assets are managed through non-custodial wallets.</span></div>
+      </div>
+    </div>
+
+    <!-- Promo Videos -->
+    <div class="card">
+      <h2>🎥 宣传视频 / Promo Videos</h2>
+      <p class="en-title" style="margin-bottom:16px;">官方宣传视频</p>
+      <div class="link-list">
+        <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：PAWLY 宣传片 / Video 1: PAWLY Promo</a><br>
+        <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常温馨时刻 / Video 2: Pet Daily Moments</a><br>
+        <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事与愿景 / Video 3: Community Story & Vision</a>
+      </div>
+    </div>
+
+    <!-- Official Links -->
+    <div class="card">
+      <h2>📱 官方链接 / Official Links</h2>
+      <p class="en-title" style="margin-bottom:16px;">关注我们</p>
+      <div class="link-list">
+        <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a>
+        <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a>
+        <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a>
+        <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a>
+      </div>
+    </div>
+
+    <div class="center">
+      <a href="index.html" class="back-btn">← 返回主页 / Back to Home</a>
+    </div>
+
+    <div class="footer">
+      © 2026 PAWLY PETS. All rights reserved.
+    </div>
+
+  </div>
+</body>
+</html>
