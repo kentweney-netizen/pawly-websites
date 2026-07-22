@@ -305,7 +305,7 @@
   <!-- tab3 宠物支付 -->
 <div class="tab" id="tab3">
   <section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
-    <video id="payment-video" muted loop playsinline 
+    <video id="payment-video" muted loop playsinline
            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
       <source src="pawly-pet-payment.mp4" type="video/mp4">
     </video>
@@ -316,13 +316,15 @@
           💳 Pet Payment / 宠物支付
         </h1>
         <p style="font-size: 1.25rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
-          未来支持使用 PAWLY 进行宠物相关支付<br>
-          Future support for pet-related payments with PAWLY
+          使用 PAWLY 进行宠物相关支付<br>
+          Pay for pet-related services with PAWLY
         </p>
-        <a href="pet-payment.html" 
-   style="display: inline-block; background: #2196f3; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
-  立即支付 / Pay Now
-</a>
+        <a href="pet-payment.html"
+           style="display: inline-block; background: #2196f3; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
+          立即支付 / Pay Now
+        </a>
+      </div>
+    </div>
 
     <!-- 圆形喇叭按钮 -->
     <div style="position: absolute; bottom: 25px; right: 25px; z-index: 10;">
@@ -332,21 +334,33 @@
       </button>
     </div>
   </section>
-    <div class="container">
-      <h1>🐶 宠物支付 / Pet Payment</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。</div>
-          <div><strong>English：</strong><br>PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.</div>
-        </div>
+
+  <div class="container">
+    <h1>🐶 宠物支付 / Pet Payment</h1>
+
+    <div class="section">
+      <div class="bilingual">
+        <div><strong>中文：</strong><br>PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。</div>
+        <div><strong>English：</strong><br>PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.</div>
       </div>
-      <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin:25px 0; text-align:left; line-height:1.85;">
-        <h3 style="color:#00ff9d; margin-top:0;">让爱宠生活更简单 —— PAWLY 支付的未来</h3>
+    </div>
+
+    <!-- 折叠式长文案 -->
+    <div style="margin: 30px 0 20px 0;">
+      <button onclick="togglePaymentLongText()"
+              style="width:100%; padding:16px; background:#1a0033; color:#00ff9d;
+                     border:2px solid #00ff9d; border-radius:16px; font-size:1.05em;
+                     cursor:pointer; font-weight:600;">
+        📖 点击展开完整说明 / Click to read full description
+      </button>
+
+      <div id="paymentLongText" style="display:none; margin-top:20px; background:rgba(255,255,255,0.04);
+                                    border:1px solid #444; border-radius:18px; padding:28px; text-align:left; line-height:1.75;">
         <div class="bilingual">
           <div>
             <strong>中文：</strong><br>
             我们希望 PAWLY 不仅仅是一枚 meme 币，而是能真正走进宠物主人的日常生活。未来，你可以直接用 PAWLY 在合作的宠物店购买狗粮、猫砂、玩具，在兽医诊所支付看诊费用，甚至在宠物美容店结账。<br><br>
-            我们将从马来西亚开始，逐步扩展到更多国家和地区。我们会与值得信赖的商家合作，确保支付流程简单、安全、透明。加入等待名单后，当支付功能正式上线时，你将收到优先通知，并有机会成为首批体验者。我们希望每一位爱宠的人，都能用 PAWLY 轻松表达对毛孩子的爱。
+            我们将从马来西亚开始，逐步扩展到更多国家和地区。我们会与值得信赖的商家合作，确保支付流程简单、安全、透明。我们希望每一位爱宠的人，都能用 PAWLY 轻松表达对毛孩子的爱。
           </div>
           <div>
             <strong>English：</strong><br>
@@ -355,14 +369,10 @@
           </div>
         </div>
       </div>
-      <div style="text-align:center; margin:40px 0 20px;">
-        <button onclick="showPaymentWaitlistModal()"
-                style="background:#00ff9d; color:black; padding:18px 55px; font-size:1.2em; font-weight:bold; border:none; border-radius:16px; cursor:pointer;">
-          加入宠物支付计划<br>Join Pet Payment Program
-        </button>
-      </div>
     </div>
+
   </div>
+</div>
 
   <!-- tab4 慈善基金 -->
 <div class="tab" id="tab4">
@@ -838,27 +848,6 @@
         确认加入等待名单 / Confirm Join Waitlist
       </button>
       <button onclick="closeStakingWaitlistModal()" style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
-        取消 / Cancel
-      </button>
-    </div>
-  </div>
-
-  <!-- Payment Waitlist Modal -->
-  <div id="paymentWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
-    <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
-      <h2 style="color:#00ff9d; margin-bottom:15px;">加入宠物支付计划<br>Join Pet Payment Program</h2>
-      <div style="background:#120022; padding:18px; border-radius:14px; margin:25px 0; text-align:left;">
-        <p style="margin:0 0 8px 0; color:#aaa; font-size:0.95em;">你的钱包地址 / Your Wallet Address:</p>
-        <p id="paymentWalletDisplay" style="color:#00ff9d; word-break:break-all; margin:0; font-size:0.95em;"></p>
-      </div>
-      <div style="text-align:left; line-height:1.8; margin:20px 0; font-size:0.97em;">
-        <strong>中文：</strong><br>感谢你的支持！当 PAWLY 宠物支付功能正式上线时，我们会优先通知你，并为你准备早期使用奖励。</div>
-      <div style="text-align:left; line-height:1.8; margin:20px 0; font-size:0.97em;">
-        <strong>English：</strong><br>Thank you for your support! When the PAWLY pet payment feature officially launches, we will notify you first and prepare early usage rewards for you.</div>
-      <button onclick="submitPaymentWaitlist()" style="width:100%; padding:18px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:15px;">
-        确认加入 / Confirm Join
-      </button>
-      <button onclick="closePaymentWaitlistModal()" style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
         取消 / Cancel
       </button>
     </div>
