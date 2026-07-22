@@ -494,52 +494,13 @@
         </button>
       </div>
 
-      <div style="margin:30px 0 20px; text-align:center;">
-        <h3 style="color:#00ff9d; margin-bottom:18px; font-size:1.15rem;">更多项目信息 / More Project Info</h3>
-        <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
-          <button onclick="showModal('tokenomics')" style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 28px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: all 0.3s ease;">
-            Tokenomics / 代币经济模型
-          </button>
-          <button onclick="showModal('roadmap')" style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 28px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: all 0.3s ease;">
-            Roadmap / 发展路线图
-          </button>
-          <button onclick="showModal('team')" style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 28px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: all 0.3s ease;">
-            Team / 团队
-          </button>
-          <button onclick="showModal('faq')" style="background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 28px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: all 0.3s ease;">
-            FAQ / 常见问题
-          </button>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>🎥 宣传视频 / Promo Videos</h3>
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>
-            <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">视频1：PAWLY 宣传片</a><br>
-            <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">视频2：宠物日常温馨时刻</a><br>
-            <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">视频3：社区故事与愿景</a>
-          </div>
-          <div><strong>English：</strong><br>
-            <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank">Video 1: PAWLY Promo Video</a><br>
-            <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank">Video 2: Heartwarming Pet Daily Moments</a><br>
-            <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank">Video 3: Community Story & Vision</a>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>📱 官方链接 / Official Links</h3>
-        <div class="bilingual">
-          <div><strong>中文：</strong><br>
-            <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a>
-          </div>
-          <div><strong>English：</strong><br>
-            <a href="https://x.com/pawlypetslover" target="_blank">X (Twitter)</a> ｜ <a href="https://www.facebook.com/pawlypetslover" target="_blank">Facebook</a> ｜ <a href="https://www.instagram.com/paw.lypets" target="_blank">Instagram</a> ｜ <a href="https://t.me/pawlythepetslovers" target="_blank">Telegram</a>
-          </div>
-        </div>
-      </div>
-
+      <div style="margin: 30px 0 20px; text-align: center;">
+  <a href="project-info.html"
+     style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; text-decoration: none; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
+    更多项目信息 / More Project Info
+  </a>
+</div>
+      
  <!-- ==================== 折叠式 About PAWLY 长文 ==================== -->
     <div style="margin: 35px 0 15px 0;">
       <button onclick="toggleAboutLongText()" 
@@ -643,141 +604,6 @@
     </div>
     <button onclick="showComingSoon()">立即使用 PAWLY 支付 / Pay with PAWLY Now</button>
     <button class="back-btn" onclick="hideShowcase()">返回主页面 / Back to Main Page</button>
-  </div>
-
-  <!-- ==================== Tokenomics Modal ==================== -->
-  <div id="modal-tokenomics" onclick="hideModal('tokenomics')" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
-    <div onclick="event.stopImmediatePropagation()" style="background:#1a0033; border:2px solid #00ff9d; border-radius:24px; max-width:720px; width:94%; max-height:90vh; overflow-y:auto; padding:32px 28px; color:white;">
-      <h2 style="color:#00ff9d; margin:0 0 8px 0; font-size:1.8rem;">PAWLY Tokenomics</h2>
-      <p style="color:#aaa; margin-bottom:24px;">代币经济模型 / Token Economic Model</p>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:20px; margin-bottom:24px;">
-        <div>
-          <div style="color:#00ff9d; font-weight:600; margin-bottom:6px;">Total Supply 总供应量</div>
-          <div style="font-size:2rem; font-weight:bold;">50,000,000 PAWLY</div>
-        </div>
-        <div>
-          <div style="color:#00ff9d; font-weight:600; margin-bottom:8px;">Utility 实用场景</div>
-          <ul style="margin:0; padding-left:18px; line-height:1.9; color:#ddd;">
-            <li>质押挖矿奖励 / Staking Rewards</li>
-            <li>宠物店支付 / Pet Store Payment</li>
-            <li>慈善捐赠 / Animals Shelter Charity</li>
-          </ul>
-        </div>
-      </div>
-      <div style="margin-bottom:24px;">
-        <div style="color:#00ff9d; font-weight:600; margin-bottom:10px;">Token Allocation 代币分配</div>
-        <div style="display:flex; flex-direction:column; gap:8px; font-size:0.95rem;">
-          <div style="display:flex; justify-content:space-between;"><span>Community & Staking Rewards 社区与质押奖励</span><span style="font-family:monospace;">25%</span></div>
-          <div style="display:flex; justify-content:space-between;"><span>Liquidity Pool 流动性池</span><span style="font-family:monospace;">20%</span></div>
-          <div style="display:flex; justify-content:space-between;"><span>Team (24个月线性释放 / 24 months release) 团队</span><span style="font-family:monospace;">10%</span></div>
-          <div style="display:flex; justify-content:space-between;"><span>Marketing & KOL 市场与KOL</span><span style="font-family:monospace;">5%</span></div>
-          <div style="display:flex; justify-content:space-between;"><span>Charity & Animal Welfare 慈善与动物福利基金</span><span style="font-family:monospace;">20%</span></div>
-          <div style="display:flex; justify-content:space-between;"><span>Ecosystem Development 生态发展</span><span style="font-family:monospace;">20%</span></div>
-        </div>
-      </div>
-      <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-        <button onclick="goToDashboard()"
-                style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          返回我的仪表盘页面 / Back to My Dashboard →
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== Roadmap Modal ==================== -->
-  <div id="modal-roadmap" onclick="hideModal('roadmap')" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
-    <div onclick="event.stopImmediatePropagation()" style="background:#1a0033; border:2px solid #00ff9d; border-radius:24px; max-width:720px; width:94%; max-height:90vh; overflow-y:auto; padding:32px 28px; color:white;">
-      <h2 style="color:#00ff9d; margin:0 0 8px 0; font-size:1.8rem;">PAWLY Roadmap</h2>
-      <p style="color:#aaa; margin-bottom:28px;">发展路线图 / Development Roadmap</p>
-      <div style="display:flex; flex-direction:column; gap:22px; font-size:0.95rem;">
-        <div style="display:flex; gap:16px;">
-          <div style="width:78px; color:#00ff9d; font-family:monospace; flex-shrink:0;">Q1</div>
-          <div><strong>dApp Beta 上线</strong><br><span style="color:#aaa;">DApp Beta launch + Pre-mining check-in system</span></div>
-        </div>
-        <div style="display:flex; gap:16px;">
-          <div style="width:78px; color:#00ff9d; font-family:monospace; flex-shrink:0;">Q2</div>
-          <div><strong>Token 正式上线 + Staking</strong><br><span style="color:#aaa;">Official Token launch + On-chain Staking</span></div>
-        </div>
-        <div style="display:flex; gap:16px;">
-          <div style="width:78px; color:#00ff9d; font-family:monospace; flex-shrink:0;">Q3</div>
-          <div><strong>宠物店支付集成</strong><br><span style="color:#aaa;">Pet shop payment integration + QR Code</span></div>
-        </div>
-        <div style="display:flex; gap:16px;">
-          <div style="width:78px; color:#00ff9d; font-family:monospace; flex-shrink:0;">Q4</div>
-          <div><strong>完整生态闭环</strong><br><span style="color:#aaa;">Full ecosystem (Payment + Charity + Staking)</span></div>
-        </div>
-      </div>
-      <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-        <button onclick="goToDashboard()"
-                style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          返回我的仪表盘页面 / Back to My Dashboard →
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== Team Modal ==================== -->
-  <div id="modal-team" onclick="hideModal('team')" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
-    <div onclick="event.stopImmediatePropagation()" style="background:#1a0033; border:2px solid #00ff9d; border-radius:24px; max-width:720px; width:94%; max-height:90vh; overflow-y:auto; padding:32px 28px; color:white;">
-      <h2 style="color:#00ff9d; margin:0 0 8px 0; font-size:1.8rem;">PAWLY Team</h2>
-      <p style="color:#aaa; margin-bottom:24px;">团队 / Our Team</p>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; font-size:0.95rem;">
-        <div style="background:rgba(255,255,255,0.06); border-radius:16px; padding:20px;">
-          <div style="font-weight:600; color:#00ff9d; margin-bottom:8px;">Founder & Vision 创始人与愿景</div>
-          <div style="color:#ddd;">宠物生态长期主义者，专注实用型 crypto 应用 / Pet ecosystem long-termist focused on practical crypto applications</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.06); border-radius:16px; padding:20px;">
-          <div style="font-weight:600; color:#00ff9d; margin-bottom:8px;">Tech Lead 技术负责人</div>
-          <div style="color:#ddd;">Solana + Supabase 全栈开发，dApp 架构设计 /Full-stack developer specializing in Solana + Supabase and dApp architecture</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.06); border-radius:16px; padding:20px;">
-          <div style="font-weight:600; color:#00ff9d; margin-bottom:8px;">Marketing & Community 市场与社区</div>
-          <div style="color:#ddd;">数字营销 + KOL 合作，宠物社区运营 / Digital marketing & KOL partnerships, pet community operations</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.06); border-radius:16px; padding:20px;">
-          <div style="font-weight:600; color:#00ff9d; margin-bottom:8px;">Pet Welfare Advisor 宠物福利顾问</div>
-          <div style="color:#ddd;">动物保护从业者，慈善与福利计划顾问 / Animal welfare practitioner and charity program advisor</div>
-        </div>
-      </div>
-      <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-        <button onclick="goToDashboard()"
-                style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          返回我的仪表盘页面 / Back to My Dashboard →
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== FAQ Modal ==================== -->
-  <div id="modal-faq" onclick="hideModal('faq')" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
-    <div onclick="event.stopImmediatePropagation()" style="background:#1a0033; border:2px solid #00ff9d; border-radius:24px; max-width:720px; width:94%; max-height:90vh; overflow-y:auto; padding:32px 28px; color:white;">
-      <h2 style="color:#00ff9d; margin:0 0 8px 0; font-size:1.8rem;">PAWLY FAQ</h2>
-      <p style="color:#aaa; margin-bottom:24px;">常见问题 / Frequently Asked Questions</p>
-      <div style="display:flex; flex-direction:column; gap:22px; font-size:0.95rem;">
-        <div>
-          <div style="color:#00ff9d; font-weight:600;">Q1: PAWLY Token 什么时候正式上线？</div>
-          <div style="color:#ccc; margin-top:6px;">预计 Q1 正式上线。目前处于预挖矿阶段，签到积分后期可按比例兑换 PAWLY。<br><span style="color:#888;">Expected to officially launch in Q1. Check-in points will be convertible to PAWLY after launch.</span></div>
-        </div>
-        <div>
-          <div style="color:#00ff9d; font-weight:600;">Q2: Staking 什么时候开启？</div>
-          <div style="color:#ccc; margin-top:6px;">预计 Q2 上线。早期用户可通过签到积累积分，获得优先质押资格。<br><span style="color:#888;">Expected to launch in Q2. Early users will get priority staking access.</span></div>
-        </div>
-        <div>
-          <div style="color:#00ff9d; font-weight:600;">Q3: 我的积分怎么换成 PAWLY Token？</div>
-          <div style="color:#ccc; margin-top:6px;">正式上线后，系统会按照一定比例把预挖矿期间积累的积分自动或手动兑换成 PAWLY。<br><span style="color:#888;">Points accumulated during pre-mining will be converted to PAWLY at a set ratio.</span></div>
-        </div>
-        <div>
-          <div style="color:#00ff9d; font-weight:600;">Q4: 资金和合约安全吗？</div>
-          <div style="color:#ccc; margin-top:6px;">我们正在进行合约审计，审计报告将在正式上线前公布。所有用户资产通过非托管钱包管理。<br><span style="color:#888;">Smart contract audit is in progress. All assets are managed through non-custodial wallets.</span></div>
-        </div>
-      </div>
-      <div style="text-align:right; margin-top:32px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-        <button onclick="goToDashboard()"
-                style="background:#00ff9d; color:black; padding:14px 36px; border:none; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          返回我的仪表盘页面 / Back to My Dashboard →
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- PAWLY 成员表页面 -->
