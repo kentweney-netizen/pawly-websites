@@ -1431,19 +1431,17 @@ function submitStakingWaitlist() {
   closeStakingWaitlistModal();
 }
 
-function showPaymentWaitlistModal() {
-  const modal = document.getElementById('paymentWaitlistModal');
-  const walletDisplay = document.getElementById('paymentWalletDisplay');
-  let wallet = document.getElementById('bind-wallet')?.value || localStorage.getItem('userWallet') || "未检测到钱包地址";
-  walletDisplay.innerText = wallet;
-  modal.style.display = 'flex';
-}
+function togglePaymentLongText() {
+  const content = document.getElementById('paymentLongText');
+  const btn = event.currentTarget;
 
-function closePaymentWaitlistModal() { document.getElementById('paymentWaitlistModal').style.display = 'none'; }
-
-function submitPaymentWaitlist() {
-  alert("✅ 成功加入宠物支付计划！\n\n✅ You have successfully joined the Pet Payment Program!\n\n我们会在支付功能上线时优先通知你。感谢你的支持！We will notify you first when the feature officially launches and prepare early usage rewards for you. Thank you for your support！");
-  closePaymentWaitlistModal();
+  if (content.style.display === 'none' || content.style.display === '') {
+    content.style.display = 'block';
+    btn.innerHTML = '📕 收起完整说明 / Click to collapse';
+  } else {
+    content.style.display = 'none';
+    btn.innerHTML = '📖 点击展开完整说明 / Click to read full description';
+  }
 }
 
 // 折叠/展开收容所列表
