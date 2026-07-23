@@ -6,7 +6,6 @@ import {
 } from "@solana/wallet-adapter-react-ui";
 import { createClient } from "@supabase/supabase-js";
 
-// ==================== Supabase 配置 ====================
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
   "https://iqmyiqjgzrlwthilkeos.supabase.co";
@@ -20,29 +19,29 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 export default function WalletConnect() {
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
-  const [syncStatus, setSyncStatus] = useState(""); // 同步状态提示
+  const [syncStatus, setSyncStatus] = useState("");
 
-  // ==================== 更换钱包 ====================
-  const handleChangeWallet = () => {
-    if (!connected) return;
-    disconnect();
-    setTimeout(() => {
+  // 已连接时再点 → 断开并重新弹出选择钱包
+  const handleReselectWallet = () => {
+    if (connected) {
+      disconnect();
+      setTimeout(() => {
+        setVisible(true);
+      }, 250);
+    } else {
       setVisible(true);
-    }, 200);
+    }
   };
 
-  // ==================== 断开连接 ====================
   const handleDisconnect = () => {
     if (!connected) return;
     disconnect();
   };
 
-  // ==================== 钱包连接成功后自动同步到 Supabase ====================
   useEffect(() => {
     const syncWalletToSupabase = async () => {
       if (connected && publicKey) {
         const walletAddress = publicKey.toString();
-
         try {
           const { error } = await supabase.from("USERS").upsert(
             {
@@ -53,14 +52,14 @@ export default function WalletConnect() {
           );
 
           if (error) {
-            console.error("同步钱包地址到 Supabase 失败:", error);
+            console.error("同步钱包地址失败:", error);
             setSyncStatus("❌ 同步失败");
           } else {
-            console.log("✅ 钱包地址已成功同步到 Supabase:", walletAddress);
+            console.log("✅ 钱包已同步:", walletAddress);
             setSyncStatus("✅ 已同步");
           }
         } catch (err) {
-          console.error("Supabase upsert 出错:", err);
+          console.error("Supabase 出错:", err);
           setSyncStatus("❌ 同步出错");
         }
       }
@@ -82,10 +81,29 @@ export default function WalletConnect() {
         border: "1px solid #00ff9d",
       }}
     >
-      {/* 1. Connect Wallet 按钮（一直显示） */}
+      {/* 官方按钮：首次连接用 */}
       <WalletMultiButton />
 
-      {/* 2. Disconnect Wallet 按钮（一直显示，未连接时禁用） */}
+      {/* 已连接后：再点可重新选择钱包平台 */}
+      {connected && (
+        <button
+          onClick={handleReselectWallet}
+          style={{
+            background: "linear-gradient(135deg, #7c3aed, #00ff9d)",
+            color: "#000",
+            border: "none",
+            padding: "12px 28px",
+            borderRadius: "12px",
+            cursor: "pointer",
+            fontSize: "15px",
+            fontWeight: "600",
+            width: "240px",
+          }}
+        >
+          🔄 重新选择钱包 / Reselect Wallet
+        </button>
+      )}
+
       <button
         onClick={handleDisconnect}
         disabled={!connected}
@@ -98,34 +116,13 @@ export default function WalletConnect() {
           cursor: connected ? "pointer" : "not-allowed",
           fontSize: "15px",
           fontWeight: "500",
-          width: "220px",
+          width: "240px",
           opacity: connected ? 1 : 0.5,
         }}
       >
         断开连接 / Disconnect Wallet
       </button>
 
-      {/* 3. Change Wallet 按钮（一直显示，未连接时禁用） */}
-      <button
-        onClick={handleChangeWallet}
-        disabled={!connected}
-        style={{
-          background: "transparent",
-          color: connected ? "#00ff9d" : "#666",
-          border: `1px solid ${connected ? "#00ff9d" : "#444"}`,
-          padding: "10px 24px",
-          borderRadius: "10px",
-          cursor: connected ? "pointer" : "not-allowed",
-          fontSize: "15px",
-          fontWeight: "500",
-          width: "220px",
-          opacity: connected ? 1 : 0.5,
-        }}
-      >
-        更换钱包 / Change Wallet
-      </button>
-
-      {/* 已连接时显示当前钱包地址 */}
       {connected && publicKey && (
         <div
           style={{
@@ -141,7 +138,6 @@ export default function WalletConnect() {
         </div>
       )}
 
-      {/* 同步状态提示 */}
       {syncStatus && (
         <div
           style={{
