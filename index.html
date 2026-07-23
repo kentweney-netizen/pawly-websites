@@ -255,23 +255,7 @@
       </button>
     </div>
   </section>
-    <div class="container">
-      <h1>🔥 质押挖矿 / Staking</h1>
-      <div class="section">
-        <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            当前处于<strong>预质押签到奖励阶段</strong>。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
-            <strong>正式 Staking 开放条件：</strong>当 PAWLY 社区活跃用户数量超过 <strong>5000 人以上</strong> 时，我们将正式开启链上质押挖矿功能。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            We are currently in the <strong>pre-staking check-in reward phase</strong>. PAWLY accumulated through web check-ins will be airdropped after launch.<br><br>
-            <strong>Official Staking Opening Condition:</strong> When PAWLY reaches <strong>5000 active users or above</strong>, we will officially launch on-chain staking.
-          </div>
-        </div>
-      </div>
-
+    
       <!-- 折叠式 Staking 说明 -->
 <div style="margin: 25px 0 20px 0;">
   <button onclick="toggleStakingLongText()"
@@ -359,14 +343,30 @@
   </section>
 
   <div class="container">
-    <h1>🐶 宠物支付 / Pet Payment</h1>
+  <h1>🐶 宠物支付 / Pet Payment</h1>
 
-    <div class="section">
+  <div style="margin: 25px 0 15px 0;">
+    <button onclick="togglePaymentIntro()"
+            style="width:100%; padding:16px; background:#1a0033; color:#00ff9d;
+                   border:2px solid #00ff9d; border-radius:16px; font-size:1.05em;
+                   cursor:pointer; font-weight:600;">
+      📖 点击展开说明 / Click to read description
+    </button>
+
+    <div id="paymentIntroText" style="display:none; margin-top:20px; background:rgba(255,255,255,0.04);
+                                      border:1px solid #444; border-radius:18px; padding:28px; text-align:left; line-height:1.75;">
       <div class="bilingual">
-        <div><strong>中文：</strong><br>PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。</div>
-        <div><strong>English：</strong><br>PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.</div>
+        <div>
+          <strong>中文：</strong><br>
+          PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。
+        </div>
+        <div>
+          <strong>English：</strong><br>
+          PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.
+        </div>
       </div>
     </div>
+  </div>
 
     <!-- 折叠式长文案 -->
     <div style="margin: 30px 0 20px 0;">
@@ -1347,6 +1347,19 @@ function togglePaymentLongText() {
   } else {
     content.style.display = 'none';
     btn.innerHTML = '📖 点击展开完整说明 / Click to read full description';
+  }
+}
+
+  function togglePaymentIntro() {
+  const content = document.getElementById('paymentIntroText');
+  const btn = event.currentTarget;
+
+  if (content.style.display === 'none' || content.style.display === '') {
+    content.style.display = 'block';
+    btn.innerHTML = '📕 收起说明 / Click to collapse';
+  } else {
+    content.style.display = 'none';
+    btn.innerHTML = '📖 点击展开说明 / Click to read description';
   }
 }
 
