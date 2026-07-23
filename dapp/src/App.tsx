@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BrowserRouter } from "react-router-dom";
 import {
@@ -28,27 +28,6 @@ import WalletConnect from "./components/WalletConnect";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const endpoint = clusterApiUrl("mainnet-beta");
-
-const wallets = [
-  // 手机端 Mobile Wallet Adapter（已修复）
-  new SolanaMobileWalletAdapter({
-    addressSelector: createDefaultAddressSelector(),
-    appIdentity: {
-      name: "PAWLY DApp",
-      uri: "https://pawlypets.netlify.app/dapp",
-      icon: "https://pawlypets.netlify.app/pawly-logo-192.png", // 用已存在的图标
-    },
-    authorizationResultCache: createDefaultAuthorizationResultCache(),
-    cluster: WalletAdapterNetwork.Mainnet,
-    onWalletNotFound: createDefaultWalletNotFoundHandler(),
-  }),
-
-  // 电脑端扩展钱包
-  new PhantomWalletAdapter(),
-  new SolflareWalletAdapter(),
-  new TrustWalletAdapter(),
-  new CoinbaseWalletAdapter(),
-];
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://iqmyiqjgzrlwthilkeos.supabase.co";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
