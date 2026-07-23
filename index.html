@@ -152,14 +152,6 @@
         <p style="font-size:12px; color:#888; margin-top:12px;">100 Points = 5 PAWLY（积分可累积，兑换后归零）</p>
       </div>
 
-      <div style="margin-top:35px; text-align:center;">
-        <button onclick="window.location.href='https://pawlypets-dapp.netlify.app'" 
-                style="background:#00ff9d; color:black; padding:18px 45px; border:none; border-radius:14px; font-weight:bold; font-size:1.1em; cursor:pointer;">
-          进入专业版 dApp - entry dApp（链上质押等功能-fully onchain staking）
-        </button>
-        <p style="font-size:0.9em; color:#888; margin-top:10px;">专业 Web3 功能区 - Web3 Function （即将上线-COMING SOON）</p>
-      </div>
-
       <div class="countdown" id="countdownBox">
         <h3>距离下次可签到 / Time until next check-in:</h3>
         <div id="countdownTimer">00:00:00</div>
@@ -268,32 +260,54 @@
       <div class="section">
         <div class="bilingual">
           <div>
-            <strong>中文：</strong><br>
-            当前处于<strong>预质押签到奖励阶段</strong>。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
-            <strong>正式 Staking 开放条件：</strong>当 PAWLY 社区活跃用户数量超过 <strong>5000 人以上</strong> 时，我们将正式开启链上质押挖矿功能。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            We are currently in the <strong>pre-staking check-in reward phase</strong>. PAWLY accumulated through web check-ins will be airdropped after launch.<br><br>
-            <strong>Official Staking Opening Condition:</strong> When PAWLY reaches <strong>5000 active users or above</strong>, we will officially launch on-chain staking.
-          </div>
+            
+            <!-- 折叠式 Staking 说明 -->
+<div style="margin: 25px 0 20px 0;">
+  <button onclick="toggleStakingLongText()"
+          style="width:100%; padding:16px; background:#1a0033; color:#00ff9d;
+                 border:2px solid #00ff9d; border-radius:16px; font-size:1.05em;
+                 cursor:pointer; font-weight:600;">
+    📖 点击展开完整说明 / Click to read full description
+  </button>
+
+  <div id="stakingLongText" style="display:none; margin-top:20px;">
+    
+    <!-- 预质押阶段说明 -->
+    <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin-bottom:20px; text-align:left; line-height:1.85;">
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong><br>
+          当前处于<strong>预质押签到奖励阶段</strong>。用户通过网页签到累积的 PAWLY，将在正式上市后由官方钱包统一空投发放。<br><br>
+          <strong>正式 Staking 开放条件：</strong>当 PAWLY 社区活跃用户数量超过 <strong>5000 人以上</strong> 时，我们将正式开启链上质押挖矿功能。
+        </div>
+        <div>
+          <strong>English：</strong><br>
+          We are currently in the <strong>pre-staking check-in reward phase</strong>. PAWLY accumulated through web check-ins will be airdropped after launch.<br><br>
+          <strong>Official Staking Opening Condition:</strong> When PAWLY reaches <strong>5000 active users or above</strong>, we will officially launch on-chain staking.
         </div>
       </div>
-      <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; margin:25px 0; text-align:left; line-height:1.85;">
-        <h3 style="color:#00ff9d; margin-top:0;">为什么我们要等到 5000 名活跃用户才开启 Staking？Why we needs 5000 users or above to start the Staking?</h3>
-        <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            我们不希望 Staking 成为少数早期用户的专属福利。我们相信，一个真正有生命力的项目，应该让每一位支持者在合适的时机，都能公平地参与并获得回报。<br><br>
-            当社区达到 5000 名活跃用户以上时，我们将准备一个更庞大、更可持续的奖励池。我们也会设计更完善的质押机制，包括更灵活的锁定期选项、更高的长期持有奖励，以及未来可能开放的治理投票权。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            We don’t want staking to become a privilege reserved for a small group of early users. We believe a truly sustainable project should allow every supporter to participate fairly when the time is right.<br><br>
-            Once we reach 5000 active users or above, we will prepare a larger and more sustainable reward pool. We will also design better staking mechanics, including flexible lock-up periods, higher rewards for long-term holders, and future governance voting rights.
-          </div>
+    </div>
+
+    <!-- 为什么等 5000 用户 -->
+    <div style="background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:18px; padding:28px; text-align:left; line-height:1.85;">
+      <h3 style="color:#00ff9d; margin-top:0;">为什么我们要等到 5000 名活跃用户才开启 Staking？<br>Why we need 5000 users or above to start Staking?</h3>
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong><br>
+          我们不希望 Staking 成为少数早期用户的专属福利。我们相信，一个真正有生命力的项目，应该让每一位支持者在合适的时机，都能公平地参与并获得回报。<br><br>
+          当社区达到 5000 名活跃用户以上时，我们将准备一个更庞大、更可持续的奖励池。我们也会设计更完善的质押机制，包括更灵活的锁定期选项、更高的长期持有奖励，以及未来可能开放的治理投票权。
+        </div>
+        <div>
+          <strong>English：</strong><br>
+          We don’t want staking to become a privilege reserved for a small group of early users. We believe a truly sustainable project should allow every supporter to participate fairly when the time is right.<br><br>
+          Once we reach 5000 active users or above, we will prepare a larger and more sustainable reward pool. We will also design better staking mechanics, including flexible lock-up periods, higher rewards for long-term holders, and future governance voting rights.
         </div>
       </div>
+    </div>
+
+  </div>
+</div>
+            
       <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
         专业版 Staking 功能已在 dApp 中开发中<br>
         Professional Staking features are being developed in the dApp
@@ -1241,21 +1255,19 @@ async function logout() {
   showTab(0);
 }
 
-function showStakingWaitlistModal() {
-  const modal = document.getElementById('stakingWaitlistModal');
-  const walletDisplay = document.getElementById('stakingWalletDisplay');
-  let wallet = document.getElementById('bind-wallet')?.value || localStorage.getItem('userWallet') || "未检测到钱包地址";
-  walletDisplay.innerText = wallet;
-  modal.style.display = 'flex';
-}
+function toggleStakingLongText() {
+  const content = document.getElementById('stakingLongText');
+  const btn = event.currentTarget;
 
-function closeStakingWaitlistModal() { document.getElementById('stakingWaitlistModal').style.display = 'none'; }
-
-function submitStakingWaitlist() {
-  alert("✅ 成功加入 Staking 等待名单！\n\n✅ You have successfully joined the Staking Waitlist!\n\n我们会在质押正式开启时优先通知你，并为你准备早期奖励。感谢你的支持！We will notify you first when Staking officially launches and prepare early staking rewards for you. Thank you for your support！");
-  closeStakingWaitlistModal();
-}
-
+  if (content.style.display === 'none' || content.style.display === '') {
+    content.style.display = 'block';
+    btn.innerHTML = '📕 收起完整说明 / Click to collapse';
+  } else {
+    content.style.display = 'none';
+    btn.innerHTML = '📖 点击展开完整说明 / Click to read full description';
+  }
+}  
+  
 function togglePaymentLongText() {
   const content = document.getElementById('paymentLongText');
   const btn = event.currentTarget;
