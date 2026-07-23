@@ -30,13 +30,13 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const endpoint = clusterApiUrl("mainnet-beta");
 
 const wallets = [
-  // 手机端专用（优先）
+  // 手机端 Mobile Wallet Adapter（已修复）
   new SolanaMobileWalletAdapter({
     addressSelector: createDefaultAddressSelector(),
     appIdentity: {
       name: "PAWLY DApp",
-      uri: "https://pawlypets.netlify.app",
-      icon: "/pawly-token-helps.png",
+      uri: "https://pawlypets.netlify.app/dapp",
+      icon: "https://pawlypets.netlify.app/pawly-logo-192.png", // 用已存在的图标
     },
     authorizationResultCache: createDefaultAuthorizationResultCache(),
     cluster: WalletAdapterNetwork.Mainnet,
