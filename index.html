@@ -240,8 +240,8 @@
           正式 Staking 将在社区达到 5000 名活跃用户后开启<br>
           Official Staking will launch after reaching 5000 active users
         </p>
-        <a href="https://pawlypets.netlify.app/dapp" target="_blank" rel="noopener noreferrer"
-           style="display: inline-block; background: #7c3aed; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 15px rgba(124,58,237,0.4);">
+        <a href="javascript:void(0)" onclick="goToDAppWithData()"
+           style="display: inline-block; background: #7c3aed; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 15px rgba(124,58,237,0.4); cursor: pointer;">
           立即质押赚奖励 / Stake Now
         </a>
       </div>
@@ -765,6 +765,50 @@ function showTab(n) {
   document.querySelectorAll('.nav button').forEach((btn, i) => btn.classList.toggle('active', i === n));
 }
 
+async function goToDAppWithData() {
+  if (!currentUser) {
+    alert("请先登录！\nPlease login first!");
+    return;
+  }
+
+  try {
+    const { data: userData, error } = await supabaseClient
+      .from("USERS")
+      .select("wallet_address, checkin_streak, total_earnd, email")
+      .eq("id", currentUser.id)
+      .single();
+
+    if (error) {
+      console.error(error);
+      alert("获取用户数据失败，请稍后重试\nFailed to fetch user data");
+      return;
+    }
+
+    const wallet = userData?.wallet_address || "";
+    const streak = userData?.checkin_streak || 0;
+    const total = userData?.total_earnd || 0;
+    const email = userData?.email || currentUser.email || "";
+
+    if (!wallet) {
+      alert("请先绑定钱包再进入 dApp！\nPlease bind your wallet first.");
+      showTab(1);
+      return;
+    }
+
+    const url =
+      "https://pawlypets.netlify.app/dapp" +
+      "?wallet=" + encodeURIComponent(wallet) +
+      "&streak=" + encodeURIComponent(streak) +
+      "&total_pawly=" + encodeURIComponent(total) +
+      "&email=" + encodeURIComponent(email);
+
+    window.location.href = url;
+  } catch (e) {
+    console.error(e);
+    alert("跳转失败，请稍后重试\nJump failed, please try again");
+  }
+}
+  
 async function showPawlyMembersPage() {
   document.querySelectorAll('.tab').forEach(el => {
     el.style.display = 'none';
@@ -1565,7 +1609,7 @@ function goToDApp() {
   const wallet = walletInput ? walletInput.value.trim() : "";
 
   // 构建跳转 URL
-  let url = "https://pawlypets-dapp.netlify.app";
+  let url = "https://pawlypets.netlify.app/dapp";
   const params = new URLSearchParams();
 
   if (currentUser.email) params.append("email", currentUser.email);
