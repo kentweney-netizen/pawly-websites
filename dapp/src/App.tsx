@@ -490,6 +490,39 @@ function PawlyStaking() {
 }
 
 function App() {
+  const wallets = React.useMemo(() => {
+    const adapters = [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      new TrustWalletAdapter(),
+      new CoinbaseWalletAdapter(),
+    ];
+
+    // 只在移动端加入 Mobile Wallet Adapter
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+      try {
+        adapters.unshift(
+          new SolanaMobileWalletAdapter({
+            addressSelector: createDefaultAddressSelector(),
+            appIdentity: {
+              name: "PAWLY DApp",
+              uri: "https://pawlypets.netlify.app/dapp",
+              icon: "https://pawlypets.netlify.app/pawly-logo-192.png",
+            },
+            authorizationResultCache: createDefaultAuthorizationResultCache(),
+            cluster: WalletAdapterNetwork.Mainnet,
+            onWalletNotFound: createDefaultWalletNotFoundHandler(),
+          })
+        );
+      } catch (e) {
+        console.error("Mobile Wallet Adapter 初始化失败:", e);
+      }
+    }
+
+    return adapters;
+  }, []);
+
   return (
     <BrowserRouter>
       <ConnectionProvider endpoint={endpoint}>
