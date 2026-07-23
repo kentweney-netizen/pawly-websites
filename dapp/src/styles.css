@@ -1,0 +1,73 @@
+.App {
+  font-family: sans-serif;
+  text-align: center;
+}
+/* 新增：GitHub 主站 HTML 可点击卡片样式（只添加不修改原有内容） */
+.github-main-card {
+  margin: 32px auto;
+  max-width: 620px;
+  padding: 28px 32px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.github-main-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  border-color: #22c55e;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.github-main-card:active {
+  transform: scale(0.985);
+}
+
+.github-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.github-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.github-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.github-desc {
+  font-size: 15px;
+  line-height: 1.75;
+  color: #e5e7eb;
+  margin: 0 0 14px 0;
+}
+
+.github-hint {
+  margin-top: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.github-hint::after {
+  content: '↗';
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+
+.github-main-card:hover .github-hint::after {
+  transform: translate(2px, -2px);
+}
