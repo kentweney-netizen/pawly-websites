@@ -22,19 +22,25 @@ export default function WalletConnect() {
   const { setVisible } = useWalletModal();
   const [syncStatus, setSyncStatus] = useState(""); // 同步状态提示
 
-  // ==================== 更换钱包 ====================
-  const handleChangeWallet = () => {
-    if (!connected) return;
+   // 断开连接：未连接时也可点（无操作提示）
+  const handleDisconnect = () => {
+    if (!connected) {
+      alert("当前没有连接钱包\nNo wallet connected");
+      return;
+    }
     disconnect();
-    setTimeout(() => {
-      setVisible(true);
-    }, 200);
   };
 
-  // ==================== 断开连接 ====================
-  const handleDisconnect = () => {
-    if (!connected) return;
-    disconnect();
+  // 更换 / 选择钱包：未连接时直接弹出选择；已连接时先断开再弹出
+  const handleChangeWallet = () => {
+    if (connected) {
+      disconnect();
+      setTimeout(() => {
+        setVisible(true);
+      }, 250);
+    } else {
+      setVisible(true);
+    }
   };
 
   const handleConnectOrReselect = () => {
@@ -117,7 +123,6 @@ export default function WalletConnect() {
       {/* 2. Disconnect Wallet 按钮（一直显示，未连接时禁用） */}
       <button
         onClick={handleDisconnect}
-        disabled={!connected}
         style={{
           background: "transparent",
           color: connected ? "#ff6b6b" : "#666",
@@ -137,7 +142,6 @@ export default function WalletConnect() {
       {/* 3. Change Wallet 按钮（一直显示，未连接时禁用） */}
       <button
         onClick={handleChangeWallet}
-        disabled={!connected}
         style={{
           background: "transparent",
           color: connected ? "#00ff9d" : "#666",
