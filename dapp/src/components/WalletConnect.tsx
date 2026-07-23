@@ -120,43 +120,43 @@ export default function WalletConnect() {
         </button>
       )}
 
-      {/* 2. Disconnect Wallet 按钮（一直显示，未连接时禁用） */}
-      <button
-        onClick={handleDisconnect}
-        style={{
-          background: "transparent",
-          color: connected ? "#ff6b6b" : "#666",
-          border: `1px solid ${connected ? "#ff6b6b" : "#444"}`,
-          padding: "10px 24px",
-          borderRadius: "10px",
-          cursor: connected ? "pointer" : "not-allowed",
-          fontSize: "15px",
-          fontWeight: "500",
-          width: "220px",
-          opacity: connected ? 1 : 0.5,
-        }}
-      >
-        断开连接 / Disconnect Wallet
-      </button>
+      {/* 断开连接 - 亮红色 */}
+<button
+  onClick={handleDisconnect}
+  style={{
+    background: "linear-gradient(135deg, #ff4d4d, #ff1a1a)",
+    color: "#fff",
+    border: "none",
+    padding: "12px 24px",
+    borderRadius: "12px",
+    cursor: "pointer",
+    fontSize: "15px",
+    fontWeight: "700",
+    width: "220px",
+    boxShadow: "0 4px 15px rgba(255, 50, 50, 0.45)",
+  }}
+>
+  断开连接 / Disconnect Wallet
+</button>
 
-      {/* 3. Change Wallet 按钮（一直显示，未连接时禁用） */}
-      <button
-        onClick={handleChangeWallet}
-        style={{
-          background: "transparent",
-          color: connected ? "#00ff9d" : "#666",
-          border: `1px solid ${connected ? "#00ff9d" : "#444"}`,
-          padding: "10px 24px",
-          borderRadius: "10px",
-          cursor: connected ? "pointer" : "not-allowed",
-          fontSize: "15px",
-          fontWeight: "500",
-          width: "220px",
-          opacity: connected ? 1 : 0.5,
-        }}
-      >
-        更换钱包 / Change Wallet
-      </button>
+{/* 更换钱包 - 亮绿色 */}
+<button
+  onClick={handleChangeWallet}
+  style={{
+    background: "linear-gradient(135deg, #00ff9d, #00c853)",
+    color: "#000",
+    border: "none",
+    padding: "12px 24px",
+    borderRadius: "12px",
+    cursor: "pointer",
+    fontSize: "15px",
+    fontWeight: "700",
+    width: "220px",
+    boxShadow: "0 4px 15px rgba(0, 255, 157, 0.45)",
+  }}
+>
+  更换钱包 / Change Wallet
+</button>
 
       {/* 已连接时显示当前钱包地址 */}
       {connected && publicKey && (
