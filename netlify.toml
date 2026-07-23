@@ -1,18 +1,9 @@
 [build]
-  command = "cd dapp && npm install --legacy-peer-deps && npm run build"
-  publish = "."
+  base = "dapp"
+  command = "npm install --legacy-peer-deps && npm run build"
+  publish = "dapp/dist"
 
 [[redirects]]
-  from = "/dapp"
-  to = "/dapp/dist/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/dapp/*"
-  to = "/dapp/dist/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/dapp/assets/*"
-  to = "/dapp/dist/assets/:splat"
+  from = "/*"
+  to = "/index.html"
   status = 200
