@@ -37,6 +37,17 @@ export default function WalletConnect() {
     disconnect();
   };
 
+  const handleConnectOrReselect = () => {
+    if (connected) {
+      disconnect();
+      setTimeout(() => {
+        setVisible(true);
+      }, 250);
+    } else {
+      setVisible(true);
+    }
+  };
+
   // ==================== 钱包连接成功后自动同步到 Supabase ====================
   useEffect(() => {
     const syncWalletToSupabase = async () => {
@@ -82,8 +93,26 @@ export default function WalletConnect() {
         border: "1px solid #00ff9d",
       }}
     >
-      {/* 1. Connect Wallet 按钮（一直显示） */}
-      <WalletMultiButton />
+      {!connected && <WalletMultiButton />}
+
+      {connected && (
+        <button
+          onClick={handleConnectOrReselect}
+          style={{
+            background: "#512da8",
+            color: "#fff",
+            border: "none",
+            padding: "12px 24px",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "16px",
+            fontWeight: "600",
+            minWidth: "180px",
+          }}
+        >
+          Connect
+        </button>
+      )}
 
       {/* 2. Disconnect Wallet 按钮（一直显示，未连接时禁用） */}
       <button
