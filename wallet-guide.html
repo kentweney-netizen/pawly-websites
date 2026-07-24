@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAWLY PETS - 我的自动钱包说明 / Auto Wallet Guide</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a0a, #1a0033);
+      color: #e0e0e0; line-height: 1.75;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { color: #00ff9d; font-size: 1.75rem; text-align: center; margin-bottom: 8px; }
+    .sub { text-align: center; color: #ff9ecd; margin-bottom: 28px; }
+    .card {
+      background: rgba(0,255,150,0.06);
+      border: 1px solid #00ff9d;
+      border-radius: 18px;
+      padding: 22px 20px;
+      margin: 18px 0;
+    }
+    .card h2 { color: #00ff9d; font-size: 1.15rem; margin: 0 0 12px 0; }
+    .bilingual { display: flex; flex-direction: column; gap: 14px; }
+    .back {
+      display: inline-block; margin: 28px auto 0; text-align: center;
+      background: #00ff9d; color: #000; padding: 14px 36px;
+      border-radius: 9999px; font-weight: bold; text-decoration: none;
+    }
+    .center { text-align: center; }
+    ul { margin: 8px 0 0 18px; padding: 0; }
+    li { margin: 6px 0; }
+    .warn { border-color: #ffaa00; background: rgba(255,170,0,0.08); }
+    .warn h2 { color: #ffaa00; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🔐 我的自动钱包说明<br><span style="font-size:1.1rem;">Auto Wallet Guide</span></h1>
+    <p class="sub">PAWLY PETS · 邮箱登录后自动生成的 Solana 地址</p>
+
+    <div class="card">
+      <h2>1. 这是什么？ / What is this?</h2>
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong><br>
+          当你使用邮箱在 PAWLY 注册并登录后，系统会通过 Privy 为你自动创建一个 <strong>Solana 链上地址</strong>。
+          该地址会写入你的账户，用于签到资格、显示资产信息，以及未来在 PAWLY 生态内收款与互动。
+        </div>
+        <div>
+          <strong>English：</strong><br>
+          After you register and log in with email, PAWLY automatically creates a <strong>Solana address</strong> for you via Privy.
+          It is linked to your account for check-in eligibility, balances display, and future activity inside the PAWLY ecosystem.
+        </div>
+      </div>
+    </div>
+
+    <div class="card warn">
+      <h2>2. 重要限制 / Important limits</h2>
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong>
+          <ul>
+            <li>这是<strong>嵌入式钱包（embedded wallet）</strong>，不是传统「助记词钱包」。</li>
+            <li><strong>不能</strong>仅凭复制地址，就把钱包导入 Phantom、Solflare 或其他 App。</li>
+            <li>导入外部钱包需要私钥或助记词；自动钱包的密钥由安全机制管理，默认不提供助记词导入流程。</li>
+            <li>地址可以<strong>接收</strong> SOL / USDC / 未来的 PAWLY；在任意区块链浏览器可查询。</li>
+          </ul>
+        </div>
+        <div>
+          <strong>English：</strong>
+          <ul>
+            <li>This is an <strong>embedded wallet</strong>, not a classic seed-phrase wallet.</li>
+            <li>You <strong>cannot</strong> import it into Phantom/Solflare by pasting the address alone.</li>
+            <li>Importing requires a private key or seed phrase; the auto wallet is managed securely and is not a standard import flow.</li>
+            <li>The address <strong>can receive</strong> SOL / USDC / future PAWLY and is visible on Solana explorers.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. 若要在链上自行交易 / If you want to trade on DEXs</h2>
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong><br>
+          若你希望在 Jupiter、Raydium 等平台自己操作：
+          <ul>
+            <li>安装 Phantom 或 Solflare 等钱包，创建你自己的地址；</li>
+            <li>回到 PAWLY 页面，使用「绑定或更新钱包」绑定该外部地址；</li>
+            <li>之后可在对应平台连接钱包进行交易。</li>
+          </ul>
+          自动生成的地址与你绑定的外部地址可以不同；许多用户会同时保留两者。
+        </div>
+        <div>
+          <strong>English：</strong><br>
+          To trade yourself on Jupiter, Raydium, etc.:
+          <ul>
+            <li>Install Phantom or Solflare and create your own wallet;</li>
+            <li>Return to PAWLY and use “Connect or Update Wallet” to bind that external address;</li>
+            <li>Then connect that wallet on the DEX to trade.</li>
+          </ul>
+          Your auto address and external address may differ; many users keep both.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>4. 在 PAWLY 内如何使用 / How it works inside PAWLY</h2>
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong>
+          <ul>
+            <li>有地址后即可满足签到对「已绑定钱包」的要求；</li>
+            <li>未来质押、支付等功能可在官方 dApp 内完成签名与交互；</li>
+            <li>请勿向任何人透露密码；官方不会向你索要助记词或私钥。</li>
+          </ul>
+        </div>
+        <div>
+          <strong>English：</strong>
+          <ul>
+            <li>Having an address satisfies the check-in wallet requirement;</li>
+            <li>Future staking/payments can be signed inside the official dApp;</li>
+            <li>Never share your password; PAWLY will never ask for seed phrases or private keys.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>5. 安全提示 / Safety</h2>
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong><br>
+          谨防仿冒网站与私信「客服」。只通过官方域名使用 PAWLY。任何要求你导出助记词、转账到「验证地址」的行为都是诈骗。
+        </div>
+        <div>
+          <strong>English：</strong><br>
+          Beware of fake sites and DMs from “support”. Use only official PAWLY domains. Anyone asking for your seed phrase or a “verification transfer” is a scam.
+        </div>
+      </div>
+    </div>
+
+    <div class="center">
+      <a class="back" href="index.html">← 返回主页 / Back to Home</a>
+    </div>
+    <p class="center" style="color:#666; font-size:0.85em; margin-top:20px;">
+      © 2026 PAWLY PETS · Wallet Guide
+    </p>
+  </div>
+</body>
+</html>
