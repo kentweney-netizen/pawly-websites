@@ -124,45 +124,6 @@
     </div>
   </div>
 
-  <!-- 自动钱包说明（折叠） -->
-<div style="margin-top:18px;">
-  <button type="button" onclick="toggleWalletGuide()"
-          id="walletGuideBtn"
-          style="width:100%; padding:14px; background:#1a0033; color:#00ff9d;
-                 border:2px solid #00ff9d; border-radius:14px; font-size:0.95em;
-                 cursor:pointer; font-weight:600; box-sizing:border-box;">
-    📖 了解我的自动钱包 / About My Auto Wallet
-  </button>
-  <div id="walletGuideShort" style="display:none; margin-top:14px; background:rgba(255,255,255,0.04);
-                                    border:1px solid #444; border-radius:14px; padding:18px; text-align:left; line-height:1.75; font-size:0.92em;">
-    <div class="bilingual">
-      <div>
-        <strong>中文：</strong><br>
-        登录后系统会通过 Privy 自动为你生成一个 <strong>Solana 地址</strong>，用于签到与接收奖励。<br><br>
-        • 这是真实的链上地址，可以收款。<br>
-        • 这是<strong>嵌入式钱包</strong>，私钥由安全机制保管，<strong>不能</strong>用「只复制地址」导入 Phantom / Solflare。<br>
-        • 若要在 Jupiter、Raydium 等自行交易，请使用 Phantom 等钱包，并在本页绑定该外部地址。<br>
-        • 完整说明请点击下方进入专页。
-      </div>
-      <div style="margin-top:14px;">
-        <strong>English：</strong><br>
-        After login, a <strong>Solana address</strong> is created automatically for check-in and rewards.<br><br>
-        • It is a real on-chain address and can receive funds.<br>
-        • It is an <strong>embedded wallet</strong> — you cannot import it into Phantom/Solflare by address alone.<br>
-        • To trade on Jupiter/Raydium yourself, use Phantom (or similar) and bind that address on this page.<br>
-        • Full details are on the dedicated page below.
-      </div>
-    </div>
-    <div style="text-align:center; margin-top:18px;">
-      <a href="wallet-guide.html"
-         style="display:inline-block; background:linear-gradient(135deg,#8b5cf6,#10b981); color:white;
-                padding:12px 28px; border-radius:9999px; text-decoration:none; font-weight:600; font-size:0.95em;">
-        打开完整说明 / Open Full Guide
-      </a>
-    </div>
-  </div>
-</div>
-
   <!-- tab1 仪表盘 -->
   <div class="tab active" id="tab1">
     <div class="container">
@@ -593,6 +554,56 @@
       </div>
     </div>
 
+  <!-- ========== 仅 About PAWLY：折叠说明 ========== -->
+<div style="margin: 40px 0 10px; padding-top: 28px; border-top: 1px solid rgba(0,255,157,0.25);">
+
+  <button type="button" onclick="toggleWalletGuide()"
+          id="walletGuideBtn"
+          style="width:100%; padding:14px; margin-bottom:12px; background:#1a0033; color:#00ff9d;
+                 border:2px solid #00ff9d; border-radius:14px; font-size:0.95em; cursor:pointer; font-weight:600; box-sizing:border-box;">
+    📖 了解我的自动钱包 / About My Auto Wallet
+  </button>
+  <div id="walletGuideShort" style="display:none; margin-bottom:18px; background:rgba(255,255,255,0.04);
+                                    border:1px solid #444; border-radius:14px; padding:18px; text-align:left; line-height:1.75; font-size:0.92em;">
+    <div class="bilingual">
+      <div>
+        <strong>中文：</strong><br>
+        登录后系统会通过 Privy 自动生成 Solana 地址，用于签到与接收奖励。<br>
+        这是嵌入式钱包，不能仅凭地址导入 Phantom / Solflare。<br>
+        若要在 Jupiter、Raydium 自行交易，请用外部钱包并在签到页绑定。<br>
+        <a href="wallet-guide.html" style="color:#00ff9d;">打开完整说明页 →</a>
+      </div>
+      <div style="margin-top:12px;">
+        <strong>English：</strong><br>
+        After login, a Solana address is created for check-in and rewards.<br>
+        Embedded wallet — not importable into Phantom by address alone.<br>
+        To trade on DEXs, bind an external wallet on the check-in page.<br>
+        <a href="wallet-guide.html" style="color:#00ff9d;">Open full guide →</a>
+      </div>
+    </div>
+  </div>
+
+  <button type="button" onclick="toggleAboutPolicies()"
+          id="aboutPoliciesBtn"
+          style="width:100%; padding:14px; background:#1a0033; color:#aaa;
+                 border:1px solid #555; border-radius:14px; font-size:0.9em; cursor:pointer;">
+    © 2026 PAWLY PETS. All rights reserved. &amp; Policies / 版权所有 &amp; 政策
+  </button>
+  <div id="aboutPoliciesBox" style="display:none; margin-top:12px; background:rgba(255,255,255,0.03);
+                                    border:1px solid #444; border-radius:14px; padding:16px; text-align:center; line-height:1.7; font-size:0.9em;">
+    <p style="color:#ccc; margin:0 0 14px 0;">
+      隐私政策、儿童安全标准等法律文件<br>
+      <span style="color:#888;">Privacy Policy, Child Safety Standards &amp; more</span>
+    </p>
+    <a href="policies.html"
+       style="display:inline-block; background:linear-gradient(135deg,#8b5cf6,#10b981); color:white;
+              padding:12px 28px; border-radius:9999px; text-decoration:none; font-weight:600;">
+      查看全部政策 / View All Policies
+    </a>
+  </div>
+
+</div>    
+
     <!-- ==================== APK 下载按钮（放在折叠内容下方） ==================== -->
     <div style="text-align: center; margin: 30px 0 50px;">
       <a href="https://github.com/kentweney-netizen/pawly-websites/releases/download/v1.0.0/pawlypets-app.apk" 
@@ -612,14 +623,6 @@
     </div>
 
   </div>
-</div>
-
-  <!-- ==================== 单一 Legal 按钮 ==================== -->
-<div style="margin: 40px 0 30px 0; text-align: center;">
-  <a href="policies.html" 
-     style="display: inline-block; background: transparent; color: #00ff9d; border: 1px solid #00ff9d; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-size: 0.95rem;">
-    © 2026 PAWLY PETS. All rights reserved. & Policies / 版权所有 & 政策
-  </a>
 </div>
 
   <!-- ==================== Pet Payment Showcase ==================== -->
@@ -1477,6 +1480,19 @@ function toggleWalletGuide() {
   } else {
     box.style.display = 'none';
     btn.innerHTML = '📖 了解我的自动钱包 / About My Auto Wallet';
+  }
+}
+
+function toggleAboutPolicies() {
+  const box = document.getElementById('aboutPoliciesBox');
+  const btn = document.getElementById('aboutPoliciesBtn');
+  if (!box || !btn) return;
+  if (box.style.display === 'none' || box.style.display === '') {
+    box.style.display = 'block';
+    btn.innerHTML = '📕 收起政策 / Collapse Policies';
+  } else {
+    box.style.display = 'none';
+    btn.innerHTML = '© 2026 PAWLY PETS. All rights reserved. & Policies / 版权所有 & 政策';
   }
 }  
 
