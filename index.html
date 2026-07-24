@@ -124,6 +124,45 @@
     </div>
   </div>
 
+  <!-- 自动钱包说明（折叠） -->
+<div style="margin-top:18px;">
+  <button type="button" onclick="toggleWalletGuide()"
+          id="walletGuideBtn"
+          style="width:100%; padding:14px; background:#1a0033; color:#00ff9d;
+                 border:2px solid #00ff9d; border-radius:14px; font-size:0.95em;
+                 cursor:pointer; font-weight:600; box-sizing:border-box;">
+    📖 了解我的自动钱包 / About My Auto Wallet
+  </button>
+  <div id="walletGuideShort" style="display:none; margin-top:14px; background:rgba(255,255,255,0.04);
+                                    border:1px solid #444; border-radius:14px; padding:18px; text-align:left; line-height:1.75; font-size:0.92em;">
+    <div class="bilingual">
+      <div>
+        <strong>中文：</strong><br>
+        登录后系统会通过 Privy 自动为你生成一个 <strong>Solana 地址</strong>，用于签到与接收奖励。<br><br>
+        • 这是真实的链上地址，可以收款。<br>
+        • 这是<strong>嵌入式钱包</strong>，私钥由安全机制保管，<strong>不能</strong>用「只复制地址」导入 Phantom / Solflare。<br>
+        • 若要在 Jupiter、Raydium 等自行交易，请使用 Phantom 等钱包，并在本页绑定该外部地址。<br>
+        • 完整说明请点击下方进入专页。
+      </div>
+      <div style="margin-top:14px;">
+        <strong>English：</strong><br>
+        After login, a <strong>Solana address</strong> is created automatically for check-in and rewards.<br><br>
+        • It is a real on-chain address and can receive funds.<br>
+        • It is an <strong>embedded wallet</strong> — you cannot import it into Phantom/Solflare by address alone.<br>
+        • To trade on Jupiter/Raydium yourself, use Phantom (or similar) and bind that address on this page.<br>
+        • Full details are on the dedicated page below.
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:18px;">
+      <a href="wallet-guide.html"
+         style="display:inline-block; background:linear-gradient(135deg,#8b5cf6,#10b981); color:white;
+                padding:12px 28px; border-radius:9999px; text-decoration:none; font-weight:600; font-size:0.95em;">
+        打开完整说明 / Open Full Guide
+      </a>
+    </div>
+  </div>
+</div>
+
   <!-- tab1 仪表盘 -->
   <div class="tab active" id="tab1">
     <div class="container">
@@ -1427,6 +1466,19 @@ function toggleShelterList() {
     list.style.display = 'none';
   }
 }
+
+function toggleWalletGuide() {
+  const box = document.getElementById('walletGuideShort');
+  const btn = document.getElementById('walletGuideBtn');
+  if (!box || !btn) return;
+  if (box.style.display === 'none' || box.style.display === '') {
+    box.style.display = 'block';
+    btn.innerHTML = '📕 收起说明 / Collapse';
+  } else {
+    box.style.display = 'none';
+    btn.innerHTML = '📖 了解我的自动钱包 / About My Auto Wallet';
+  }
+}  
 
 async function sendEmailReminder() {
   if (!currentUser || !currentUser.email) return;
