@@ -902,7 +902,8 @@ async function loginUser() {
   currentUser = data.user;
 
   await ensureUserRowExists(currentUser.id, currentUser.email);
-
+  await ensureSolanaWallet();
+  
   const { data: userData } = await supabaseClient.from('USERS')
     .select('wallet_address, checkin_streak, total_earnd')
     .eq('id', currentUser.id)
@@ -959,6 +960,60 @@ async function ensureUserRowExists(userId, email) {
       total_earnd: 0,
       pawly_points: 0
     });
+  }
+}
+
+async function enableNotifications() {
+  const granted = await requestNotificationPermission();
+  if (granted) {
+    alert("✅ 通知已开启！当倒数结束时会收到提醒。\n✅ Notifications enabled! You will receive a reminder when the countdown ends.");
+  } else {
+    alert("请在浏览器设置中允许通知权限。\nPlease allow notification permission in your browser settings.");
+  }
+}
+
+async function ensureSolanaWallet() {
+  if (!currentUser) return null;
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) return null;
+
+    const res = await fetch(
+      "https://iqmyiqjgzrlwthilkeos.supabase.co/functions/v1/create-solana-wallet",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0", // 和页面里 supabaseClient 用的同一个 anon key
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const result = await res.json();
+    if (result.wallet_address) {
+      // 更新页面显示
+      const input = document.getElementById("bind-wallet");
+      if (input) {
+        input.value = result.wallet_address;
+        input.disabled = true;
+      }
+      const walletDisplay = document.getElementById("walletDisplay");
+      if (walletDisplay) {
+        walletDisplay.innerText = result.wallet_address;
+      }
+      console.log(
+        result.created ? "✅ 已自动创建 Solana 钱包" : "✅ 已有钱包",
+        result.wallet_address
+      );
+      return result.wallet_address;
+    }
+    console.error("ensureSolanaWallet:", result);
+    return null;
+  } catch (e) {
+    console.error("ensureSolanaWallet error:", e);
+    return null;
   }
 }
 
@@ -1658,15 +1713,6 @@ async function requestNotificationPermission() {
     return permission === "granted";
   }
   return false;
-}
-
-async function enableNotifications() {
-  const granted = await requestNotificationPermission();
-  if (granted) {
-    alert("✅ 通知已开启！当倒数结束时会收到提醒。\n✅ Notifications enabled! You will receive a reminder when the countdown ends.");
-  } else {
-    alert("请在浏览器设置中允许通知权限。\nPlease allow notification permission in your browser settings.");
-  }
 }
 
 // ==================== PWA Service Worker 注册 ====================
