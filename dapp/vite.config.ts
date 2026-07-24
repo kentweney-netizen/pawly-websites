@@ -3,6 +3,20 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  base: '/dapp/',          // ← 关键：让它能在 /dapp 路径下运行
+  base: '/dapp/',
   plugins: [react()],
+  optimizeDeps: {
+    include: [
+      '@solana/kit',
+      '@solana-program/memo',
+      '@solana-program/system',
+      '@solana-program/token',
+      '@privy-io/react-auth',
+    ],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
+  },
 })

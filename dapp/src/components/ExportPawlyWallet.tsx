@@ -1,6 +1,10 @@
 // @ts-nocheck
 import { usePrivy } from '@privy-io/react-auth';
 import { useExportWallet } from '@privy-io/react-auth/solana';
+import '@solana-program/memo';
+import '@solana-program/system';
+import '@solana-program/token';
+import '@solana/kit';
 
 export default function ExportPawlyWallet() {
   const { ready, authenticated, login, logout, user } = usePrivy();
