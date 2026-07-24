@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BrowserRouter } from "react-router-dom";
+import { PrivyProvider } from '@privy-io/react-auth';
+import ExportPawlyWallet from "./components/ExportPawlyWallet";
 import {
   ConnectionProvider,
   WalletProvider,
@@ -61,6 +63,7 @@ function AppContent() {
   const wallet = useWallet();
   const [searchParams] = useSearchParams();
 
+  const [showExport, setShowExport] = useState(false);
   const [verified, setVerified] = useState(false);
   const [pwaData, setPwaData] = useState({
     email: "",
@@ -223,6 +226,30 @@ function AppContent() {
       <div style={{ display: "flex", justifyContent: "center", margin: "40px 0" }}>
         <WalletConnect />
       </div>
+
+      {/* ===== 导出嵌入式钱包（新加） ===== */}
+<div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
+  <button
+    onClick={() => setShowExport(!showExport)}
+    style={{
+      background: "transparent",
+      color: "#00ff9d",
+      border: "1px solid #00ff9d",
+      padding: "12px 28px",
+      borderRadius: "9999px",
+      cursor: "pointer",
+      fontSize: "0.95rem",
+    }}
+  >
+    {showExport ? "收起导出 / Hide Export" : "导出嵌入式钱包 / Export Embedded Wallet"}
+  </button>
+</div>
+
+{showExport && (
+  <div style={{ maxWidth: 560, margin: "0 auto 30px" }}>
+    <ExportPawlyWallet />
+  </div>
+)}
 
       {/* 质押弹窗 */}
       {showStakingModal && (
@@ -492,13 +519,21 @@ function PawlyStaking() {
 function App() {
   return (
     <BrowserRouter>
-      <ConnectionProvider endpoint={endpoint}>
-        <WalletProvider wallets={wallets} autoConnect>
-          <WalletModalProvider>
-            <AppContent />
-          </WalletModalProvider>
-        </WalletProvider>
-      </ConnectionProvider>
+      <PrivyProvider
+        appId={import.meta.env.VITE_PRIVY_APP_ID}
+        config={{
+          loginMethods: ['email'],
+          appearance: { theme: 'dark' },
+        }}
+      >
+        <ConnectionProvider endpoint={endpoint}>
+          <WalletProvider wallets={wallets} autoConnect>
+            <WalletModalProvider>
+              <AppContent />
+            </WalletModalProvider>
+          </WalletProvider>
+        </ConnectionProvider>
+      </PrivyProvider>
     </BrowserRouter>
   );
 }
