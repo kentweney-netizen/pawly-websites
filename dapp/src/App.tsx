@@ -2,15 +2,7 @@
 /**
  * PAWLY DApp — 主页干净版 + 多功能路由
  * 25.07.2026
- * 基于 24.07.2026 完美版：Privy 导出 / Wallet Adapter / PWA 数据同步
- *
- * 路由：
- *   /              主页（数据卡 + 功能按钮）
- *   /staking       质押
- *   /payment       宠物支付
- *   /transfer      转账
- *   /swap          交易
- *   /charity       慈善
+ * FIX: BrowserRouter basename="/dapp" 匹配 vite base，解决白屏
  */
 import { useState, useEffect } from "react";
 import {
@@ -443,10 +435,10 @@ function PaymentPage() {
       <div style={{ ...card, maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
         <p style={{ color: "#bcc", lineHeight: 1.7, textAlign: "left" }}>
           <strong style={{ color: "#00ff9d" }}>中文：</strong>
-          支付需要钱包签名。正式上线后，你可在此确认金额、商户收款地址，并完成链上转账。PWA 主站可继续用于查看汇率与入口。
+          支付需要钱包签名。正式上线后，你可在此确认金额、商户收款地址，并完成链上转账。
           <br /><br />
           <strong style={{ color: "#00ff9d" }}>English：</strong>
-          Payment requires wallet signature. After launch, confirm amount and merchant address here, then sign the on-chain transfer.
+          Payment requires wallet signature. After launch, confirm amount and merchant address here, then sign.
         </p>
         <button disabled style={{ ...neonBtn, background: "#333", color: "#888", cursor: "not-allowed", marginTop: 12 }}>
           即将开放 / Coming Soon
@@ -465,7 +457,7 @@ function TransferPage() {
   const handleSend = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
     if (!to.trim() || !amount) return alert("请填写收款地址与金额");
-    alert("转账功能 UI 已就绪。接入真实发送逻辑后即可签名上链。\nTransfer UI ready. On-chain send will be wired next.");
+    alert("转账功能 UI 已就绪。接入真实发送逻辑后即可签名上链。\nTransfer UI ready.");
   };
 
   return (
@@ -531,9 +523,6 @@ function TransferPage() {
         <button onClick={handleSend} style={{ ...neonBtn, width: "100%" }}>
           发送 / Send {token}
         </button>
-        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center" }}>
-          下一步将接入真实 System / SPL Token 转账签名
-        </p>
       </div>
     </div>
   );
@@ -546,9 +535,9 @@ function SwapPage() {
       <div style={{ ...card, maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
         <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🔄</div>
         <p style={{ color: "#bcc", lineHeight: 1.7 }}>
-          Token 与流动性池上线后，这里将接入 Jupiter 或自有池完成兑换。
+          Token 与流动性池上线后开放兑换。
           <br />
-          <span style={{ color: "#778" }}>Swap will connect after CA & liquidity launch.</span>
+          <span style={{ color: "#778" }}>Swap after CA & liquidity launch.</span>
         </p>
         <button disabled style={{ ...neonBtn, background: "#333", color: "#888", cursor: "not-allowed" }}>
           即将开放 / Coming Soon
@@ -570,9 +559,7 @@ function CharityPage() {
       <PageHeader title="❤️ 慈善 / Charity" subtitle="支持马来西亚动物收容所与护生组织" />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <p style={{ color: "#bcc", lineHeight: 1.7, marginTop: 0 }}>
-          PAWLY 计划将部分生态收益用于动物保护。你可先通过下列官方渠道直接支持收容所。
-          <br />
-          <span style={{ color: "#778" }}>On-chain donation (transfer to shelter wallets) can be added next.</span>
+          可通过下列官方渠道支持收容所。以后可接链上转账捐款。
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {shelters.map((s) => (
@@ -610,7 +597,8 @@ function App() {
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <BrowserRouter>
+          {/* 必须与 vite.config base: '/dapp/' 一致，否则 /dapp 路径下路由匹配失败 → 白屏 */}
+          <BrowserRouter basename="/dapp">
             <AppRoutes />
           </BrowserRouter>
         </WalletModalProvider>
