@@ -1,10 +1,22 @@
 // @ts-nocheck
 /**
  * PAWLY DApp — 主页干净版 + 多功能路由
- * 25.07.2026
- * FIX: BrowserRouter basename="/dapp" 匹配 vite base，解决白屏
+ * 25.07.2026 v2（数据持久化强化 + Payment 完整功能）
+ * 基于 24.07.2026 完美版：Privy 导出 / Wallet Adapter / PWA 数据同步
+ *
+ * 修复：
+ *   1. 用户数据提到 Context（路由切换不丢数据，返回主页立即显示）
+ *   2. /payment 接入完整 Pet Payment（金额换算 + 支付方式 + 商户预留）
+ *
+ * 路由：
+ *   /              主页（数据卡 + 功能按钮）
+ *   /staking       质押
+ *   /payment       宠物支付（完整功能）
+ *   /transfer      转账
+ *   /swap          交易
+ *   /charity       慈善
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -66,6 +78,23 @@ const SUPABASE_KEY =
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID || "";
+const PAWLY_DAPP_USER_KEY = "pawly_dapp_user_v1";
+
+function loadSavedUser() {
+  try {
+    const raw = localStorage.getItem(PAWLY_DAPP_USER_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (o && (o.wallet || o.email)) return o;
+  } catch (_) {}
+  return null;
+}
+
+function saveUser(data) {
+  try {
+    localStorage.setItem(PAWLY_DAPP_USER_KEY, JSON.stringify(data));
+  } catch (_) {}
+}
 
 const pageWrap = {
   minHeight: "100vh",
@@ -105,7 +134,91 @@ const ghostBtn = {
   fontSize: "0.9rem",
 };
 
-function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+const UserDataContext = createContext(null);
+
+function useUserData() {
+  const ctx = useContext(UserDataContext);
+  if (!ctx) throw new Error("useUserData must be used within UserDataProvider");
+  return ctx;
+}
+
+function UserDataProvider({ children }) {
+  const saved0 = loadSavedUser();
+  const [verified, setVerified] = useState(!!(saved0 && (saved0.wallet || saved0.email)));
+  const [pwaData, setPwaData] = useState(
+    saved0 || { email: "", wallet: "", streak: "0", total_pawly: "0", points: "0" }
+  );
+
+  const applyUser = useCallback((next) => {
+    setPwaData(next);
+    saveUser(next);
+    setVerified(true);
+  }, []);
+
+  const verifyWalletWithSupabase = useCallback(async (connectedPubkey) => {
+    if (!connectedPubkey) return;
+    try {
+      const addr =
+        typeof connectedPubkey.toString === "function"
+          ? connectedPubkey.toString()
+          : String(connectedPubkey);
+      const { data, error } = await supabase
+        .from("USERS")
+        .select("*")
+        .eq("wallet_address", addr)
+        .single();
+      if (error || !data) {
+        console.log("未找到钱包对应的用户数据");
+        return;
+      }
+      const next = {
+        email: data.email || "",
+        wallet: data.wallet_address || addr,
+        streak: String(data.checkin_streak || 0),
+        total_pawly: String(data.total_earnd || 0),
+        points: String(data.pawly_points || 0),
+      };
+      applyUser(next);
+    } catch (err) {
+      console.error("读取 Supabase 数据失败:", err);
+    }
+  }, [applyUser]);
+
+  const refreshUserData = useCallback(
+    async (publicKey) => {
+      if (publicKey) {
+        await verifyWalletWithSupabase(publicKey);
+        return;
+      }
+      const saved = loadSavedUser();
+      if (saved && saved.wallet) {
+        applyUser(saved);
+        await verifyWalletWithSupabase({ toString: () => saved.wallet });
+        return;
+      }
+      if (pwaData.wallet) {
+        await verifyWalletWithSupabase({ toString: () => pwaData.wallet });
+      }
+    },
+    [verifyWalletWithSupabase, applyUser, pwaData.wallet]
+  );
+
+  const value = {
+    pwaData,
+    verified,
+    applyUser,
+    refreshUserData,
+    verifyWalletWithSupabase,
+    setPwaData,
+    setVerified,
+  };
+
+  return (
+    <UserDataContext.Provider value={value}>{children}</UserDataContext.Provider>
+  );
+}
+
+function PageHeader({ title, subtitle }) {
   const navigate = useNavigate();
   return (
     <div style={{ maxWidth: 720, margin: "0 auto 24px" }}>
@@ -120,50 +233,10 @@ function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   );
 }
 
-function HomePage() {
-  const wallet = useWallet();
+function SyncFromUrl() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [showExport, setShowExport] = useState(false);
-  const [verified, setVerified] = useState(false);
-  const [pwaData, setPwaData] = useState({
-    email: "",
-    wallet: "",
-    streak: "0",
-    total_pawly: "0",
-    points: "0",
-  });
-
-  const verifyWalletWithSupabase = async (connectedPubkey: any) => {
-    if (!connectedPubkey) return;
-    try {
-      const { data, error } = await supabase
-        .from("USERS")
-        .select("*")
-        .eq("wallet_address", connectedPubkey.toString())
-        .single();
-      if (error || !data) {
-        console.log("未找到钱包对应的用户数据");
-        return;
-      }
-      setVerified(true);
-      setPwaData({
-        email: data.email || "",
-        wallet: data.wallet_address || "",
-        streak: String(data.checkin_streak || 0),
-        total_pawly: String(data.total_earnd || 0),
-        points: String(data.pawly_points || 0),
-      });
-    } catch (err) {
-      console.error("读取 Supabase 数据失败:", err);
-    }
-  };
-
-  const refreshUserData = async () => {
-    if (wallet.publicKey) await verifyWalletWithSupabase(wallet.publicKey);
-    else if (pwaData.wallet)
-      await verifyWalletWithSupabase({ toString: () => pwaData.wallet });
-  };
+  const { applyUser, verifyWalletWithSupabase } = useUserData();
 
   useEffect(() => {
     const walletFromUrl = searchParams.get("wallet");
@@ -173,27 +246,48 @@ function HomePage() {
     const action = searchParams.get("action");
 
     if (walletFromUrl) {
-      setPwaData({
+      const next = {
         email: emailFromUrl || "",
         wallet: walletFromUrl,
         streak: streakFromUrl || "0",
         total_pawly: totalFromUrl || "0",
         points: "0",
-      });
-      setVerified(true);
+      };
+      applyUser(next);
       verifyWalletWithSupabase({ toString: () => walletFromUrl });
+    } else {
+      const saved = loadSavedUser();
+      if (saved && (saved.wallet || saved.email)) {
+        applyUser(saved);
+        if (saved.wallet) verifyWalletWithSupabase({ toString: () => saved.wallet });
+      }
     }
 
-    if (action === "staking") navigate("/staking");
-    if (action === "payment") navigate("/payment");
-    if (action === "transfer") navigate("/transfer");
-    if (action === "swap") navigate("/swap");
-    if (action === "charity") navigate("/charity");
+    if (action === "staking") navigate("/staking", { replace: true });
+    if (action === "payment") navigate("/payment", { replace: true });
+    if (action === "transfer") navigate("/transfer", { replace: true });
+    if (action === "swap") navigate("/swap", { replace: true });
+    if (action === "charity") navigate("/charity", { replace: true });
   }, [searchParams]);
 
+  return null;
+}
+
+function HomePage() {
+  const wallet = useWallet();
+  const navigate = useNavigate();
+  const { pwaData, verified, refreshUserData } = useUserData();
+  const [showExport, setShowExport] = useState(false);
+
   useEffect(() => {
-    if (wallet.publicKey) verifyWalletWithSupabase(wallet.publicKey);
+    if (wallet.publicKey) {
+      refreshUserData(wallet.publicKey);
+    }
   }, [wallet.publicKey]);
+
+  const onRefresh = () => {
+    refreshUserData(wallet.publicKey || null);
+  };
 
   const features = [
     { path: "/staking", icon: "💰", title: "质押 / Staking", desc: "USDC · SOL · USDT · PAWLY", color: "#7c3aed" },
@@ -222,7 +316,7 @@ function HomePage() {
               <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: "1.05rem" }}>我的数据 / My Data</div>
               <div style={{ color: "#778", fontSize: "0.8rem", marginTop: 2 }}>与 PWA 主站同步 / Synced from PWA</div>
             </div>
-            <button onClick={refreshUserData} style={ghostBtn}>🔄 刷新</button>
+            <button onClick={onRefresh} style={ghostBtn}>🔄 刷新</button>
           </div>
 
           {verified || pwaData.wallet ? (
@@ -310,7 +404,7 @@ function HomePage() {
 
 function StakingPage() {
   const { publicKey, connected } = useWallet();
-  const [selectedToken, setSelectedToken] = useState<"USDC" | "SOL" | "USDT" | "PAWLY">("SOL");
+  const [selectedToken, setSelectedToken] = useState("SOL");
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [realBalance, setRealBalance] = useState(0);
@@ -322,7 +416,7 @@ function StakingPage() {
   const HELIUS_RPC =
     "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
 
-  const fetchBalance = async (token: typeof selectedToken) => {
+  const fetchBalance = async (token) => {
     if (!publicKey) return setRealBalance(0);
     if (token === "PAWLY") return setRealBalance(0);
     try {
@@ -357,10 +451,10 @@ function StakingPage() {
 
   return (
     <div style={pageWrap}>
-      <PageHeader title="💰 质押 / Staking" subtitle="Stake USDC · SOL · USDT · PAWLY（合约上线后开放真实质押）" />
+      <PageHeader title="💰 质押 / Staking" subtitle="Stake USDC · SOL · USDT · PAWLY（合约上线后开放真实质押/Staking Will Realeaased With Real CA）" />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {(["USDC", "SOL", "USDT", "PAWLY"] as const).map((t) => (
+          {["USDC", "SOL", "USDT", "PAWLY"].map((t) => (
             <button
               key={t}
               onClick={() => setSelectedToken(t)}
@@ -383,7 +477,7 @@ function StakingPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
           <div style={{ background: "#12121f", borderRadius: 12, padding: 14 }}>
             <div style={{ color: "#778", fontSize: 12 }}>APY</div>
-            <div style={{ color: "#ffaa00", fontWeight: 700 }}>即将公布</div>
+            <div style={{ color: "#ffaa00", fontWeight: 700 }}>即将公布/To be announced</div>
           </div>
           <div style={{ background: "#12121f", borderRadius: 12, padding: 14 }}>
             <div style={{ color: "#778", fontSize: 12 }}>钱包余额 / Balance</div>
@@ -429,20 +523,141 @@ function StakingPage() {
 }
 
 function PaymentPage() {
+  const [amount, setAmount] = useState("");
+  const [usdcText, setUsdcText] = useState("0.00 USDC");
+  const [myrText, setMyrText] = useState("RM 0.00");
+  const [myrRate, setMyrRate] = useState(null);
+  const [rateLoading, setRateLoading] = useState(true);
+  const [payMethod, setPayMethod] = useState("usdc");
+  const PAWLY_PER_USDC = 5;
+
+  const fetchRates = async () => {
+    setRateLoading(true);
+    try {
+      const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+      if (!res.ok) throw new Error("rate fail");
+      const data = await res.json();
+      if (!data.rates?.MYR) throw new Error("no MYR");
+      setMyrRate(data.rates.MYR);
+    } catch (e) {
+      console.error(e);
+      setMyrRate(null);
+      setMyrText("汇率获取失败 / Rate failed");
+    } finally {
+      setRateLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRates();
+  }, []);
+
+  useEffect(() => {
+    const amt = parseFloat(amount) || 0;
+    if (amt <= 0) {
+      setUsdcText("0.00 USDC");
+      setMyrText(myrRate ? "RM 0.00" : rateLoading ? "汇率获取中..." : "—");
+      return;
+    }
+    const usdc = amt / PAWLY_PER_USDC;
+    setUsdcText(usdc.toFixed(2) + " USDC");
+    if (myrRate) setMyrText("RM " + (usdc * myrRate).toFixed(2));
+    else setMyrText(rateLoading ? "汇率获取中..." : "—");
+  }, [amount, myrRate, rateLoading]);
+
+  const confirm = () => {
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) {
+      alert("请输入有效金额\nPlease enter a valid amount");
+      return;
+    }
+    if (!myrRate) {
+      alert("汇率尚未获取，请稍后重试\nExchange rate not ready");
+      return;
+    }
+    const usdc = (amt / PAWLY_PER_USDC).toFixed(2);
+    const myr = (parseFloat(usdc) * myrRate).toFixed(2);
+    alert(
+      `✅ 支付确认（模拟）\n\n${amt} PAWLY ≈ ${usdc} USDC ≈ RM ${myr}\n支付方式: ${payMethod.toUpperCase()}\n\n正式链上支付将在 Token 上线后开放。\n\n✅ Simulated payment confirmed.\nOn-chain pay after token launch.`
+    );
+  };
+
   return (
     <div style={pageWrap}>
-      <PageHeader title="💳 宠物支付 / Pet Payment" subtitle="用 PAWLY 支付宠物相关消费 · 签名结算在 dApp 完成" />
-      <div style={{ ...card, maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
-        <p style={{ color: "#bcc", lineHeight: 1.7, textAlign: "left" }}>
-          <strong style={{ color: "#00ff9d" }}>中文：</strong>
-          支付需要钱包签名。正式上线后，你可在此确认金额、商户收款地址，并完成链上转账。
-          <br /><br />
-          <strong style={{ color: "#00ff9d" }}>English：</strong>
-          Payment requires wallet signature. After launch, confirm amount and merchant address here, then sign.
-        </p>
-        <button disabled style={{ ...neonBtn, background: "#333", color: "#888", cursor: "not-allowed", marginTop: 12 }}>
-          即将开放 / Coming Soon
+      <PageHeader
+        title="💳 宠物支付 / Pet Payment"
+        subtitle="输入 PAWLY 数量 · 查看 USDC / MYR 换算（模拟/Simulated）"
+      />
+      <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <label style={{ color: "#99a", fontSize: 13 }}>支付金额（PAWLY） / Amount</label>
+        <input
+          type="number"
+          min="1"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="例如 25"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            margin: "8px 0 16px",
+            background: "#12121f",
+            border: "1px solid #333",
+            borderRadius: 12,
+            padding: 14,
+            color: "#fff",
+            fontSize: "1.15rem",
+          }}
+        />
+        <div style={{ background: "#12121f", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ color: "#889" }}>≈ USDC</span>
+            <span style={{ color: "#00ff9d", fontWeight: 700 }}>{usdcText}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "#889" }}>≈ MYR（今日）</span>
+            <span style={{ color: "#ffaa00", fontWeight: 700 }}>{myrText}</span>
+          </div>
+          <p style={{ color: "#667", fontSize: 12, margin: "12px 0 0", lineHeight: 1.5 }}>
+            临时比例：5 PAWLY ≈ 1 USDC（上线后改用链上价格）
+            <br />
+            Temp: 5 PAWLY ≈ 1 USDC (Real price on Chain)
+          </p>
+        </div>
+
+        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 10px" }}>支付方式 / Payment Method</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", color: "#e8fff5" }}>
+            <input type="radio" name="payMethod" checked={payMethod === "usdc"} onChange={() => setPayMethod("usdc")} />
+            <span>USDC（推荐 / Recommended）</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, color: "#667" }}>
+            <input type="radio" name="payMethod" disabled />
+            <span>USDT（即将开放 / Coming Soon）</span>
+          </label>
+        </div>
+
+        <button onClick={confirm} style={{ ...neonBtn, width: "100%", marginBottom: 10 }}>
+          确认支付（模拟） / Confirm (Simulated)
         </button>
+        <button onClick={fetchRates} style={{ ...ghostBtn, width: "100%", boxSizing: "border-box" }}>
+          🔄 刷新汇率 / Refresh Rate
+        </button>
+
+        <div style={{ marginTop: 20, padding: 16, background: "rgba(33,150,243,0.08)", border: "1px solid rgba(33,150,243,0.3)", borderRadius: 14 }}>
+          <p style={{ color: "#64b5f6", fontWeight: 700, margin: "0 0 10px" }}>商户合作 / For Merchants</p>
+          <button
+            onClick={() =>
+              alert("商户扫码收款功能即将开放\nMerchant QR payment feature coming soon")
+            }
+            style={{ ...ghostBtn, width: "100%", boxSizing: "border-box" }}
+          >
+            📷 商户扫码收款（预留） / Merchant QR (Coming Soon)
+          </button>
+        </div>
+
+        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center" }}>
+          商户扫码与真实链上结算将在后续接入/Merchant QR & on-chain settlement coming later
+        </p>
       </div>
     </div>
   );
@@ -450,22 +665,22 @@ function PaymentPage() {
 
 function TransferPage() {
   const { connected } = useWallet();
-  const [token, setToken] = useState<"SOL" | "USDC" | "USDT">("SOL");
+  const [token, setToken] = useState("SOL");
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
 
   const handleSend = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
     if (!to.trim() || !amount) return alert("请填写收款地址与金额");
-    alert("转账功能 UI 已就绪。接入真实发送逻辑后即可签名上链。\nTransfer UI ready.");
+    alert("转账功能 UI 已就绪。接入真实发送逻辑后即可签名上链。\nTransfer UI ready. On-chain send will be wired next.");
   };
 
   return (
     <div style={pageWrap}>
-      <PageHeader title="📤 转账 / Transfer" subtitle="发送 SOL / USDC / USDT 到任意 Solana 地址" />
+      <PageHeader title="📤 转账 / Transfer" subtitle="发送 SOL / USDC / USDT 到任意 Solana 地址 / Send SOL · USDC · USDT to any Solana address" />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          {(["SOL", "USDC", "USDT"] as const).map((t) => (
+          {["SOL", "USDC", "USDT"].map((t) => (
             <button
               key={t}
               onClick={() => setToken(t)}
@@ -523,6 +738,9 @@ function TransferPage() {
         <button onClick={handleSend} style={{ ...neonBtn, width: "100%" }}>
           发送 / Send {token}
         </button>
+        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center" }}>
+          下一步将接入真实 System / SPL Token 转账签名，Next: real System / SPL Token transfer signing
+        </p>
       </div>
     </div>
   );
@@ -535,9 +753,9 @@ function SwapPage() {
       <div style={{ ...card, maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
         <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🔄</div>
         <p style={{ color: "#bcc", lineHeight: 1.7 }}>
-          Token 与流动性池上线后开放兑换。
+          Token 与流动性池上线后，这里将接入 Jupiter/Raydium 或自有池完成兑换。
           <br />
-          <span style={{ color: "#778" }}>Swap after CA & liquidity launch.</span>
+          <span style={{ color: "#778" }}>Swap will connect to Jupiter/Raydium or our pool after CA & liquidity launch.</span>
         </p>
         <button disabled style={{ ...neonBtn, background: "#333", color: "#888", cursor: "not-allowed" }}>
           即将开放 / Coming Soon
@@ -556,10 +774,10 @@ function CharityPage() {
 
   return (
     <div style={pageWrap}>
-      <PageHeader title="❤️ 慈善 / Charity" subtitle="支持马来西亚动物收容所与护生组织" />
+      <PageHeader title="❤️ 慈善 / Charity" subtitle="支持全世界动物收容所与护生组织，从马来西亚开始/Supporting animal shelters & welfare organizations worldwide，started from Malaysia" />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <p style={{ color: "#bcc", lineHeight: 1.7, marginTop: 0 }}>
-          可通过下列官方渠道支持收容所。以后可接链上转账捐款。
+          PAWLY 计划将部分生态收益用于动物保护。你可先通过下列官方渠道直接支持收容所。/PAWLY plans to use part of ecosystem revenue for animal protection. You can support shelters directly via the official channels below.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {shelters.map((s) => (
@@ -568,7 +786,13 @@ function CharityPage() {
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...ghostBtn, display: "block", textAlign: "center", textDecoration: "none", padding: 14 }}
+              style={{
+                ...ghostBtn,
+                display: "block",
+                textAlign: "center",
+                textDecoration: "none",
+                padding: 14,
+              }}
             >
               {s.name} ↗
             </a>
@@ -581,14 +805,17 @@ function CharityPage() {
 
 function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/staking" element={<StakingPage />} />
-      <Route path="/payment" element={<PaymentPage />} />
-      <Route path="/transfer" element={<TransferPage />} />
-      <Route path="/swap" element={<SwapPage />} />
-      <Route path="/charity" element={<CharityPage />} />
-    </Routes>
+    <>
+      <SyncFromUrl />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/staking" element={<StakingPage />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/transfer" element={<TransferPage />} />
+        <Route path="/swap" element={<SwapPage />} />
+        <Route path="/charity" element={<CharityPage />} />
+      </Routes>
+    </>
   );
 }
 
@@ -597,9 +824,10 @@ function App() {
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          {/* 必须与 vite.config base: '/dapp/' 一致，否则 /dapp 路径下路由匹配失败 → 白屏 */}
           <BrowserRouter basename="/dapp">
-            <AppRoutes />
+            <UserDataProvider>
+              <AppRoutes />
+            </UserDataProvider>
           </BrowserRouter>
         </WalletModalProvider>
       </WalletProvider>

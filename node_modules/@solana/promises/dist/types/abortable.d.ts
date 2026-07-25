@@ -1,0 +1,40 @@
+/**
+ * Returns `true` if the given value is an `Error` whose `name` is `'AbortError'`.
+ *
+ * When an {@link AbortSignal} fires without a custom `reason`, or when APIs like `fetch` are
+ * aborted, they reject with a `DOMException` (or similar `Error` subclass) whose `name` is
+ * `'AbortError'`. This helper lets callers distinguish abort rejections from other failures
+ * without having to `instanceof`-check every platform-specific error class.
+ *
+ * @example
+ * ```ts
+ * try {
+ *     await getAbortablePromise(doWork(), signal);
+ * } catch (e) {
+ *     if (isAbortError(e)) {
+ *         // The operation was aborted; don't surface as an error.
+ *         return;
+ *     }
+ *     throw e;
+ * }
+ * ```
+ *
+ * @see {@link getAbortablePromise}
+ */
+export declare function isAbortError(err: unknown): err is Error;
+/**
+ * Returns a new promise that will reject if the abort signal fires before the original promise
+ * settles. Resolves or rejects with the value of the original promise otherwise.
+ *
+ * @example
+ * ```ts
+ * const result = await getAbortablePromise(
+ *     // Resolves or rejects when `fetch` settles.
+ *     fetch('https://example.com/json').then(r => r.json()),
+ *     // ...unless it takes longer than 5 seconds, after which the `AbortSignal` is triggered.
+ *     AbortSignal.timeout(5000),
+ * );
+ * ```
+ */
+export declare function getAbortablePromise<T>(promise: Promise<T>, abortSignal?: AbortSignal): Promise<T>;
+//# sourceMappingURL=abortable.d.ts.map
