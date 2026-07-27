@@ -1,20 +1,12 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 主页干净版 + 多功能路由
- * 25.07.2026 v2（数据持久化强化 + Payment 完整功能）
- * 基于 24.07.2026 完美版：Privy 导出 / Wallet Adapter / PWA 数据同步
- *
- * 修复：
- *   1. 用户数据提到 Context（路由切换不丢数据，返回主页立即显示）
- *   2. /payment 接入完整 Pet Payment（金额换算 + 支付方式 + 商户预留）
- *
- * 路由：
- *   /              主页（数据卡 + 功能按钮）
- *   /staking       质押
- *   /payment       宠物支付（完整功能）
- *   /transfer      转账
- *   /swap          交易
- *   /charity       慈善
+ * PAWLY DApp — 25.07.2026 v3
+ * 基于完美版 v2 + 本次：
+ *   1. Swap 完整可计算框架（PAWLY↔USDC/USDT/SOL，CA 预留可插）
+ *   2. Transfer 增加 PAWLY
+ *   3. 全功能页：链上基础 Gas 估算（真实 Solana base fee）
+ *   4. 全功能页：CA 未上线双语警告
+ *   5. 全部中英双语
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -79,6 +71,158 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID || "";
 const PAWLY_DAPP_USER_KEY = "pawly_dapp_user_v1";
+
+/* ========== Token / CA 配置（上线后只改这里） ========== */
+const PAWLY_MINT = null; // TODO: 创建后填入 PAWLY Token CA
+const PAWLY_DECIMALS = 9;
+const PAWLY_PER_USDC = 5; // 临时比例，池子上线后改用链上报价
+const TOKEN_MINTS = {
+  USDC: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  USDT: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+  SOL: "So11111111111111111111111111111111111111112",
+  PAWLY: PAWLY_MINT,
+};
+const HELIUS_RPC_GLOBAL =
+  "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
+const LAMPORTS_PER_SOL = 1e9;
+const BASE_FEE_LAMPORTS = 5000;
+
+/** 各操作预估计算单元 / 签名费（Solana 基础费用，真实区间） */
+const GAS_PRESETS = {
+  transfer_sol: { label: "SOL 转账 / SOL Transfer", sigs: 1, cu: 300, extraLamports: 0 },
+  transfer_token: { label: "代币转账 / Token Transfer", sigs: 1, cu: 40000, extraLamports: 0 },
+  transfer_pawly: { label: "PAWLY 转账 / PAWLY Transfer", sigs: 1, cu: 40000, extraLamports: 0 },
+  swap: { label: "兑换 / Swap", sigs: 1, cu: 200000, extraLamports: 0 },
+  stake: { label: "质押 / Stake", sigs: 1, cu: 150000, extraLamports: 0 },
+  payment: { label: "支付 / Payment", sigs: 1, cu: 120000, extraLamports: 0 },
+  charity: { label: "慈善捐赠 / Charity", sigs: 1, cu: 40000, extraLamports: 0 },
+};
+
+function formatSol(lamports) {
+  return (lamports / LAMPORTS_PER_SOL).toFixed(6);
+}
+
+/**
+ * 估算 Gas：base signature fee + 可选 priority fee
+ * 不依赖 PAWLY CA，用当前主网基础费用
+ */
+async function estimateSolanaGas(presetKey = "transfer_sol") {
+  const preset = GAS_PRESETS[presetKey] || GAS_PRESETS.transfer_sol;
+  let priorityMicroLamports = 0;
+  try {
+    const connection = new Connection(HELIUS_RPC_GLOBAL, "confirmed");
+    const fees = await connection.getRecentPrioritizationFees?.();
+    if (fees && fees.length) {
+      const sorted = fees.map((f) => f.prioritizationFee || 0).sort((a, b) => a - b);
+      priorityMicroLamports = sorted[Math.floor(sorted.length * 0.5)] || 0;
+    }
+  } catch (_) {}
+  const baseLamports = BASE_FEE_LAMPORTS * (preset.sigs || 1);
+  const cu = preset.cu || 200000;
+  const priorityLamports = Math.ceil((priorityMicroLamports * cu) / 1e6);
+  const total = baseLamports + priorityLamports + (preset.extraLamports || 0);
+  return {
+    preset: preset.label,
+    baseLamports,
+    priorityLamports,
+    totalLamports: total,
+    totalSol: formatSol(total),
+    note:
+      priorityLamports > 0
+        ? "含当前网络优先费中位数 / Includes median priority fee"
+        : "仅基础签名费（网络空闲）/ Base signature fee only (network idle)",
+  };
+}
+
+/** 双语 CA 未上线警告条 */
+function CaWarningBanner({ feature }) {
+  return (
+    <div
+      style={{
+        background: "rgba(255,136,0,0.12)",
+        border: "1px solid rgba(255,136,0,0.45)",
+        borderRadius: 14,
+        padding: "12px 14px",
+        marginBottom: 16,
+        textAlign: "left",
+        lineHeight: 1.55,
+        fontSize: 13,
+        color: "#ffcc80",
+      }}
+    >
+      ⚠️ <strong>{feature || "本功能"}</strong>：PAWLY Token CA 尚未创建，状态为{" "}
+      <strong>To Be Announced</strong>。界面与 Gas 为真实链上框架，正式兑换/转账将在 CA + 流动性池上线后开放。
+      <br />
+      <span style={{ color: "#c9a06a" }}>
+        ⚠️ <strong>{feature || "This feature"}</strong>: PAWLY Token CA is not live yet (
+        <strong>TBA</strong>). UI & gas estimates use real Solana base fees; full on-chain execution opens after CA & pool launch.
+      </span>
+    </div>
+  );
+}
+
+/** Gas 估算展示盒 */
+function GasEstimateBox({ presetKey, refreshKey }) {
+  const [gas, setGas] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    estimateSolanaGas(presetKey)
+      .then((g) => {
+        if (alive) setGas(g);
+      })
+      .catch(() => {
+        if (alive)
+          setGas({
+            preset: GAS_PRESETS[presetKey]?.label || presetKey,
+            totalSol: formatSol(BASE_FEE_LAMPORTS),
+            totalLamports: BASE_FEE_LAMPORTS,
+            note: "基础签名费 / Base fee only",
+          });
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [presetKey, refreshKey]);
+
+  return (
+    <div
+      style={{
+        background: "rgba(0,255,157,0.06)",
+        border: "1px solid rgba(0,255,157,0.25)",
+        borderRadius: 12,
+        padding: 14,
+        marginTop: 14,
+        marginBottom: 8,
+        fontSize: 13,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ color: "#00ff9d", fontWeight: 700 }}>⛽ 预估 Gas / Est. Gas</span>
+        <span style={{ color: "#889", fontSize: 11 }}>{gas?.preset || "…"}</span>
+      </div>
+      {loading ? (
+        <div style={{ color: "#889" }}>计算中… / Calculating…</div>
+      ) : (
+        <>
+          <div style={{ color: "#e8fff5", fontWeight: 700, fontSize: "1.05rem" }}>
+            ≈ {gas?.totalSol} SOL
+            <span style={{ color: "#667", fontWeight: 400, fontSize: 12, marginLeft: 8 }}>
+              ({gas?.totalLamports?.toLocaleString()} lamports)
+            </span>
+          </div>
+          <div style={{ color: "#667", fontSize: 11, marginTop: 4, lineHeight: 1.4 }}>{gas?.note}</div>
+        </>
+      )}
+    </div>
+  );
+}
+
 
 function loadSavedUser() {
   try {
@@ -453,6 +597,8 @@ function StakingPage() {
     <div style={pageWrap}>
       <PageHeader title="💰 质押 / Staking" subtitle="Stake USDC · SOL · USDT · PAWLY（合约上线后开放真实质押/Staking Will Realeaased With Real CA）" />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <CaWarningBanner feature="质押 / Staking" />
+
         <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {["USDC", "SOL", "USDT", "PAWLY"].map((t) => (
             <button
@@ -509,7 +655,9 @@ function StakingPage() {
             }}
           />
         </div>
-        <button onClick={handleStake} disabled={loading} style={{ ...neonBtn, width: "100%", opacity: loading ? 0.6 : 1 }}>
+        
+        <GasEstimateBox presetKey="stake" refreshKey={selectedToken} />
+<button onClick={handleStake} disabled={loading} style={{ ...neonBtn, width: "100%", opacity: loading ? 0.6 : 1 }}>
           {loading ? "处理中..." : "Stake / 质押"}
         </button>
         <p style={{ color: "#667", fontSize: 13, marginTop: 16, lineHeight: 1.5, textAlign: "center" }}>
@@ -589,6 +737,8 @@ function PaymentPage() {
         subtitle="输入 PAWLY 数量 · 查看 USDC / MYR 换算（模拟/Simulated）"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <CaWarningBanner feature="宠物支付 / Pet Payment" />
+
         <label style={{ color: "#99a", fontSize: 13 }}>支付金额（PAWLY） / Amount</label>
         <input
           type="number"
@@ -636,7 +786,9 @@ function PaymentPage() {
           </label>
         </div>
 
-        <button onClick={confirm} style={{ ...neonBtn, width: "100%", marginBottom: 10 }}>
+        
+        <GasEstimateBox presetKey="payment" refreshKey={amount} />
+<button onClick={confirm} style={{ ...neonBtn, width: "100%", marginBottom: 10 }}>
           确认支付（模拟） / Confirm (Simulated)
         </button>
         <button onClick={fetchRates} style={{ ...ghostBtn, width: "100%", boxSizing: "border-box" }}>
@@ -664,28 +816,50 @@ function PaymentPage() {
 }
 
 function TransferPage() {
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
   const [token, setToken] = useState("SOL");
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
+  const [gasKey, setGasKey] = useState(0);
+
+  const isPawly = token === "PAWLY";
+  const gasPreset =
+    token === "SOL" ? "transfer_sol" : isPawly ? "transfer_pawly" : "transfer_token";
 
   const handleSend = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
-    if (!to.trim() || !amount) return alert("请填写收款地址与金额");
-    alert("转账功能 UI 已就绪。接入真实发送逻辑后即可签名上链。\nTransfer UI ready. On-chain send will be wired next.");
+    if (!to.trim() || !amount) return alert("请填写收款地址与金额\nEnter recipient & amount");
+    if (isPawly && !PAWLY_MINT) {
+      alert(
+        "PAWLY Token CA 尚未创建（To Be Announced）。\n转账框架已就绪，CA 上线后即可签名上链。\n\nPAWLY Token CA is TBA.\nTransfer UI is ready; signing opens after CA launch."
+      );
+      return;
+    }
+    alert(
+      `转账预览 / Transfer Preview\n\n代币 / Token: ${token}\n数量 / Amount: ${amount}\n收款 / To: ${to.slice(0, 8)}…${to.slice(-6)}\n\nCA 就绪后将发起真实 System / SPL 签名。\nReal System / SPL signing after CA is live.`
+    );
   };
 
   return (
     <div style={pageWrap}>
-      <PageHeader title="📤 转账 / Transfer" subtitle="发送 SOL / USDC / USDT 到任意 Solana 地址 / Send SOL · USDC · USDT to any Solana address" />
+      <PageHeader
+        title="📤 转账 / Transfer"
+        subtitle="发送 SOL · USDC · USDT · PAWLY 到任意 Solana 地址 / Send SOL · USDC · USDT · PAWLY to any Solana address"
+      />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          {["SOL", "USDC", "USDT"].map((t) => (
+        <CaWarningBanner feature="转账 / Transfer" />
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {["SOL", "USDC", "USDT", "PAWLY"].map((t) => (
             <button
               key={t}
-              onClick={() => setToken(t)}
+              onClick={() => {
+                setToken(t);
+                setGasKey((k) => k + 1);
+              }}
               style={{
                 flex: 1,
+                minWidth: 64,
                 padding: 12,
                 borderRadius: 12,
                 border: "none",
@@ -699,6 +873,15 @@ function TransferPage() {
             </button>
           ))}
         </div>
+
+        {isPawly && !PAWLY_MINT && (
+          <p style={{ color: "#ffaa00", fontSize: 12, marginTop: -8, marginBottom: 12 }}>
+            PAWLY mint：To Be Announced（创建后自动启用）
+            <br />
+            PAWLY mint: TBA — enabled after token create
+          </p>
+        )}
+
         <label style={{ color: "#99a", fontSize: 13 }}>收款地址 / To</label>
         <input
           value={to}
@@ -726,7 +909,7 @@ function TransferPage() {
           style={{
             width: "100%",
             boxSizing: "border-box",
-            margin: "8px 0 20px",
+            margin: "8px 0 12px",
             background: "#12121f",
             border: "1px solid #333",
             borderRadius: 12,
@@ -735,11 +918,16 @@ function TransferPage() {
             fontSize: "1.1rem",
           }}
         />
-        <button onClick={handleSend} style={{ ...neonBtn, width: "100%" }}>
+
+        <GasEstimateBox presetKey={gasPreset} refreshKey={gasKey} />
+
+        <button onClick={handleSend} style={{ ...neonBtn, width: "100%", marginTop: 8 }}>
           发送 / Send {token}
         </button>
-        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center" }}>
-          下一步将接入真实 System / SPL Token 转账签名，Next: real System / SPL Token transfer signing
+        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
+          链上基础 Gas 已按 Solana 实时估算。PAWLY 转账在 CA 上线后开放真实签名。
+          <br />
+          Gas uses live Solana base fees. PAWLY transfer signing opens after CA launch.
         </p>
       </div>
     </div>
@@ -747,19 +935,229 @@ function TransferPage() {
 }
 
 function SwapPage() {
+  const { connected } = useWallet();
+  const [fromToken, setFromToken] = useState("SOL");
+  const [toToken, setToToken] = useState("USDC");
+  const [amount, setAmount] = useState("");
+  const [quote, setQuote] = useState("0.00");
+  const [rateText, setRateText] = useState("—");
+  const [solUsd, setSolUsd] = useState(null);
+  const [gasKey, setGasKey] = useState(0);
+
+  const tokens = ["SOL", "USDC", "USDT", "PAWLY"];
+
+  // 拉取 SOL/USD 便于真实换算 SOL↔稳定币
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+        // 该 API 无 SOL；用备用公开价
+      } catch (_) {}
+      try {
+        const r = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+        );
+        if (!r.ok) throw new Error("cg");
+        const d = await r.json();
+        if (alive && d?.solana?.usd) setSolUsd(d.solana.usd);
+      } catch (_) {
+        if (alive) setSolUsd(150); // 合理回退，仅用于预览
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const amt = parseFloat(amount) || 0;
+    if (amt <= 0 || fromToken === toToken) {
+      setQuote("0.00");
+      setRateText(fromToken === toToken ? "相同代币 / Same token" : "—");
+      return;
+    }
+
+    // 统一先换算到 USDC 价值，再换到目标
+    const toUsdc = (tok, n) => {
+      if (tok === "USDC" || tok === "USDT") return n;
+      if (tok === "PAWLY") return n / PAWLY_PER_USDC;
+      if (tok === "SOL") return solUsd ? n * solUsd : null;
+      return null;
+    };
+    const fromUsdc = (tok, usdc) => {
+      if (tok === "USDC" || tok === "USDT") return usdc;
+      if (tok === "PAWLY") return usdc * PAWLY_PER_USDC;
+      if (tok === "SOL") return solUsd ? usdc / solUsd : null;
+      return null;
+    };
+
+    const mid = toUsdc(fromToken, amt);
+    if (mid == null) {
+      setQuote("—");
+      setRateText("汇率加载中… / Rate loading…");
+      return;
+    }
+    const out = fromUsdc(toToken, mid);
+    if (out == null) {
+      setQuote("—");
+      return;
+    }
+    setQuote(out.toFixed(6).replace(/\.?0+$/, (m) => (m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m)) || out.toFixed(4));
+
+    const one = fromUsdc(toToken, toUsdc(fromToken, 1));
+    if (one != null) {
+      setRateText(`1 ${fromToken} ≈ ${one.toFixed(6)} ${toToken}`);
+    }
+  }, [amount, fromToken, toToken, solUsd]);
+
+  const flip = () => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setGasKey((k) => k + 1);
+  };
+
+  const involvesPawly = fromToken === "PAWLY" || toToken === "PAWLY";
+
+  const handleSwap = () => {
+    if (!connected) return alert("请先连接钱包\nPlease connect wallet");
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
+    if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
+    if (involvesPawly && !PAWLY_MINT) {
+      alert(
+        `兑换预览 / Swap Preview（模拟）\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n比率 / Rate: ${rateText}\n\nPAWLY CA 与流动性池尚未上线（To Be Announced）。\n框架已就绪，创建 CA 后可直接接入 Jupiter / Raydium。\n\nPAWLY CA & pool TBA. UI ready to wire Jupiter/Raydium after launch.`
+      );
+      return;
+    }
+    alert(
+      `兑换预览 / Swap Preview\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n${rateText}\n\n将在接入路由后签名上链。\nWill sign on-chain after router is connected.`
+    );
+  };
+
+  const tokBtn = (tok, selected, onClick) => (
+    <button
+      key={tok}
+      onClick={onClick}
+      style={{
+        flex: 1,
+        minWidth: 56,
+        padding: "10px 6px",
+        borderRadius: 10,
+        border: "none",
+        fontWeight: 700,
+        fontSize: 13,
+        cursor: "pointer",
+        background: selected ? "#00ff9d" : "#1a1a2e",
+        color: selected ? "#000" : "#fff",
+      }}
+    >
+      {tok}
+    </button>
+  );
+
   return (
     <div style={pageWrap}>
-      <PageHeader title="🔄 交易 / Swap" subtitle="PAWLY ↔ USDC（需 Token CA 与流动性池）" />
-      <div style={{ ...card, maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
-        <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🔄</div>
-        <p style={{ color: "#bcc", lineHeight: 1.7 }}>
-          Token 与流动性池上线后，这里将接入 Jupiter/Raydium 或自有池完成兑换。
-          <br />
-          <span style={{ color: "#778" }}>Swap will connect to Jupiter/Raydium or our pool after CA & liquidity launch.</span>
-        </p>
-        <button disabled style={{ ...neonBtn, background: "#333", color: "#888", cursor: "not-allowed" }}>
-          即将开放 / Coming Soon
+      <PageHeader
+        title="🔄 交易 / Swap"
+        subtitle="PAWLY · USDC · USDT · SOL 兑换（可计算预览） / Swap PAWLY · USDC · USDT · SOL (live quote preview)"
+      />
+      <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <CaWarningBanner feature="交易 / Swap" />
+
+        <label style={{ color: "#99a", fontSize: 13 }}>支付 / From</label>
+        <div style={{ display: "flex", gap: 6, margin: "8px 0 12px", flexWrap: "wrap" }}>
+          {tokens.map((t) =>
+            tokBtn(t, fromToken === t, () => {
+              setFromToken(t);
+              if (t === toToken) setToToken(tokens.find((x) => x !== t) || "USDC");
+              setGasKey((k) => k + 1);
+            })
+          )}
+        </div>
+        <input
+          type="number"
+          min="0"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder={`数量 / Amount (${fromToken})`}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            marginBottom: 12,
+            background: "#12121f",
+            border: "1px solid #333",
+            borderRadius: 12,
+            padding: 14,
+            color: "#fff",
+            fontSize: "1.15rem",
+          }}
+        />
+
+        <div style={{ textAlign: "center", margin: "4px 0 12px" }}>
+          <button
+            onClick={flip}
+            style={{
+              ...ghostBtn,
+              padding: "8px 18px",
+              fontSize: 16,
+            }}
+            title="切换方向 / Flip"
+          >
+            ⇅
+          </button>
+        </div>
+
+        <label style={{ color: "#99a", fontSize: 13 }}>获得 / To</label>
+        <div style={{ display: "flex", gap: 6, margin: "8px 0 12px", flexWrap: "wrap" }}>
+          {tokens.map((t) =>
+            tokBtn(t, toToken === t, () => {
+              setToToken(t);
+              if (t === fromToken) setFromToken(tokens.find((x) => x !== t) || "SOL");
+              setGasKey((k) => k + 1);
+            })
+          )}
+        </div>
+
+        <div
+          style={{
+            background: "#12121f",
+            borderRadius: 14,
+            padding: 16,
+            marginBottom: 8,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ color: "#889" }}>预估获得 / Est. Receive</span>
+            <span style={{ color: "#00ff9d", fontWeight: 700, fontSize: "1.1rem" }}>
+              {quote} {toToken}
+            </span>
+          </div>
+          <div style={{ color: "#667", fontSize: 12 }}>{rateText}</div>
+          {involvesPawly && (
+            <p style={{ color: "#ffaa00", fontSize: 11, margin: "10px 0 0", lineHeight: 1.45 }}>
+              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（池子上线后改用链上价格）
+              <br />
+              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (on-chain price after pool)
+            </p>
+          )}
+          {solUsd && (fromToken === "SOL" || toToken === "SOL") && (
+            <p style={{ color: "#556", fontSize: 11, margin: "6px 0 0" }}>
+              SOL 参考价 / SOL ref: ${solUsd.toFixed(2)}
+            </p>
+          )}
+        </div>
+
+        <GasEstimateBox presetKey="swap" refreshKey={gasKey} />
+
+        <button onClick={handleSwap} style={{ ...neonBtn, width: "100%", marginTop: 8 }}>
+          交易 / Swap {fromToken} → {toToken}
         </button>
+        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
+          支持 PAWLY↔USDC / USDT / SOL。CA 与池子上线后接入 Jupiter 或 Raydium 真实路由。
+          <br />
+          Supports PAWLY↔USDC / USDT / SOL. Real Jupiter/Raydium route after CA & pool launch.
+        </p>
       </div>
     </div>
   );
@@ -776,6 +1174,8 @@ function CharityPage() {
     <div style={pageWrap}>
       <PageHeader title="❤️ 慈善 / Charity" subtitle="支持全世界动物收容所与护生组织，从马来西亚开始/Supporting animal shelters & welfare organizations worldwide，started from Malaysia" />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <CaWarningBanner feature="慈善 / Charity" />
+
         <p style={{ color: "#bcc", lineHeight: 1.7, marginTop: 0 }}>
           PAWLY 计划将部分生态收益用于动物保护。你可先通过下列官方渠道直接支持收容所。/PAWLY plans to use part of ecosystem revenue for animal protection. You can support shelters directly via the official channels below.
         </p>
@@ -798,6 +1198,13 @@ function CharityPage() {
             </a>
           ))}
         </div>
+        <GasEstimateBox presetKey="charity" refreshKey={0} />
+        <p style={{ color: "#667", fontSize: 12, marginTop: 12, textAlign: "center", lineHeight: 1.5 }}>
+          链上捐赠路由将在 PAWLY CA 与金库地址确定后接入。上方为 Solana 基础 Gas 参考。
+          <br />
+          On-chain donation route after PAWLY CA & treasury address. Gas above is Solana base fee reference.
+        </p>
+
       </div>
     </div>
   );
