@@ -9,23 +9,117 @@
   <link rel="manifest" href="/manifest.json">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { margin:0; padding:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#0a0a0a,#1a0033); color:#00ff9d; text-align:center; }
-    .nav { background:#120022; padding:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+    :root {
+      --pawly-green: #00ff9d;
+      --pawly-purple: #8b5cf6;
+      --pawly-pink: #ff9ecd;
+      --pawly-orange: #ff9f43;
+      --pawly-blue: #00aaff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0; padding:0;
+      font-family:'Segoe UI', system-ui, sans-serif;
+      background:#0a0a0a;
+      color:#00ff9d;
+      text-align:center;
+      overflow-x:hidden;
+      min-height:100vh;
+    }
+
+    /* ===== Global ambient animated mesh ===== */
+    body::before {
+      content:"";
+      position:fixed; inset:0; z-index:-2;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(139,92,246,0.25), transparent 50%),
+        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0,255,157,0.12), transparent 50%),
+        radial-gradient(ellipse 50% 50% at 50% 90%, rgba(255,158,205,0.1), transparent 50%),
+        linear-gradient(160deg, #07070f, #12001f 45%, #0a1a14);
+      animation: meshShift 18s ease-in-out infinite alternate;
+    }
+    @keyframes meshShift {
+      0% { filter: hue-rotate(0deg); transform: scale(1); }
+      100% { filter: hue-rotate(25deg); transform: scale(1.05); }
+    }
+
+    /* Floating particles layer */
+    .fx-particles {
+      pointer-events:none;
+      position:absolute; inset:0; overflow:hidden; z-index:0;
+    }
+    .fx-particles span {
+      position:absolute;
+      width:6px; height:6px;
+      border-radius:50%;
+      background:rgba(0,255,157,0.5);
+      box-shadow:0 0 10px rgba(0,255,157,0.6);
+      animation: floatUp linear infinite;
+      opacity:0;
+    }
+    @keyframes floatUp {
+      0% { transform: translateY(100%) scale(0.4); opacity:0; }
+      10% { opacity:0.8; }
+      90% { opacity:0.5; }
+      100% { transform: translateY(-20vh) scale(1); opacity:0; }
+    }
+
+    .nav {
+      position:relative; z-index:20;
+      background:rgba(18,0,34,0.92);
+      backdrop-filter: blur(12px);
+      padding:12px;
+      display:flex; flex-wrap:wrap; justify-content:center; gap:8px;
+      border-bottom:1px solid rgba(0,255,157,0.15);
+    }
     .nav button {
       background: linear-gradient(135deg, #8b5cf6, #10b981);
       color: white; border: none; padding: 10px 20px; border-radius: 9999px;
-      font-size: 0.95em; cursor: pointer; font-weight: 600; transition: all 0.3s ease;
+      font-size: 0.95em; cursor: pointer; font-weight: 600;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
       box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
     }
-    .nav button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.45); }
-    .nav button.active { background: linear-gradient(135deg, #10b981, #8b5cf6); color: white; }
-    .tab { display:none; padding:25px; }
-    .tab.active { display:block; }
-    .container { max-width:720px; margin:20px auto; background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:25px; padding:30px; box-shadow:0 0 30px rgba(0,255,150,0.2); }
+    .nav button:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5); }
+    .nav button:active { transform: scale(0.97); }
+    .nav button.active {
+      background: linear-gradient(135deg, #10b981, #8b5cf6);
+      box-shadow: 0 0 20px rgba(0,255,157,0.35);
+    }
+
+    .tab { display:none; padding:20px 12px 40px; position:relative; }
+    .tab.active {
+      display:block;
+      animation: tabIn 0.45s cubic-bezier(0.22,1,0.36,1);
+    }
+    @keyframes tabIn {
+      from { opacity:0; transform: translateY(16px); }
+      to { opacity:1; transform: translateY(0); }
+    }
+
+    .container {
+      position:relative; z-index:1;
+      max-width:720px; margin:20px auto;
+      background:rgba(0,255,150,0.08);
+      border:2px solid rgba(0,255,157,0.45);
+      border-radius:25px; padding:28px 22px;
+      box-shadow:0 0 40px rgba(0,255,150,0.15);
+      backdrop-filter: blur(8px);
+      animation: cardGlow 4s ease-in-out infinite alternate;
+    }
+    @keyframes cardGlow {
+      from { box-shadow:0 0 30px rgba(0,255,150,0.12); }
+      to { box-shadow:0 0 50px rgba(139,92,246,0.2); }
+    }
+
     h1 { text-shadow:0 0 20px #00ff9d; margin-bottom:10px; }
     input, button { padding:15px; margin:12px; width:85%; border-radius:12px; font-size:1.1em; }
-    input { background:#1a0033; color:white; border:1px solid #00ff9d; }
-    button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; }
+    input { background:#1a0033; color:white; border:1px solid #00ff9d; transition: border-color 0.25s, box-shadow 0.25s; }
+    input:focus { outline:none; border-color:#ff9ecd; box-shadow:0 0 12px rgba(255,158,205,0.35); }
+    button { background:#00ff9d; color:black; font-weight:bold; cursor:pointer; border:none; transition: transform 0.2s, box-shadow 0.2s; }
+    button:hover:not(:disabled) { transform: translateY(-2px); box-shadow:0 6px 20px rgba(0,255,157,0.35); }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity:0.7; cursor:not-allowed; }
+
     .warning { background:#3a1a00; border:2px solid #ff8800; border-radius:15px; padding:20px; margin-bottom:25px; text-align:left; line-height:1.7; }
     .countdown { background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:15px; padding:20px; margin:20px 0; }
     #countdownTimer { font-size:2.2em; font-weight:bold; color:#ffaa00; }
@@ -33,12 +127,215 @@
     .bilingual { display:flex; flex-direction:column; gap:15px; }
     .ready-to-checkin { background:#00ff9d; color:black; padding:20px; border-radius:15px; font-size:1.3em; font-weight:bold; margin:20px 0; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
     .showcase { display:none; max-width:900px; margin:40px auto; padding:30px; background:rgba(0,255,150,0.06); border:2px solid #00ff9d; border-radius:25px; text-align:left; }
     .showcase h1 { text-shadow:0 0 20px #00ff9d; }
     .showcase .section { background:rgba(255,255,255,0.05); border-radius:18px; padding:25px; margin:25px 0; }
     .showcase .feature, .showcase .org-card { background:#120022; padding:18px; border-radius:14px; margin:15px 0; border-left:4px solid #00ff9d; }
     .showcase button { background:#00ff9d; color:black; padding:16px 50px; border:none; border-radius:14px; font-size:1.2em; font-weight:bold; cursor:pointer; margin-top:20px; }
     .showcase .back-btn { background:transparent; color:#00ff9d; padding:12px 35px; border:2px solid #00ff9d; border-radius:12px; font-size:1em; cursor:pointer; margin-top:30px; }
+
+    /* ===== Theme: Login / Welcome (pink-green pets) ===== */
+    .theme-welcome {
+      position:relative;
+    }
+    .theme-welcome .hero-frame {
+      position:relative;
+      margin:15px auto 20px; max-width:520px;
+      border-radius:22px; overflow:hidden;
+      border:4px solid #ff9ecd;
+      box-shadow:0 15px 45px rgba(255,158,205,0.4);
+      animation: heroPulse 3s ease-in-out infinite;
+    }
+    @keyframes heroPulse {
+      0%,100% { box-shadow:0 12px 40px rgba(255,158,205,0.35); }
+      50% { box-shadow:0 16px 55px rgba(0,255,157,0.35), 0 0 30px rgba(255,158,205,0.5); }
+    }
+    .theme-welcome .hero-frame img {
+      width:100%; height:auto; display:block;
+      animation: softZoom 12s ease-in-out infinite alternate;
+    }
+    @keyframes softZoom {
+      from { transform: scale(1); }
+      to { transform: scale(1.04); }
+    }
+    .welcome-badge {
+      display:inline-block;
+      margin:0 auto 12px;
+      padding:8px 18px;
+      border-radius:999px;
+      background:linear-gradient(90deg, rgba(255,158,205,0.25), rgba(0,255,157,0.2));
+      border:1px solid rgba(255,158,205,0.5);
+      color:#ffe6f2;
+      font-size:0.9rem;
+      animation: badgeFloat 2.8s ease-in-out infinite;
+    }
+    @keyframes badgeFloat {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    .balance-pop {
+      animation: balanceIn 0.6s cubic-bezier(0.22,1,0.36,1);
+    }
+    @keyframes balanceIn {
+      from { opacity:0; transform: scale(0.92) translateY(8px); }
+      to { opacity:1; transform: scale(1) translateY(0); }
+    }
+
+    /* ===== Theme: About / Concept ===== */
+    .theme-about {
+      position:relative;
+    }
+    .theme-about::before {
+      content:"";
+      position:absolute; inset:-20px;
+      background:
+        radial-gradient(circle at 15% 30%, rgba(139,92,246,0.35), transparent 40%),
+        radial-gradient(circle at 85% 20%, rgba(0,255,157,0.2), transparent 35%),
+        radial-gradient(circle at 50% 80%, rgba(255,158,205,0.15), transparent 40%);
+      animation: conceptOrbit 14s linear infinite;
+      z-index:0;
+      pointer-events:none;
+    }
+    @keyframes conceptOrbit {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .theme-about > * { position:relative; z-index:1; }
+    .concept-chip {
+      display:inline-block;
+      margin:6px;
+      padding:8px 14px;
+      border-radius:12px;
+      background:rgba(139,92,246,0.2);
+      border:1px solid rgba(139,92,246,0.45);
+      color:#e0d4ff;
+      font-size:0.85rem;
+      animation: chipIn 0.5s ease backwards;
+    }
+    .concept-chip:nth-child(1) { animation-delay:0.05s; }
+    .concept-chip:nth-child(2) { animation-delay:0.12s; }
+    .concept-chip:nth-child(3) { animation-delay:0.18s; }
+    .concept-chip:nth-child(4) { animation-delay:0.24s; }
+    @keyframes chipIn {
+      from { opacity:0; transform: translateY(10px); }
+      to { opacity:1; transform: none; }
+    }
+
+    /* ===== Video hero overlays (Staking / Payment / Charity) ===== */
+    .video-hero {
+      position: relative;
+      width: 100%;
+      height: 70vh;
+      min-height: 320px;
+      max-height: 560px;
+      overflow: hidden;
+      margin-bottom: 28px;
+      border-radius: 0 0 24px 24px;
+    }
+    .video-hero video {
+      position: absolute; top:0; left:0; width:100%; height:100%;
+      object-fit: cover; z-index:0;
+    }
+    .video-hero .overlay {
+      position: absolute; inset:0; z-index:1;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center; color:#fff;
+      padding:24px;
+    }
+    /* Staking: purple energy */
+    .video-hero.theme-staking .overlay {
+      background:
+        linear-gradient(180deg, rgba(76,29,149,0.35), rgba(0,0,0,0.55)),
+        radial-gradient(circle at 50% 40%, rgba(124,58,237,0.35), transparent 55%);
+      animation: stakePulse 5s ease-in-out infinite;
+    }
+    @keyframes stakePulse {
+      0%,100% { background-color: rgba(0,0,0,0.15); }
+      50% { background-color: rgba(124,58,237,0.12); }
+    }
+    .theme-staking .fx-ring {
+      position:absolute; border-radius:50%;
+      border:2px solid rgba(167,139,250,0.4);
+      animation: ringExpand 4s ease-out infinite;
+      pointer-events:none;
+    }
+    @keyframes ringExpand {
+      0% { width:40px; height:40px; opacity:0.7; }
+      100% { width:280px; height:280px; opacity:0; }
+    }
+
+    /* Payment: warm shop / pink-gold */
+    .video-hero.theme-payment .overlay {
+      background:
+        linear-gradient(160deg, rgba(255,107,157,0.25), rgba(0,0,0,0.55)),
+        radial-gradient(circle at 70% 30%, rgba(255,200,100,0.2), transparent 45%);
+      animation: shopShimmer 6s ease-in-out infinite;
+    }
+    @keyframes shopShimmer {
+      0%,100% { filter: brightness(1); }
+      50% { filter: brightness(1.08); }
+    }
+
+    /* Charity: soft heart / coral */
+    .video-hero.theme-charity .overlay {
+      background:
+        linear-gradient(180deg, rgba(255,82,82,0.2), rgba(0,0,0,0.55)),
+        radial-gradient(circle at 30% 60%, rgba(255,158,205,0.25), transparent 50%);
+      animation: heartGlow 4.5s ease-in-out infinite;
+    }
+    @keyframes heartGlow {
+      0%,100% { box-shadow: inset 0 0 60px rgba(255,82,82,0.1); }
+      50% { box-shadow: inset 0 0 90px rgba(255,158,205,0.2); }
+    }
+
+    .video-hero h1 {
+      font-size: clamp(1.6rem, 5vw, 2.8rem);
+      font-weight: 800;
+      margin: 0 0 12px;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+      animation: titleIn 0.8s ease;
+    }
+    @keyframes titleIn {
+      from { opacity:0; transform: translateY(12px); }
+      to { opacity:1; transform: none; }
+    }
+    .video-hero p {
+      font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+      max-width: 560px;
+      margin: 0 auto 22px;
+      line-height: 1.55;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    }
+    .cta-glow {
+      display:inline-block;
+      animation: ctaBounce 2.5s ease-in-out infinite;
+    }
+    @keyframes ctaBounce {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    /* Members page */
+    .theme-members {
+      animation: tabIn 0.5s ease;
+    }
+    .theme-members .stat-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      animation: balanceIn 0.55s ease;
+    }
+    .theme-members .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 40px rgba(0,255,157,0.25);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -55,12 +352,13 @@
 
   <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
-    <div class="container">
-      <div style="margin:15px auto 25px; max-width:520px; border-radius:22px; overflow:hidden; border:4px solid #ff9ecd; box-shadow:0 15px 45px rgba(255, 158, 205, 0.4);">
-        <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
+    <div class="container theme-welcome">
+      <div class="welcome-badge">🐾 欢迎加入 PAWLY · Welcome to PAWLY Family</div>
+      <div class="hero-frame">
+        <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女欢迎你" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
       </div>
       <!-- My PAWLY Balance（登录+绑钱包后从 Supabase 读取） -->
-      <div id="pawlyBalanceCard" style="background:rgba(0,255,157,0.08); border:2px solid #00ff9d; border-radius:18px; padding:20px 18px; margin-bottom:18px; text-align:center;">
+      <div id="pawlyBalanceCard" class="balance-pop" style="background:rgba(0,255,157,0.08); border:2px solid #00ff9d; border-radius:18px; padding:20px 18px; margin-bottom:18px; text-align:center;">
         <div style="font-size:0.9rem; color:#aaa; margin-bottom:6px;">💰 My PAWLY Balance</div>
         <div id="myPawlyBalance" style="font-size:2.2rem; font-weight:800; color:#00ff9d; line-height:1.2;">—</div>
         <div style="font-size:0.85rem; color:#888; margin-top:8px; line-height:1.5;">
@@ -151,25 +449,26 @@
 
   <!-- tab2 质押挖矿 -->
 <div class="tab" id="tab2">
-  <section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
-    <video id="staking-video" muted loop playsinline 
-           style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
+  <section class="video-hero theme-staking">
+    <video id="staking-video" muted loop playsinline autoplay>
       <source src="pawly-staking.mp4" type="video/mp4">
     </video>
-
-    <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
+    <div class="fx-ring" style="left:50%; top:45%; transform:translate(-50%,-50%);"></div>
+    <div class="fx-ring" style="left:50%; top:45%; transform:translate(-50%,-50%); animation-delay:1.3s;"></div>
+    <div class="overlay">
       <div>
-        <h1 style="font-size: 3.2rem; font-weight: 800; margin-bottom: 16px;">
-          🔥 Staking / Petpayment / Charity
-        </h1>
-        <p style="font-size: 1.25rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
-          正式 Staking 将在社区达到 5000 名活跃用户后开启。点击以下按钮进入专业dApp页面<br>
-          Official Staking will launch after reaching 5000 active users.Click button below to entry dApp site.
+        <div class="welcome-badge" style="margin-bottom:14px; border-color:rgba(167,139,250,0.6); color:#e9ddff;">⚡ 一起质押赚取奖励 · Stake Together</div>
+        <h1>🔥 Staking Rewards</h1>
+        <p>
+          社区一起 Staking，共享质押收益。点击进入专业 dApp。<br>
+          Stake with the community and earn rewards. Open the pro dApp below.
         </p>
+        <span class="cta-glow">
         <a href="javascript:void(0)" onclick="goToDAppWithData()"
-           style="display: inline-block; background: #7c3aed; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 15px rgba(124,58,237,0.4); cursor: pointer;">
-          进入dApp / Click to dApp
+           style="display: inline-block; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.15rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 20px rgba(124,58,237,0.55); cursor: pointer;">
+          进入 dApp Staking / Open dApp
         </a>
+        </span>
       </div>
     </div>
 
@@ -229,29 +528,32 @@
   </div>
 </div>
       <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
-        专业版 Staking 功能已在 dApp 中开发中<br>
-        Professional Staking features are being developed in the dApp
+        专业版 Staking 功能已在 dApp 上线<br>
+        Professional Staking features are being developed in the dApp is launch now
       </p>
     </div>
   </div>
 
   <!-- tab3 宠物支付 -->
 <div class="tab" id="tab3">
-  <section style="position: relative; width: 100%; height: 100vh; overflow: hidden; margin-bottom: 40px;">
-    <video id="payment-video" muted loop playsinline
-           style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
+  <section class="video-hero theme-payment">
+    <video id="payment-video" muted loop playsinline autoplay>
       <source src="pawly-pet-payment.mp4" type="video/mp4">
     </video>
-
-    <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
+    <div class="overlay">
       <div>
-        <h1 style="font-size: 3.2rem; font-weight: 800; margin-bottom: 16px;">
-          💳 Pet Payment / 宠物支付
-        </h1>
-        <p style="font-size: 1.25rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
-          使用 PAWLY 进行宠物相关支付<br>
-          Pay for pet-related services with PAWLY
+        <div class="welcome-badge" style="border-color:rgba(255,158,205,0.6); color:#ffe0ef;">🛍️ 宠物店购物 · Pet Store & Beauty</div>
+        <h1>💳 Pet Payment</h1>
+        <p>
+          宠物店 · 服务支付 · 用 PAWLY 轻松结账<br>
+          Pet shops & services — pay smoothly with PAWLY
         </p>
+        <span class="cta-glow">
+        <a href="javascript:void(0)" onclick="goToDAppWithData()"
+           style="display: inline-block; background: linear-gradient(135deg,#ec4899,#f59e0b); color: white; padding: 14px 40px; border-radius: 50px; font-size: 1.1rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 18px rgba(236,72,153,0.45); cursor: pointer;">
+          进入支付 dApp / Open Payment
+        </a>
+        </span>
         
     <!-- 圆形喇叭按钮 -->
     <div style="position: absolute; bottom: 25px; right: 25px; z-index: 10;">
@@ -319,26 +621,24 @@
 
   <!-- tab4 慈善基金 -->
 <div class="tab" id="tab4">
-
-  <!-- 视频背景区域（Flex 布局 + 圆形喇叭按钮） -->
-<section style="position: relative; width: 100%; height: 70vh; overflow: hidden; margin-bottom: 40px; display: flex; flex-direction: column;">
-  
-  <!-- 背景视频 -->
-  <video id="charity-video" muted loop playsinline 
-         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;">
+<section class="video-hero theme-charity">
+  <video id="charity-video" muted loop playsinline autoplay>
     <source src="pawly-charity.mp4" type="video/mp4">
   </video>
-
-  <!-- 中间内容 -->
-  <div style="flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45); padding: 20px;">
+  <div class="overlay">
     <div>
-      <h1 style="font-size: 2.6rem; font-weight: 800; margin-bottom: 16px;">
-        🐾 Pet Charity / 宠物慈善
-      </h1>
-      <p style="font-size: 1.15rem; max-width: 620px; margin: 0 auto 28px; line-height: 1.5;">
-        支持全世界的流浪动物收容所与救助组织<br>
-        Support trusted animal shelters and rescue groups across the world.
+      <div class="welcome-badge" style="border-color:rgba(255,120,120,0.55); color:#ffd4d4;">❤️ 收容所捐助 · Shelter Giving</div>
+      <h1>🐾 Pet Charity</h1>
+      <p>
+        与爱同行：支持流浪动物收容所与救助组织<br>
+        Give with love — support shelters and rescue groups worldwide
       </p>
+      <span class="cta-glow">
+      <a href="javascript:void(0)" onclick="goToDAppWithData()"
+         style="display: inline-block; background: linear-gradient(135deg,#ef4444,#fb7185); color: white; padding: 14px 40px; border-radius: 50px; font-size: 1.1rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 18px rgba(239,68,68,0.45); cursor: pointer;">
+        进入慈善 dApp / Open Charity
+      </a>
+      </span>
     </div>
   </div>
 
@@ -425,15 +725,21 @@
   
   <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
-    <div class="container" style="max-width: 780px;">
+    <div class="container theme-about" style="max-width: 780px;">
       <h1 style="color:#00ff9d; font-size:1.9rem; margin-bottom:8px;">🌟 关于 PAWLY / About PAWLY</h1>
-      <p style="color:#ff9ecd; margin-bottom:30px; font-size:1.05rem;">宠物生态 · 爱与守护 · 区块链力量 / Pet Ecosystem · Love & Protection · Powered by Blockchain</p>
+      <p style="color:#ff9ecd; margin-bottom:16px; font-size:1.05rem;">宠物生态 · 爱与守护 · 区块链力量 / Pet Ecosystem · Love & Protection · Powered by Blockchain</p>
+      <div style="margin-bottom:22px;">
+        <span class="concept-chip">💡 设计概念 Design</span>
+        <span class="concept-chip">🧬 创建理念 Creation</span>
+        <span class="concept-chip">🐾 宠物生态 PetFi</span>
+        <span class="concept-chip">🔗 链上力量 On-chain</span>
+      </div>
 
             <!-- Staking：点击进入视频页，文案在视频底部展开 -->
       <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
         <h3 style="color:#a78bfa; margin:0 0 16px 0;">🔥 质押挖矿 / Staking</h3>
         <button onclick="showTab(2)" style="background: linear-gradient(135deg, #7c3aed, #a78bfa); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          点击前往专业dApp页面 / Go to dApp Video
+          点击前往专业dApp页面 / Go to dApp 
         </button>
       </div>
 
@@ -569,7 +875,7 @@
   </div>
 
   <!-- PAWLY 成员表页面 -->
-  <div id="pawlyMembersPage" style="display:none; min-height:100vh; background: linear-gradient(135deg, #0f0022, #1a0033); padding:20px;">
+  <div id="pawlyMembersPage" class="theme-members" style="display:none; min-height:100vh; background: linear-gradient(135deg, #0f0022, #1a0033); padding:20px;">
     <div style="max-width:1100px; margin:0 auto;">
       <div style="text-align:center; margin-bottom:25px;">
         <div style="font-size:4rem;">🐾</div>
@@ -577,7 +883,7 @@
         <p style="color:#ffccdd;">Welcome to the PAWLY Family</p>
       </div>
       <div style="display:flex; justify-content:center; margin-bottom:50px;">
-        <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15); max-width:420px; width:100%;">
+        <div class="stat-card" style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15); max-width:420px; width:100%;">
           <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">🐾 REGISTERED MEMBERS</div>
           <div id="pageTotalMembers" style="font-size:3.9rem; font-weight:bold; color:#00ff9d; line-height:1;">--</div>
           <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">已注册 PAWLY 成员 / Registered PAWLY Members</div>
@@ -967,7 +1273,6 @@ async function bindWallet() {
     if (error) throw error;
 
     await refreshMyPawlyBalance();
-
 
     alert("✅ 钱包绑定成功！\n✅ Wallet bound successfully!");
 
@@ -1371,7 +1676,6 @@ function hideModal(type) {
   const modal = document.getElementById('modal-' + type);
   if (modal) modal.style.display = 'none';
 }
-
 
 function initEmailReminderButton() {
   // Reminder disabled after check-in rewards ended
