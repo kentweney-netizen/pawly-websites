@@ -43,10 +43,9 @@
 </head>
 <body>
 
-  <!-- 导航栏（按钮顺序：Dashboard → Check-in → About PAWLY → PAWLY Members） -->
+  <!-- 导航栏：登录注册 → About → PAWLY Members（仪表盘已移除） -->
   <div class="nav">
-    <button class="active" onclick="showTab(1)" id="nav1">我的仪表盘 / Dashboard</button>
-    <button onclick="showTab(0)" id="nav0">签到挖矿 / Check-in</button>
+    <button class="active" onclick="showTab(0)" id="nav0">登录 & 注册 / Log-in & Register</button>
     <button onclick="showTab(5)" id="nav5">关于 PAWLY / About PAWLY</button>
     <button onclick="showPawlyMembersPage()" 
             style="background: linear-gradient(135deg, #ff9ecd, #f472b6); color: white; border: none; padding: 10px 20px; border-radius: 9999px; font-size: 0.95em; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 158, 205, 0.35);">
@@ -55,15 +54,17 @@
   </div>
 
   <!-- tab0 签到页面 -->
-  <div class="tab" id="tab0">
+  <div class="tab active" id="tab0">
     <div class="container">
-      <div style="text-align:center; margin-bottom:25px;">
-        <button onclick="showImportantNoticeModal()" 
-                style="background: linear-gradient(135deg, #ff6b6b, #ff9f43); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1.05em; font-weight: bold; cursor: pointer; box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);">
-          ⚠️ 重要提示 / Important Notice
-        </button>
+      <div style="margin:15px auto 25px; max-width:520px; border-radius:22px; overflow:hidden; border:4px solid #ff9ecd; box-shadow:0 15px 45px rgba(255, 158, 205, 0.4);">
+        <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
       </div>
-      <h1>🐾 签到挖矿 / Check-in Mining</h1>
+      <div style="background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:16px; padding:16px 18px; margin-bottom:20px; text-align:left; line-height:1.65; font-size:0.95em; color:#ffcc80;">
+        ⚠️ <strong>签到积分奖励已结束 / Check-in Point Rewards Ended</strong><br>
+        历史积分仅供 Snapshot 与早期 Airdrop 参考。之后收益以 Staking APY 为主。<br>
+        <span style="color:#c9a06a; font-size:0.9em;">Historical points are for Snapshot &amp; early Airdrop only. Ongoing rewards via Staking APY.</span>
+      </div>
+      <h1>🐾 账户 / Account</h1>
       <div id="auth-section">
         <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
           <h3>邮箱注册 / Register</h3>
@@ -117,111 +118,24 @@
           </p>
         </div>
 
-        <button onclick="checkIn()" style="width:60%; font-size:1.3em; padding:18px; margin-top:20px; background:#00ff9d; color:black;">
-          🚀 立即签到 / Check-in Now
+        <button disabled style="width:60%; font-size:1.15em; padding:18px; margin-top:20px; background:#444; color:#999; cursor:not-allowed; border:none; border-radius:12px;">
+          签到奖励已结束 / Check-in Rewards Ended
         </button>
+        <p style="font-size:0.85em; color:#888; margin-top:12px; line-height:1.6;">
+          请使用上方绑定钱包，并前往 dApp 参与 Staking。<br>
+          Bind wallet above, then use dApp for Staking.
+        </p>
+
+        <button onclick="logout()" style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:28px; cursor:pointer; width:60%;">
+          🚪 登出 / Logout
+        </button>
+
       </div>
     </div>
   </div>
 
-  <!-- tab1 仪表盘 -->
-  <div class="tab active" id="tab1">
-    <div class="container">
-      <div style="margin:15px auto 25px; max-width:520px; border-radius:22px; overflow:hidden; border:4px solid #ff9ecd; box-shadow:0 15px 45px rgba(255, 158, 205, 0.4);">
-        <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
-      </div>
-      <h1>📊 我的仪表盘 / My Dashboard</h1>
-      <h2 id="streakText">累计签到 0 天 🔥 / Total Check-in Days: 0 days</h2>
-      <h2 id="totalText">总共已赚取 0 PAWLY / Total Earned: 0 PAWLY</h2>
-
-      <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:18px; padding:22px; margin:25px 0; text-align:center;">
-        <h3 style="color:#00ff9d; margin:0 0 12px 0;">🐾 Pawly Points</h3>
-        <div style="display:flex; justify-content:center; gap:40px; margin:15px 0;">
-          <div>
-            <div style="font-size:13px; color:#aaa;">当前积分 / Current Points</div>
-            <div id="pointsDisplay" style="font-size:28px; font-weight:bold; color:#00ff9d;">0</div>
-          </div>
-          <div>
-            <div style="font-size:13px; color:#aaa;">可兑换 PAWLY / Redeemable PAWLY</div>
-            <div id="redeemablePAWLY" style="font-size:28px; font-weight:bold; color:#ffaa00;">0</div>
-          </div>
-        </div>
-        <button onclick="showRedeemModal()" style="background:#00ff9d; color:black; padding:14px 50px; border:none; border-radius:14px; font-weight:bold; font-size:1.05em; cursor:pointer; margin-top:10px;">
-          兑换 PAWLY / Redeem PAWLY
-        </button>
-        <p style="font-size:12px; color:#888; margin-top:12px;">100 Points = 5 PAWLY（积分可累积，兑换后归零）</p>
-      </div>
-
-      <div class="countdown" id="countdownBox">
-        <h3>距离下次可签到 / Time until next check-in:</h3>
-        <div id="countdownTimer">00:00:00</div>
-        <div id="countdownStatus">可以签到了！</div>
-      </div>
-
-      <div id="readyCheckinArea" style="display:none;">
-        <div class="ready-to-checkin">
-          ✅ 可以签到了！请立即签到<br>
-          ✅ You can check in now! Please sign in immediately
-        </div>
-        <button onclick="goToCheckin()" style="background:#00ff9d; color:black; padding:18px 40px; font-size:1.4em; border-radius:15px; margin-top:10px;">
-          立即签到 / Check-in Now
-        </button>
-      </div>
-
-      <div style="background:rgba(0,255,150,0.08); border:2px solid #00ff9d; border-radius:15px; padding:20px; margin:25px 0;">
-        <h3 style="margin-top:0; color:#00ff9d;">📧 邮箱签到提醒 / Email Check-in Reminder</h3>
-        <button onclick="toggleEmailReminder()" id="emailReminderBtn"
-                style="background:#00aaff; color:white; padding:14px 32px; border:none; border-radius:12px; margin-top:12px; cursor:pointer; font-size:1em; font-weight:600;">
-          开启邮箱提醒 / Enable Email Reminder
-        </button>
-      </div>
-
-      <button onclick="enableNotifications()" style="background:#00aaff; color:white; padding:12px 25px; border:none; border-radius:12px; margin-top:10px; cursor:pointer;">
-        🔔 开启浏览器通知 / Enable Notifications
-      </button>
-      <button onclick="logout()" style="background:#ff4d4d; color:white; padding:14px 35px; border:none; border-radius:12px; font-size:1.1em; margin-top:20px; cursor:pointer;">
-        🚪 登出 / Logout
-      </button>
-
-      <!-- PWA 安装引导 -->
-      <div id="installSection" style="display: none; margin: 35px 0 10px 0;">
-        <div style="background: linear-gradient(135deg, #0f0022, #1a0033); border: 2px solid #00f0ff; border-radius: 20px; padding: 24px 20px; text-align: center; box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);">
-          <h3 style="color: #00f0ff; margin: 0 0 12px 0; font-size: 1.25em; font-weight: 700;">
-            🚀 安装 PAWLY 到桌面<br>
-            <span style="font-size: 0.95em; font-weight: 500; color: #aaa;">Install PAWLY to Home Screen</span>
-          </h3>
-          <p id="installDesc" style="color: #ccc; font-size: 0.95em; margin: 0 0 22px 0; line-height: 1.65;">
-            安装后像原生 App 一样使用，体验更流畅、无浏览器地址栏<br>
-            <span style="color: #888;">Get a native app-like experience with faster access</span>
-          </p>
-          <button id="installBtn" 
-                  style="display: none; background: transparent; color: #00f0ff; border: 2px solid #00f0ff; padding: 14px 48px; border-radius: 9999px; font-weight: 700; font-size: 1.05em; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);"
-                  onmouseover="this.style.background='#00f0ff'; this.style.color='#000'; this.style.boxShadow='0 0 25px rgba(0, 240, 255, 0.5)'"
-                  onmouseout="this.style.background='transparent'; this.style.color='#00f0ff'; this.style.boxShadow='0 0 15px rgba(0, 240, 255, 0.3)'">
-            立即安装 / Install Now
-          </button>
-          <div id="iosInstallGuide" style="display: none; text-align: left; background: #120022; padding: 18px; border-radius: 16px; margin-top: 18px; border: 1px solid #333;">
-            <p style="margin: 0 0 14px 0; color: #ddd; font-size: 0.95em; line-height: 1.75;">
-              <strong style="color: #00f0ff;">iPhone / iPad 安装方法：</strong><br>
-              1. 点击下方 <strong>分享按钮</strong> <br>
-              2. 向下滑动，找到并点击 <strong>「添加到主屏幕」</strong><br>
-              3. 点击右上角「添加」<br><br>
-              <span style="color: #aaa; font-size: 0.9em;">
-                iPhone / iPad Installation:<br>
-                1. Tap the Share button<br>
-                2. Scroll down and tap “Add to Home Screen”<br>
-                3. Tap “Add” in the top right
-              </span>
-            </p>
-            <button onclick="hideInstallSection()" 
-                    style="background: transparent; color: #888; border: 1px solid #555; padding: 10px 28px; border-radius: 9999px; font-size: 0.9em; cursor: pointer;">
-              我知道了 / Got it
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- tab1 仪表盘已移除 / Dashboard removed -->
+  <div class="tab" id="tab1" style="display:none;"></div>
 
   <!-- tab2 质押挖矿 -->
 <div class="tab" id="tab2">
@@ -234,15 +148,15 @@
     <div style="position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: white; background: rgba(0,0,0,0.45);">
       <div>
         <h1 style="font-size: 3.2rem; font-weight: 800; margin-bottom: 16px;">
-          🔥 Staking / 质押挖矿
+          🔥 Staking / Petpayment / Charity
         </h1>
         <p style="font-size: 1.25rem; max-width: 620px; margin: 0 auto 30px; line-height: 1.5;">
-          正式 Staking 将在社区达到 5000 名活跃用户后开启<br>
-          Official Staking will launch after reaching 5000 active users
+          正式 Staking 将在社区达到 5000 名活跃用户后开启。点击以下按钮进入专业dApp页面<br>
+          Official Staking will launch after reaching 5000 active users.Click button below to entry dApp site.
         </p>
         <a href="javascript:void(0)" onclick="goToDAppWithData()"
            style="display: inline-block; background: #7c3aed; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 15px rgba(124,58,237,0.4); cursor: pointer;">
-          立即质押赚奖励 / Stake Now
+          进入dApp / Click to dApp
         </a>
       </div>
     </div>
@@ -303,8 +217,8 @@
   </div>
 </div>
       <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
-        专业版 Staking 功能已在 dApp 中开发中<br>
-        Professional Staking features are being developed in the dApp
+        专业版 Staking 功能已在 dApp 中上线<br>
+        Professional Staking features are being developed in the dApp is online
       </p>
     </div>
   </div>
@@ -326,13 +240,7 @@
           使用 PAWLY 进行宠物相关支付<br>
           Pay for pet-related services with PAWLY
         </p>
-        <a href="pet-payment.html"
-           style="display: inline-block; background: #2196f3; color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.2rem; text-decoration: none; font-weight: bold;">
-          立即支付 / Pay Now
-        </a>
-      </div>
-    </div>
-
+        
     <!-- 圆形喇叭按钮 -->
     <div style="position: absolute; bottom: 25px; right: 25px; z-index: 10;">
       <button onclick="unmuteVideo('payment-video', this)"
@@ -358,11 +266,11 @@
       <div class="bilingual">
         <div>
           <strong>中文：</strong><br>
-          PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。
+          PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来我们将与马来西亚及全球的宠物店、兽医诊所、宠物食品店合作，让用户可以直接使用 PAWLY 支付。目前Petpayment已经进入专业dApp页面。
         </div>
         <div>
           <strong>English：</strong><br>
-          PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.
+          PAWLY's long-term vision is to become a daily payment tool for pet lovers. We will partner with pet stores, veterinary clinics, and pet food shops.Now Petpayment is now on dApp official site.
         </div>
       </div>
     </div>
@@ -416,14 +324,9 @@
         🐾 Pet Charity / 宠物慈善
       </h1>
       <p style="font-size: 1.15rem; max-width: 620px; margin: 0 auto 28px; line-height: 1.5;">
-        支持马来西亚的流浪动物收容所与救助组织<br>
-        Support trusted animal shelters and rescue groups across Malaysia
+        支持全世界的流浪动物收容所与救助组织<br>
+        Support trusted animal shelters and rescue groups across the world.
       </p>
-
-      <button onclick="toggleShelterList()" 
-              style="background: #00ff9d; color: black; border: none; padding: 15px 36px; border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
-        查看可捐款的收容所 / View Shelters
-      </button>
     </div>
   </div>
 
@@ -436,6 +339,36 @@
   </div>
 
 </section>
+
+  <!-- 完整故事：从 About 搬到 Charity 视频底部 -->
+  <div class="container" style="max-width:780px; margin: 0 auto 30px;">
+    <div style="margin: 10px 0 15px 0;">
+      <button onclick="toggleAboutLongText()"
+              style="width:100%; padding:16px; background:#1a0033; color:#00ff9d;
+                     border:2px solid #00ff9d; border-radius:16px; font-size:1.05em;
+                     cursor:pointer; font-weight:600;">
+        📖 点击展开完整故事 / Click to read the full story
+      </button>
+      <div id="aboutLongText" style="display:none; margin-top:20px; background:rgba(255,255,255,0.04);
+                                    border:1px solid #444; border-radius:18px; padding:28px; text-align:left; line-height:1.75;">
+        <div class="bilingual">
+          <div>
+            <strong>中文：</strong><br>
+            PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
+            渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
+            于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。
+          </div>
+          <div>
+            <strong>English：</strong><br>
+            PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem. I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
+            Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
+            That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- 收容所列表（默认隐藏） -->
   <div id="shelterList" style="display: none; max-width: 900px; margin: 0 auto; padding: 0 20px 60px;">
@@ -485,143 +418,95 @@
       <h1 style="color:#00ff9d; font-size:1.9rem; margin-bottom:8px;">🌟 关于 PAWLY / About PAWLY</h1>
       <p style="color:#ff9ecd; margin-bottom:30px; font-size:1.05rem;">宠物生态 · 爱与守护 · 区块链力量 / Pet Ecosystem · Love & Protection · Powered by Blockchain</p>
 
-      <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="color:#a78bfa; margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">🔥 质押挖矿 / Staking</h3>
-        <p style="color:#ddd; line-height:1.7; margin-bottom:16px;">
-          当前处于预质押签到奖励阶段。达到 5000 名活跃用户以上将正式开启链上质押挖矿。<br>
-          <span style="color:#aaa;">Pre-staking phase. On-chain staking will launch after reaching 5,000 active users or above.</span>
-        </p>
+            <!-- Staking：点击进入视频页，文案在视频底部展开 -->
+      <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
+        <h3 style="color:#a78bfa; margin:0 0 16px 0;">🔥 质押挖矿 / Staking</h3>
         <button onclick="showTab(2)" style="background: linear-gradient(135deg, #7c3aed, #a78bfa); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          前往质押页面 / Go to Staking
+          点击前往专业dApp页面 / Go to dApp 
         </button>
       </div>
 
-      <div style="background:rgba(33,150,243,0.1); border:2px solid #2196f3; border-radius:20px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="color:#64b5f6; margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">🐶 宠物支付 / Pet Payment</h3>
-        <p style="color:#ddd; line-height:1.7; margin-bottom:16px;">
-          PAWLY 的长期愿景是成为宠物爱好者的日常支付工具。未来可直接在合作宠物店、兽医诊所使用 PAWLY 支付。<br>
-          <span style="color:#aaa;">Long-term vision: Use PAWLY for everyday pet-related payments.</span>
-        </p>
+      <!-- Pet Payment：点击进入视频页 -->
+      <div style="background:rgba(33,150,243,0.1); border:2px solid #2196f3; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
+        <h3 style="color:#64b5f6; margin:0 0 16px 0;">🐶 宠物支付 / Pet Payment</h3>
         <button onclick="showTab(3)" style="background: linear-gradient(135deg, #2196f3, #64b5f6); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          前往宠物支付 / Go to Pet Payment
+          点击前往宠物支付 / Go to Pet Payment Video
         </button>
       </div>
 
-      <div style="background:rgba(0,200,83,0.1); border:2px solid #00c853; border-radius:20px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="color:#69f0ae; margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">❤️ 宠物慈善基金 / Pet Charity Fund</h3>
-        <p style="color:#ddd; line-height:1.7; margin-bottom:16px;">
-          PAWLY 将把部分交易费用用于支持全球动物保护组织及流浪动物收容所。每季度公开捐款，社区持币者可投票决定捐款方向。<br>
-          <span style="color:#aaa;">Portion of fees goes to animal shelters & protection organizations worldwide.</span>
-        </p>
-        <button onclick="showTab(4)" style="background: linear-gradient(135deg, #00c853, #69f0ae); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          前往慈善基金 / Go to Charity
+      <!-- Pet Charity：点击进入视频页 -->
+      <div style="background:rgba(0,200,83,0.1); border:2px solid #00c853; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
+        <h3 style="color:#69f0ae; margin:0 0 16px 0;">❤️ 宠物慈善基金 / Pet Charity Fund</h3>
+        <button onclick="showTab(4)" style="background: linear-gradient(135deg, #00c853, #69f0ae); color:#04140c; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
+          点击前往慈善基金 / Go to Charity Video
         </button>
       </div>
 
-      <div style="margin: 30px 0 20px; text-align: center;">
-  <a href="project-info.html"
-     style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; text-decoration: none; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
-    更多项目信息 / More Project Info
-  </a>
-</div>
+      <div style="margin: 30px 0 12px; text-align: center;">
+        <a href="project-info.html"
+           style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; text-decoration: none; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
+          更多项目信息 / More Project Info
+        </a>
+      </div>
+      <div style="margin: 0 0 28px; text-align: center;">
+        <a href="https://github.com/kentweney-netizen/pawly-websites/releases/download/v1.0.0/pawlypets-app.apk"
+           download="pawlypets-app.apk"
+           style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; text-decoration: none; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
+          📥 下载 PAWLY PETS APK / Download APK
+        </a>
+        <p style="margin-top: 10px; font-size: 0.85em; color: #888;">适用于 Android 手机 | For Android devices</p>
+      </div>
       
- <!-- ==================== 折叠式 About PAWLY 长文 ==================== -->
-    <div style="margin: 35px 0 15px 0;">
-      <button onclick="toggleAboutLongText()" 
-              style="width:100%; padding:16px; background:#1a0033; color:#00ff9d; 
-                     border:2px solid #00ff9d; border-radius:16px; font-size:1.05em; 
-                     cursor:pointer; font-weight:600;">
-        📖 点击展开完整故事 / Click to read the full story
-      </button>
+  <!-- ========== About 页最底部：自动钱包 + 版权政策（与更多项目信息同格式） ========== -->
+  <div style="margin: 48px 0 10px; padding-top: 28px; border-top: 1px solid rgba(0,255,157,0.25); text-align: center;">
 
-      <!-- 折叠内容（默认隐藏） -->
-      <div id="aboutLongText" style="display:none; margin-top:20px; background:rgba(255,255,255,0.04); 
-                                    border:1px solid #444; border-radius:18px; padding:28px; text-align:left; line-height:1.75;">
-        <div class="bilingual">
-          <div>
-            <strong>中文：</strong><br>
-            PAWLY 的诞生，源于创造者这些年看到越来越多的人用心爱护动物。我们希望从一个可爱的宠物 meme 币，逐步发展成有实际价值的宠物生态系统。我一直是个爱宠之人。每天看着自己心爱的宠物在家中撒娇、陪伴，那种纯真而无条件的信任，让我第一次真正感受到动物带给人类的温暖与治愈。
-            渐渐地，这种爱不再只停留在自己的宠物身上。我开始关注那些被遗弃的流浪动物、被关在笼子里的表演动物，以及那些在野外濒临灭绝的珍稀物种。我突然意识到：如果连我们这些爱宠的人都不站出来，谁来为它们发声？
-            于是，我决定用区块链和加密货币的力量，创造 PAWLY。我希望 PAWLY 不只是一枚可爱的 meme 币，而是能成为连接「爱宠」与「护生」的桥梁。未来，我希望 PAWLY 能进入国际动物保护组织，为濒危动物发声，让更多人明白——保护动物，不只是保护家中的爱宠，更是保护这个星球上所有值得被守护的生命。
-          </div>
-          <div>
-            <strong>English：</strong><br>
-            PAWLY was born from seeing more people caring for animals. We hope to evolve from a cute pet meme coin into a real-value pet ecosystem. I have always been a pet lover. Watching my own beloved pet act spoiled and accompany me every day, that pure and unconditional trust made me truly feel the warmth and healing that animals bring to humans for the first time.
-            Gradually, this love never stayed only with my own pet. I began to care about abandoned stray animals, performing animals kept in cages, and rare species on the verge of extinction in the wild. I suddenly realized: if even those of us who love pets don’t speak up for them, who will?
-            That’s why I decided to use the power of blockchain and cryptocurrency to create PAWLY. I hope PAWLY is not just a cute meme coin, but a bridge connecting “pet lovers” and “animal protectors.” In the future, I hope PAWLY can enter international animal protection organizations and speak up for endangered animals — proving that protecting animals is not only about the pets in our homes, but about all lives on this planet that deserve to be protected.
-          </div>
+    <div style="margin: 0 0 14px;">
+      <button type="button" onclick="toggleWalletGuide()" id="walletGuideBtn"
+              style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
+        📖 了解我的自动钱包 / About My Auto Wallet
+      </button>
+    </div>
+    <div id="walletGuideShort" style="display:none; max-width:640px; margin: 0 auto 18px; background:rgba(255,255,255,0.04);
+                                      border:1px solid #444; border-radius:14px; padding:18px; text-align:left; line-height:1.75; font-size:0.92em;">
+      <div class="bilingual">
+        <div>
+          <strong>中文：</strong><br>
+          登录后系统会通过 Privy 自动生成 Solana 地址，用于签到与接收奖励。<br>
+          这是嵌入式钱包，不能仅凭地址导入 Phantom / Solflare。<br>
+          若要在 Jupiter、Raydium 自行交易，请用外部钱包并在签到页绑定。<br>
+          <a href="wallet-guide.html" style="color:#00ff9d;">打开完整说明页 →</a>
+        </div>
+        <div style="margin-top:12px;">
+          <strong>English：</strong><br>
+          After login, a Solana address is created for check-in and rewards.<br>
+          Embedded wallet — not importable into Phantom by address alone.<br>
+          To trade on DEXs, bind an external wallet on the check-in page.<br>
+          <a href="wallet-guide.html" style="color:#00ff9d;">Open full guide →</a>
         </div>
       </div>
     </div>
 
-  <!-- ========== 仅 About PAWLY：折叠说明 ========== -->
-<div style="margin: 40px 0 10px; padding-top: 28px; border-top: 1px solid rgba(0,255,157,0.25);">
-
-  <button type="button" onclick="toggleWalletGuide()"
-          id="walletGuideBtn"
-          style="width:100%; padding:14px; margin-bottom:12px; background:#1a0033; color:#00ff9d;
-                 border:2px solid #00ff9d; border-radius:14px; font-size:0.95em; cursor:pointer; font-weight:600; box-sizing:border-box;">
-    📖 了解我的自动钱包 / About My Auto Wallet
-  </button>
-  <div id="walletGuideShort" style="display:none; margin-bottom:18px; background:rgba(255,255,255,0.04);
-                                    border:1px solid #444; border-radius:14px; padding:18px; text-align:left; line-height:1.75; font-size:0.92em;">
-    <div class="bilingual">
-      <div>
-        <strong>中文：</strong><br>
-        登录后系统会通过 Privy 自动生成 Solana 地址，用于签到与接收奖励。<br>
-        这是嵌入式钱包，不能仅凭地址导入 Phantom / Solflare。<br>
-        若要在 Jupiter、Raydium 自行交易，请用外部钱包并在签到页绑定。<br>
-        <a href="wallet-guide.html" style="color:#00ff9d;">打开完整说明页 →</a>
-      </div>
-      <div style="margin-top:12px;">
-        <strong>English：</strong><br>
-        After login, a Solana address is created for check-in and rewards.<br>
-        Embedded wallet — not importable into Phantom by address alone.<br>
-        To trade on DEXs, bind an external wallet on the check-in page.<br>
-        <a href="wallet-guide.html" style="color:#00ff9d;">Open full guide →</a>
-      </div>
+    <div style="margin: 0 0 14px;">
+      <button type="button" onclick="toggleAboutPolicies()" id="aboutPoliciesBtn"
+              style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
+        © 2026 PAWLY PETS. All rights reserved. &amp; Policies
+      </button>
     </div>
-  </div>
-
-  <button type="button" onclick="toggleAboutPolicies()"
-          id="aboutPoliciesBtn"
-          style="width:100%; padding:14px; background:#1a0033; color:#aaa;
-                 border:1px solid #555; border-radius:14px; font-size:0.9em; cursor:pointer;">
-    © 2026 PAWLY PETS. All rights reserved. &amp; Policies / 版权所有 &amp; 政策
-  </button>
-  <div id="aboutPoliciesBox" style="display:none; margin-top:12px; background:rgba(255,255,255,0.03);
-                                    border:1px solid #444; border-radius:14px; padding:16px; text-align:center; line-height:1.7; font-size:0.9em;">
-    <p style="color:#ccc; margin:0 0 14px 0;">
-      隐私政策、儿童安全标准等法律文件<br>
-      <span style="color:#888;">Privacy Policy, Child Safety Standards &amp; more</span>
-    </p>
-    <a href="policies.html"
-       style="display:inline-block; background:linear-gradient(135deg,#8b5cf6,#10b981); color:white;
-              padding:12px 28px; border-radius:9999px; text-decoration:none; font-weight:600;">
-      查看全部政策 / View All Policies
-    </a>
-  </div>
-
-</div>    
-
-    <!-- ==================== APK 下载按钮（放在折叠内容下方） ==================== -->
-    <div style="text-align: center; margin: 30px 0 50px;">
-      <a href="https://github.com/kentweney-netizen/pawly-websites/releases/download/v1.0.0/pawlypets-app.apk" 
-         download="pawlypets-app.apk"
-         style="display: inline-block; 
-                background: linear-gradient(135deg, #00ff9d, #00c2ff); 
-                color: #000; font-weight: bold; 
-                padding: 18px 50px; border-radius: 50px; 
-                text-decoration: none; font-size: 1.15em;
-                box-shadow: 0 6px 20px rgba(0, 255, 157, 0.5);">
-        📥 下载 PAWLY PETS APK<br>
-        <span style="font-size: 0.9em; font-weight: normal;">Download PAWLY PETS App</span>
-      </a>
-      <p style="margin-top: 12px; font-size: 0.95em; color: #888;">
-        适用于 Android 手机 | For Android devices
+    <div id="aboutPoliciesBox" style="display:none; max-width:640px; margin: 0 auto 20px; background:rgba(255,255,255,0.03);
+                                      border:1px solid #444; border-radius:14px; padding:16px; text-align:center; line-height:1.7; font-size:0.9em;">
+      <p style="color:#ccc; margin:0 0 14px 0;">
+        隐私政策、儿童安全标准等法律文件<br>
+        <span style="color:#888;">Privacy Policy, Child Safety Standards &amp; more</span>
       </p>
+      <a href="policies.html"
+         style="display:inline-block; background:linear-gradient(135deg,#8b5cf6,#10b981); color:white;
+                padding:12px 28px; border-radius:9999px; text-decoration:none; font-weight:600;">
+        查看全部政策 / View All Policies
+      </a>
     </div>
 
+  </div>
+    
   </div>
 </div>
 
@@ -680,21 +565,11 @@
         <h1 style="font-size:2.5rem; color:#00ff9d;">欢迎来到 PAWLY 大家庭</h1>
         <p style="color:#ffccdd;">Welcome to the PAWLY Family</p>
       </div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:24px; margin-bottom:50px;">
-        <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15);">
+      <div style="display:flex; justify-content:center; margin-bottom:50px;">
+        <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15); max-width:420px; width:100%;">
           <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">🐾 REGISTERED MEMBERS</div>
           <div id="pageTotalMembers" style="font-size:3.9rem; font-weight:bold; color:#00ff9d; line-height:1;">--</div>
           <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">已注册 PAWLY 成员 / Registered PAWLY Members</div>
-        </div>
-        <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15);">
-          <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">💖 TODAY'S CHECK-INS</div>
-          <div id="pageTodaySignIns" style="font-size:3.9rem; font-weight:bold; color:#00ff9d; line-height:1;">--</div>
-          <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">今日签到人数 / Today's Check-ins</div>
-        </div>
-        <div style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15);">
-          <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">🌟 TOTAL CHECK-INS</div>
-          <div id="pageTotalSignIns" style="font-size:3.9rem; font-weight:bold; color:#00ff9d; line-height:1;">--</div>
-          <div style="margin-top:12px; color:#ffccdd; font-size:1.15rem;">累计签到总次数 / Total Check-ins</div>
         </div>
       </div>
       <div style="background:rgba(255, 200, 220, 0.07); border:2px solid #ff9ecd; border-radius:22px; padding:32px 28px; margin-bottom:40px;">
@@ -710,13 +585,13 @@
       </div>
       <div style="text-align:center; margin-bottom:35px;">
         <button onclick="hidePawlyMembersPage()" style="background:transparent; color:#00ff9d; padding:15px 50px; border:2px solid #00ff9d; border-radius:18px; font-size:1.05em; cursor:pointer; font-weight:bold;">
-          ← 返回我的仪表盘 / Back to Dashboard
+          ← 返回 / Back
         </button>
       </div>
     </div>
   </div>
 
-  <!-- 各种 Waitlist Modal 和 Redeem Modal（完整保留） -->
+  <!-- Waitlist Modal（Redeem 已删除） -->
   <!-- Staking Waitlist Modal -->
   <div id="stakingWaitlistModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:22px; padding:35px 28px; max-width:540px; width:93%; text-align:center;">
@@ -744,48 +619,6 @@
     </div>
   </div>
 
-  <!-- Redeem Modal -->
-  <div id="redeemModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
-    <div style="background:#1a0033; border:2px solid #00ff9d; border-radius:20px; padding:30px; max-width:420px; width:90%; text-align:center;">
-      <h2 style="color:#00ff9d; margin-bottom:20px;">确认兑换 PAWLY Confirm to redeem PAWLY</h2>
-      <div style="background:#120022; padding:20px; border-radius:14px; margin:20px 0;">
-        <p style="margin:0 0 8px 0; color:#aaa;">你将使用 You will use</p>
-        <p id="redeemPointsText" style="font-size:26px; font-weight:bold; color:#00ff9d; margin:0;"></p>
-        <p style="margin:8px 0 0 0; color:#aaa;">兑换 Redeem</p>
-        <p id="redeemPAWLYText" style="font-size:26px; font-weight:bold; color:#ffaa00; margin:0;"></p>
-      </div>
-      <p style="color:#ffaa00; font-size:14px; margin:15px 0;">⚠️ 兑换后积分将归零，请确认操作 ⚠️ after redeem will return to 0, please confirm</p>
-      <button onclick="confirmRedeem()" style="width:100%; padding:16px; background:#00ff9d; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer; margin-top:10px;">
-        确认兑换 / Confirm Redeem
-      </button>
-      <button onclick="closeRedeemModal()" style="width:100%; padding:14px; background:transparent; color:#aaa; border:1px solid #555; border-radius:14px; margin-top:12px; cursor:pointer;">
-        取消 / Cancel
-      </button>
-    </div>
-  </div>
-
-  <!-- Important Notice Modal -->
-  <div id="importantNoticeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
-    <div style="background:#1a0033; border:2px solid #ff8800; border-radius:22px; padding:35px 28px; max-width:620px; width:93%; text-align:left;">
-      <h2 style="color:#ffaa00; margin-bottom:20px; text-align:center;">⚠️ 重要提示 / Important Notice</h2>
-      <div style="color:#ddd; line-height:1.8; font-size:1.05em;">
-        <strong>中文：</strong><br>
-        1. 本项目目前处于测试阶段，所有签到奖励将在正式上线后空投发放。<br>
-        2. 请妥善保管你的钱包地址，绑定后可随时修改。<br>
-        3. 连续签到可获得额外积分奖励（每7天额外+10积分）。<br>
-        4. 积分可按比例兑换 PAWLY（100积分 = 5 PAWLY）。<br><br>
-        <strong>English：</strong><br>
-        1. This project is currently in the testing phase. All check-in rewards will be airdropped after official launch.<br>
-        2. Please keep your wallet address safe. It can be modified anytime after binding.<br>
-        3. Consecutive check-ins earn extra points (additional +10 points every 7 days).<br>
-        4. Points can be redeemed for PAWLY at a ratio (100 points = 5 PAWLY).
-      </div>
-      <button onclick="hideImportantNoticeModal()" style="width:100%; margin-top:25px; padding:16px; background:#ffaa00; color:black; font-weight:bold; border:none; border-radius:14px; font-size:1.1em; cursor:pointer;">
-        我已了解 / I Understand
-      </button>
-    </div>
-  </div>
-
 <script>
 // ==================== 完整 JavaScript（所有函数一个字不漏） ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
@@ -804,7 +637,10 @@ function showTab(n) {
     target.classList.add('active');
     target.style.display = 'block';
   }
-  document.querySelectorAll('.nav button').forEach((btn, i) => btn.classList.toggle('active', i === n));
+  // 按 id 高亮导航（已无仪表盘）
+  document.querySelectorAll('.nav button').forEach(btn => btn.classList.remove('active'));
+  const navBtn = document.getElementById('nav' + n);
+  if (navBtn) navBtn.classList.add('active');
 }
 
 async function goToDAppWithData() {
@@ -816,7 +652,7 @@ async function goToDAppWithData() {
   try {
     const { data: userData, error } = await supabaseClient
       .from("USERS")
-      .select("wallet_address, checkin_streak, total_earnd, email")
+      .select("wallet_address, email")
       .eq("id", currentUser.id)
       .single();
 
@@ -827,21 +663,18 @@ async function goToDAppWithData() {
     }
 
     const wallet = userData?.wallet_address || "";
-    const streak = userData?.checkin_streak || 0;
-    const total = userData?.total_earnd || 0;
     const email = userData?.email || currentUser.email || "";
 
     if (!wallet) {
       alert("请先绑定钱包再进入 dApp！\nPlease bind your wallet first.");
-      showTab(1);
+      showTab(0);
       return;
     }
 
+    // 不再传 streak / points（签到奖励已结束）
     const url =
       "https://pawlypets.netlify.app/dapp" +
       "?wallet=" + encodeURIComponent(wallet) +
-      "&streak=" + encodeURIComponent(streak) +
-      "&total_pawly=" + encodeURIComponent(total) +
       "&email=" + encodeURIComponent(email);
 
     window.location.href = url;
@@ -875,34 +708,18 @@ function hidePawlyMembersPage() {
   document.querySelectorAll('.container').forEach(el => el.style.display = '');
   document.querySelectorAll('.showcase').forEach(el => el.style.display = 'none');
 
-  showTab(1);
+  showTab(0);
 }
 
 async function loadPawlyMembersStats() {
   const membersEl = document.getElementById('pageTotalMembers');
-  const todayEl = document.getElementById('pageTodaySignIns');
-  const totalEl = document.getElementById('pageTotalSignIns');
-
   if (membersEl) membersEl.innerText = '...';
-  if (todayEl) todayEl.innerText = '...';
-  if (totalEl) totalEl.innerText = '...';
-
   try {
-    const today = new Date().toISOString().split('T')[0];
-
     const { count: membersCount } = await supabaseClient.from('USERS').select('*', { count: 'exact', head: true });
     if (membersEl) membersEl.innerText = membersCount || 0;
-
-    const { count: todayCount } = await supabaseClient.from('checkins').select('*', { count: 'exact', head: true }).eq('checkin_date', today);
-    if (todayEl) todayEl.innerText = todayCount || 0;
-
-    const { count: totalCheckins } = await supabaseClient.from('checkins').select('*', { count: 'exact', head: true });
-    if (totalEl) totalEl.innerText = totalCheckins || 0;
-  } catch (error) {
-    console.error(error);
-    if (membersEl) membersEl.innerText = '加载失败';
-    if (todayEl) todayEl.innerText = '加载失败';
-    if (totalEl) totalEl.innerText = '加载失败';
+  } catch (e) {
+    console.error(e);
+    if (membersEl) membersEl.innerText = '--';
   }
 }
 
@@ -1142,237 +959,30 @@ async function connectSolanaWallet() {
 }
 
 async function checkIn() {
-  if (!currentUser) {
-    alert("请先登录！\nPlease login first!");
-    return;
-  }
-
-  // 1. 检查钱包 + last_checkin_at
-  const { data: userData } = await supabaseClient
-    .from('USERS')
-    .select('wallet_address, last_checkin_at')
-    .eq('id', currentUser.id)
-    .single();
-
-  if (!userData?.wallet_address) {
-    alert("请先绑定钱包才能签到！\nPlease connect your wallet before checking in.");
-    showTab(1);
-    return;
-  }
-
-  // 2. 24小时冷却检查
-  if (userData.last_checkin_at) {
-    const lastTime = new Date(userData.last_checkin_at).getTime();
-    const hoursPassed = (Date.now() - lastTime) / (1000 * 60 * 60);
-    if (hoursPassed < 24) {
-      const remaining = (24 - hoursPassed).toFixed(1);
-      alert(`⏳ 签到冷却中！\n距离上次签到仅 ${hoursPassed.toFixed(1)} 小时\n请等待 ${remaining} 小时后再签到。\n\nCooling down! Wait ${remaining} more hours.`);
-      showTab(1);
-      return;
-    }
-  }
-
-  // 3. 倒计时额外防护
-  const timerEl = document.getElementById('countdownTimer');
-  if (timerEl && timerEl.innerText !== "00:00:00") {
-    alert("⏳ 倒计时还没结束，请等待倒计时归零后再签到！\nPlease wait until the countdown reaches 00:00:00.");
-    return;
-  }
-
-  // 4. 检查今日是否已签到
-  const today = new Date().toLocaleDateString('en-CA');
-  const { data: existing } = await supabaseClient
-    .from('checkins')
-    .select('id')
-    .eq('user_id', currentUser.id)
-    .eq('checkin_date', today)
-    .maybeSingle();
-
-  if (existing) {
-    alert("此账号今日已签到，请在倒数结束后再进行签到。\nThis account has already checked in today.");
-    showTab(1);
-    return;
-  }
-
-  // 5. 插入签到记录（Trigger 会自动计算 streak 和加 Points）
-  const { error: insertError } = await supabaseClient
-    .from('checkins')
-    .insert({ user_id: currentUser.id, checkin_date: today });
-
-  if (insertError) {
-    alert("签到失败: " + insertError.message);
-    return;
-  }
-
-  // 6. 更新 last_checkin_at 和 next_reminder_at（Points 和 streak 由 Trigger 处理）
-  const newNextReminder = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-  await supabaseClient
-    .from('USERS')
-    .update({
-      last_checkin_at: new Date().toISOString(),
-      next_reminder_at: newNextReminder
-    })
-    .eq('id', currentUser.id);
-
-  // 7. 重新获取最新数据（包含 Trigger 计算后的 streak 和 points）
-  const stats = await calculateUserStats(currentUser.id);
-  const newPoints = stats.points || 0;
-  const newStreak = stats.streak || 0;
-
-  // 8. 成功提示
-  let message = `✅ 签到成功！\n获得 5 PAWLY Points\n当前 Points：${newPoints}\n连续签到：${newStreak} 天\n\n✅ Check-in successful!\nYou received 5 PAWLY Points\nCurrent Points: ${newPoints}\nStreak: ${newStreak} days`;
-
-  if (newStreak % 7 === 0 && newStreak > 0) {
-    message = `🎉 恭喜！你已连续签到 ${newStreak} 天！\n额外获得 10 PAWLY Points！\n当前 Points：${newPoints}\n\n🎉 Congratulations! You have checked in for ${newStreak} consecutive days!\nYou received an extra 10 PAWLY Points!`;
-  }
-
-  alert(message);
-
-  // 9. 更新界面
-  await calculateUserStats(currentUser.id);
-  updateDashboard();
-  startCountdown(Date.now());
-  showTab(1);
+  alert("签到积分奖励已结束。\n历史积分将用于官方 Snapshot 与早期 Airdrop。\n请前往 dApp 参与 Staking。\n\nCheck-in point rewards have ended.\nHistorical points will be used for official Snapshot & early Airdrop.\nPlease use the dApp for Staking.");
+  return;
 }
   
 async function updateDashboard() {
-  if (!currentUser) return;
-  try {
-    const { data: dbData, error } = await supabaseClient
-      .from('USERS')
-      .select('checkin_streak, total_earnd, pawly_points')
-      .eq('id', currentUser.id)
-      .single();
-
-    if (error) {
-      console.error("查询用户数据失败:", error);
-      return;
-    }
-
-    const streak = dbData?.checkin_streak || 0;
-    const totalPAWLY = dbData?.total_earnd || 0;
-    const points = dbData?.pawly_points || 0;
-
-    // 这里已经改成累计签到 + 使用正确变量
-    document.getElementById('streakText').innerText = 
-      `累计签到 ${streak} 天 🔥 / Total Check-in Days: ${streak} days`;
-
-    document.getElementById("totalText").innerHTML = 
-      `总共已赚取 ${totalPAWLY} PAWLY / Total Earned: ${totalPAWLY} PAWLY`;
-
-    const pointsEl = document.getElementById('pointsDisplay');
-    const redeemableEl = document.getElementById('redeemablePAWLY');
-
-    if (pointsEl) pointsEl.innerText = points;
-    if (redeemableEl) redeemableEl.innerText = Math.floor(points / 100) * 5;
-
-  } catch (error) {
-    console.error("更新仪表盘失败:", error);
-  }
+  // Dashboard removed — no-op
 }
 
-function showRedeemModal() {
-  if (!currentUser) {
-    alert("请先登录！\nPlease log in first!");
-    return;
-  }
-  const points = parseInt(document.getElementById('pointsDisplay').innerText) || 0;
-  if (points < 100) {
-    alert("积分不足 100，无法兑换！\nNot enough points!");
-    return;
-  }
-  const pawlyAmount = Math.floor(points / 100) * 5;
-  document.getElementById('redeemPointsText').innerText = `${points} Points`;
-  document.getElementById('redeemPAWLYText').innerText = `${pawlyAmount} PAWLY`;
-  document.getElementById('redeemModal').style.display = 'flex';
-}
 
-function closeRedeemModal() {
-  document.getElementById('redeemModal').style.display = 'none';
-}
 
-async function confirmRedeem() {
-  if (!currentUser) return;
 
-  const points = parseInt(document.getElementById('pointsDisplay').innerText) || 0;
-  if (points < 100) {
-    alert("积分不足！\nNot enough points!");
-    closeRedeemModal();
-    return;
-  }
 
-  const pawlyAmount = Math.floor(points / 100) * 5;
-  const pointsToRedeem = Math.floor(points / 100) * 100;
 
-  try {
-    const { data: userData } = await supabaseClient
-      .from('USERS')
-      .select('total_earnd')
-      .eq('id', currentUser.id)
-      .single();
 
-    const currentBalance = userData?.total_earnd || 0;
 
-    await supabaseClient.from('USERS').update({
-      pawly_points: points - pointsToRedeem,
-      total_earnd: currentBalance + pawlyAmount
-    }).eq('id', currentUser.id);
-
-    await supabaseClient.from('points_redemptions').insert({
-      user_id: currentUser.id,
-      points_redeemed: pointsToRedeem,
-      pawly_received: pawlyAmount,
-      wallet_address: document.getElementById('walletDisplay')?.innerText || null
-    });
-
-    alert(`✅ 兑换成功！\n获得 ${pawlyAmount} PAWLY\n积分已扣除 ${pointsToRedeem} Points`);
-
-    closeRedeemModal();
-    await calculateUserStats(currentUser.id);
-    updateDashboard();
-
-  } catch (error) {
-    console.error("兑换失败:", error);
-    alert("兑换失败，请稍后再试。");
-  }
-}
-
-function startCountdown(lastSignInTime) {
+function startCountdown(lastCheckinTime) {
+  // Check-in rewards ended — do not run countdown
   if (countdownInterval) clearInterval(countdownInterval);
   const timerEl = document.getElementById('countdownTimer');
   const statusEl = document.getElementById('countdownStatus');
+  if (timerEl) timerEl.innerText = "—";
+  if (statusEl) statusEl.innerHTML = '<span style="color:#aaa;">奖励阶段已结束 / Reward phase ended</span>';
   const readyArea = document.getElementById('readyCheckinArea');
-  if (!lastSignInTime) {
-    timerEl.innerText = "00:00:00";
-    statusEl.innerHTML = `<span style="color:#00ff9d;">可以签到了！You May Check-in Now! </span>`;
-    if (readyArea) readyArea.style.display = "none";
-    return;
-  }
-  countdownInterval = setInterval(() => {
-    const now = Date.now();
-    const nextAvailable = lastSignInTime + (24 * 60 * 60 * 1000);
-    const remaining = nextAvailable - now;
-    if (remaining <= 0) {
-      clearInterval(countdownInterval);
-      timerEl.innerText = "00:00:00";
-      statusEl.innerHTML = `<span style="color:#00ff9d; font-weight:bold;">✅ 可以签到了! You May Check-in Now! </span>`;
-      if (readyArea) readyArea.style.display = "block";
-      if (Notification.permission === "granted") {
-        new Notification("PAWLY 签到提醒 / PAWLY Check-in Reminder", {
-          body: "24小时已到，可以签到了！\n24 hours have passed, you can check in now!"
-        });
-      }
-      sendEmailReminder();
-    } else {
-      const hours = Math.floor(remaining / (1000 * 60 * 60));
-      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-      timerEl.innerText = `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
-      statusEl.innerHTML = "签到冷却中... / Cooling down...";
-      if (readyArea) readyArea.style.display = "none";
-    }
-  }, 1000);
+  if (readyArea) readyArea.style.display = "none";
 }
 
 function startCountdownFromStorage() {
@@ -1492,11 +1102,13 @@ function toggleAboutPolicies() {
     btn.innerHTML = '📕 收起政策 / Collapse Policies';
   } else {
     box.style.display = 'none';
-    btn.innerHTML = '© 2026 PAWLY PETS. All rights reserved. & Policies / 版权所有 & 政策';
+    btn.innerHTML = '© 2026 PAWLY PETS. All rights reserved. & Policies';
   }
 }  
 
 async function sendEmailReminder() {
+  return; // Check-in rewards ended — reminder disabled
+
   if (!currentUser || !currentUser.email) return;
 
   let latestCheckin;
@@ -1590,6 +1202,9 @@ async function sendEmailReminder() {
 }
 
 async function sendTestEmailReminder() {
+  alert("签到提醒已关闭 / Check-in reminder disabled");
+  return;
+
   if (!currentUser || !currentUser.email) {
     alert("请先登录！\nPlease login first!");
     return;
@@ -1688,34 +1303,20 @@ function hideModal(type) {
   if (modal) modal.style.display = 'none';
 }
 
-function showImportantNoticeModal() {
-  document.getElementById('importantNoticeModal').style.display = 'flex';
-}
 
-function hideImportantNoticeModal() {
-  document.getElementById('importantNoticeModal').style.display = 'none';
-}
+
+
 
 function initEmailReminderButton() {
+  // Reminder disabled after check-in rewards ended
   const btn = document.getElementById('emailReminderBtn');
-  if (!btn || !currentUser) return;
-
-  const storageKey = `email_reminder_${currentUser.id}`;
-  let isEnabled = localStorage.getItem(storageKey) === 'true';
-
-  updateReminderButtonText(btn, isEnabled);
-
-  btn.onclick = () => {
-    isEnabled = !isEnabled;
-    localStorage.setItem(storageKey, isEnabled);
-    updateReminderButtonText(btn, isEnabled);
-
-    if (isEnabled) {
-      alert("邮箱提醒已开启！\n当倒数结束时会收到邮件通知。\n\nEmail reminder enabled!\nYou will receive an email when the countdown ends.");
-    } else {
-      alert("邮箱提醒已关闭。\n\nEmail reminder disabled.");
-    }
-  };
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "提醒已关闭 / Reminder Off";
+    btn.style.background = "#555";
+    btn.style.color = "#999";
+    btn.onclick = null;
+  }
 }
 
 function updateReminderButtonText(btn, isEnabled) {
@@ -1731,33 +1332,7 @@ function updateReminderButtonText(btn, isEnabled) {
 }
 
 function goToDApp() {
-  if (!currentUser) {
-    alert("请先登录后再进入 dApp");
-    return;
-  }
-
-  // 从页面上获取当前数据显示
-  const streak = document.getElementById("streakText")?.innerText.match(/\d+/)?.[0] || 0;
-  const totalPAWLY = document.getElementById("totalText")?.innerText.match(/\d+/)?.[0] || 0;
-
-  // 获取已绑定的钱包地址
-  const walletInput = document.getElementById("bind-wallet");
-  const wallet = walletInput ? walletInput.value.trim() : "";
-
-  // 构建跳转 URL
-  let url = "https://pawlypets.netlify.app/dapp";
-  const params = new URLSearchParams();
-
-  if (currentUser.email) params.append("email", currentUser.email);
-  if (wallet) params.append("wallet", wallet);
-  if (streak) params.append("streak", streak);
-  if (totalPAWLY) params.append("total_pawly", totalPAWLY);
-
-  if (params.toString()) {
-    url += "?" + params.toString();
-  }
-
-  window.location.href = url;
+  goToDAppWithData();
 }
 
 function toggleAboutLongText() {
@@ -1863,11 +1438,9 @@ window.onload = async function() {
 };
 
 function goToDashboard() {
-  document.querySelectorAll('[id^="modal-"]').forEach(modal => {
-    modal.style.display = 'none';
-  });
-  showTab(1);
+  showTab(0);
 }
+
 </script>
 </body>
 </html>
