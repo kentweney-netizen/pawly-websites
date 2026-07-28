@@ -59,11 +59,23 @@
       <div style="margin:15px auto 25px; max-width:520px; border-radius:22px; overflow:hidden; border:4px solid #ff9ecd; box-shadow:0 15px 45px rgba(255, 158, 205, 0.4);">
         <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
       </div>
-      <div style="background:rgba(255,136,0,0.15); border:2px solid #ff8800; border-radius:16px; padding:16px 18px; margin-bottom:20px; text-align:left; line-height:1.65; font-size:0.95em; color:#ffcc80;">
-        ⚠️ <strong>签到积分奖励已结束 / Check-in Point Rewards Ended</strong><br>
-        历史积分仅供 Snapshot 与早期 Airdrop 参考。之后收益以 Staking APY 为主。<br>
-        <span style="color:#c9a06a; font-size:0.9em;">Historical points are for Snapshot &amp; early Airdrop only. Ongoing rewards via Staking APY.</span>
+      <!-- My PAWLY Balance（登录+绑钱包后从 Supabase 读取） -->
+      <div id="pawlyBalanceCard" style="background:rgba(0,255,157,0.08); border:2px solid #00ff9d; border-radius:18px; padding:20px 18px; margin-bottom:18px; text-align:center;">
+        <div style="font-size:0.9rem; color:#aaa; margin-bottom:6px;">💰 My PAWLY Balance</div>
+        <div id="myPawlyBalance" style="font-size:2.2rem; font-weight:800; color:#00ff9d; line-height:1.2;">—</div>
+        <div style="font-size:0.85rem; color:#888; margin-top:8px; line-height:1.5;">
+          登录并绑定钱包后自动显示<br>
+          <span style="color:#666;">Shown after login &amp; wallet bind (from Supabase)</span>
+        </div>
       </div>
+
+      <div style="text-align:center; margin-bottom:18px;">
+        <button onclick="showCheckinEndedModal()"
+                style="background: linear-gradient(135deg, #ff6b6b, #ff9f43); color: white; border: none; padding: 12px 28px; border-radius: 9999px; font-size: 0.95em; font-weight: bold; cursor: pointer; box-shadow: 0 4px 14px rgba(255, 107, 107, 0.35);">
+          ⚠️ 签到奖励已结束 / Check-in Rewards Ended
+        </button>
+      </div>
+
       <h1>🐾 账户 / Account</h1>
       <div id="auth-section">
         <div style="background:rgba(0,255,150,0.1); border-radius:15px; padding:25px; margin:20px 0;">
@@ -217,8 +229,8 @@
   </div>
 </div>
       <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
-        专业版 Staking 功能已在 dApp 中上线<br>
-        Professional Staking features are being developed in the dApp is online
+        专业版 Staking 功能已在 dApp 中开发中<br>
+        Professional Staking features are being developed in the dApp
       </p>
     </div>
   </div>
@@ -369,7 +381,6 @@
     </div>
   </div>
 
-
   <!-- 收容所列表（默认隐藏） -->
   <div id="shelterList" style="display: none; max-width: 900px; margin: 0 auto; padding: 0 20px 60px;">
 
@@ -422,7 +433,7 @@
       <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
         <h3 style="color:#a78bfa; margin:0 0 16px 0;">🔥 质押挖矿 / Staking</h3>
         <button onclick="showTab(2)" style="background: linear-gradient(135deg, #7c3aed, #a78bfa); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          点击前往专业dApp页面 / Go to dApp 
+          点击前往专业dApp页面 / Go to dApp Video
         </button>
       </div>
 
@@ -619,6 +630,22 @@
     </div>
   </div>
 
+  <!-- Check-in Rewards Ended Modal -->
+  <div id="checkinEndedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:#1a0033; border:2px solid #ff8800; border-radius:22px; padding:32px 26px; max-width:560px; width:92%; text-align:left;">
+      <h2 style="color:#ffaa00; margin:0 0 16px 0; text-align:center;">⚠️ 签到积分奖励已结束</h2>
+      <p style="color:#ddd; line-height:1.75; margin:0 0 12px 0;">
+        历史积分仅供官方 Snapshot 与早期 Airdrop 参考。兑换已关闭。之后收益以 <strong style="color:#00ff9d;">Staking APY</strong> 为主。
+      </p>
+      <p style="color:#aaa; line-height:1.75; margin:0 0 22px 0; font-size:0.95em;">
+        Check-in point rewards have ended. Historical points are for official Snapshot &amp; early Airdrop only; redemption is closed. Ongoing rewards via <strong style="color:#00ff9d;">Staking APY</strong>.
+      </p>
+      <button onclick="hideCheckinEndedModal()" style="width:100%; padding:14px; background:#00ff9d; color:#000; border:none; border-radius:14px; font-weight:bold; cursor:pointer; font-size:1.05em;">
+        知道了 / Got it
+      </button>
+    </div>
+  </div>
+
 <script>
 // ==================== 完整 JavaScript（所有函数一个字不漏） ====================
 const SUPABASE_URL = 'https://iqmyiqjgzrlwthilkeos.supabase.co';
@@ -752,6 +779,50 @@ async function calculateUserStats(userId) {
   }
 }
 
+function showCheckinEndedModal() {
+  const m = document.getElementById('checkinEndedModal');
+  if (m) m.style.display = 'flex';
+}
+function hideCheckinEndedModal() {
+  const m = document.getElementById('checkinEndedModal');
+  if (m) m.style.display = 'none';
+}
+
+async function refreshMyPawlyBalance() {
+  const el = document.getElementById('myPawlyBalance');
+  const hint = document.querySelector('#pawlyBalanceCard div:last-child');
+  if (!el) return;
+
+  if (!currentUser) {
+    el.innerText = '—';
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('USERS')
+      .select('total_earnd, pawly_points, wallet_address')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (error) throw error;
+
+    const bal = Number(data?.total_earnd || 0);
+    el.innerText = bal.toLocaleString(undefined, { maximumFractionDigits: 4 });
+
+    if (hint) {
+      if (data?.wallet_address) {
+        hint.innerHTML = '来自账户数据（含已兑换 PAWLY） / From account data<br><span style="color:#666; font-size:0.85em;">Wallet bound · Token CA 上线后可再接链上余额</span>';
+      } else {
+        hint.innerHTML = '请先绑定钱包 / Please bind wallet first<br><span style="color:#666;">Balance still shown from account record</span>';
+      }
+    }
+  } catch (e) {
+    console.error('refreshMyPawlyBalance', e);
+    el.innerText = '—';
+  }
+}
+
 async function loginUser() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -785,6 +856,7 @@ async function loginUser() {
   }
 
   await calculateUserStats(currentUser.id);
+  await refreshMyPawlyBalance();
 
   const today = new Date().toISOString().split('T')[0];
   const { data: todayCheckin } = await supabaseClient.from('checkins')
@@ -796,6 +868,7 @@ async function loginUser() {
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('logged-in-section').style.display = 'block';
   document.getElementById('user-email-display').innerText = `已登录: ${currentUser.email} / Logged in: ${currentUser.email}`;
+  await refreshMyPawlyBalance();
 
   updateDashboard();
   await requestNotificationPermission();
@@ -893,6 +966,9 @@ async function bindWallet() {
 
     if (error) throw error;
 
+    await refreshMyPawlyBalance();
+
+
     alert("✅ 钱包绑定成功！\n✅ Wallet bound successfully!");
 
     const unbindBtn = document.getElementById('unbind-wallet-btn');
@@ -966,13 +1042,6 @@ async function checkIn() {
 async function updateDashboard() {
   // Dashboard removed — no-op
 }
-
-
-
-
-
-
-
 
 function startCountdown(lastCheckinTime) {
   // Check-in rewards ended — do not run countdown
@@ -1304,9 +1373,6 @@ function hideModal(type) {
 }
 
 
-
-
-
 function initEmailReminderButton() {
   // Reminder disabled after check-in rewards ended
   const btn = document.getElementById('emailReminderBtn');
@@ -1407,6 +1473,7 @@ window.onload = async function() {
       }
 
       await calculateUserStats(currentUser.id);
+  await refreshMyPawlyBalance();
       updateDashboard();
       initEmailReminderButton();
 
