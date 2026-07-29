@@ -31,16 +31,17 @@
     body::before {
       content:"";
       position:fixed; inset:0; z-index:-2;
+      pointer-events:none;
       background:
-        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(139,92,246,0.25), transparent 50%),
-        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0,255,157,0.12), transparent 50%),
-        radial-gradient(ellipse 50% 50% at 50% 90%, rgba(255,158,205,0.1), transparent 50%),
+        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(139,92,246,0.22), transparent 50%),
+        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0,255,157,0.1), transparent 50%),
+        radial-gradient(ellipse 50% 50% at 50% 90%, rgba(255,158,205,0.08), transparent 50%),
         linear-gradient(160deg, #07070f, #12001f 45%, #0a1a14);
-      animation: meshShift 18s ease-in-out infinite alternate;
+      animation: meshShift 20s ease-in-out infinite alternate;
     }
     @keyframes meshShift {
-      0% { filter: hue-rotate(0deg); transform: scale(1); }
-      100% { filter: hue-rotate(25deg); transform: scale(1.05); }
+      0% { opacity: 0.85; filter: hue-rotate(0deg); }
+      100% { opacity: 1; filter: hue-rotate(12deg); }
     }
 
     /* Floating particles layer */
@@ -185,23 +186,27 @@
     /* ===== Theme: About / Concept ===== */
     .theme-about {
       position:relative;
+      overflow:visible;
+      transform:none !important;
     }
     .theme-about::before {
       content:"";
-      position:absolute; inset:-20px;
+      position:absolute;
+      inset:0;
+      border-radius:inherit;
       background:
-        radial-gradient(circle at 15% 30%, rgba(139,92,246,0.35), transparent 40%),
-        radial-gradient(circle at 85% 20%, rgba(0,255,157,0.2), transparent 35%),
-        radial-gradient(circle at 50% 80%, rgba(255,158,205,0.15), transparent 40%);
-      animation: conceptOrbit 14s linear infinite;
+        radial-gradient(circle at 20% 25%, rgba(139,92,246,0.22), transparent 42%),
+        radial-gradient(circle at 80% 20%, rgba(0,255,157,0.12), transparent 38%),
+        radial-gradient(circle at 50% 85%, rgba(255,158,205,0.1), transparent 40%);
+      animation: conceptPulse 8s ease-in-out infinite alternate;
       z-index:0;
-      pointer-events:none;
+      pointer-events:none !important;
     }
-    @keyframes conceptOrbit {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+    @keyframes conceptPulse {
+      0% { opacity: 0.7; }
+      100% { opacity: 1; }
     }
-    .theme-about > * { position:relative; z-index:1; }
+    .theme-about > * { position:relative; z-index:2; }
     .concept-chip {
       display:inline-block;
       margin:6px;
@@ -258,7 +263,8 @@
       position:absolute; border-radius:50%;
       border:2px solid rgba(167,139,250,0.4);
       animation: ringExpand 4s ease-out infinite;
-      pointer-events:none;
+      pointer-events:none !important;
+      z-index:0;
     }
     @keyframes ringExpand {
       0% { width:40px; height:40px; opacity:0.7; }
@@ -336,6 +342,83 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+    /* ===== 四元素动态背景条：美女 · 小动物 · 宠物店 · 收容所 ===== */
+    .four-pillars {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 0 auto 18px;
+      max-width: 720px;
+      padding: 0 4px;
+      pointer-events: none;
+    }
+    .four-pillars .fp {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      min-height: 72px;
+      border: 1px solid rgba(255,255,255,0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 4px;
+      animation: fpFloat 5s ease-in-out infinite;
+    }
+    .four-pillars .fp:nth-child(1) {
+      background: linear-gradient(145deg, rgba(255,158,205,0.35), rgba(120,40,80,0.4));
+      animation-delay: 0s;
+    }
+    .four-pillars .fp:nth-child(2) {
+      background: linear-gradient(145deg, rgba(0,255,157,0.28), rgba(20,80,50,0.4));
+      animation-delay: 0.4s;
+    }
+    .four-pillars .fp:nth-child(3) {
+      background: linear-gradient(145deg, rgba(251,191,36,0.3), rgba(180,80,40,0.35));
+      animation-delay: 0.8s;
+    }
+    .four-pillars .fp:nth-child(4) {
+      background: linear-gradient(145deg, rgba(248,113,113,0.3), rgba(120,30,40,0.4));
+      animation-delay: 1.2s;
+    }
+    .four-pillars .fp .fp-ico { font-size: 1.45rem; line-height: 1; margin-bottom: 4px; }
+    .four-pillars .fp .fp-txt {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.92);
+      line-height: 1.25;
+      font-weight: 600;
+    }
+    @keyframes fpFloat {
+      0%, 100% { transform: translateY(0); filter: brightness(1); }
+      50% { transform: translateY(-4px); filter: brightness(1.12); }
+    }
+    .four-pillars-wide {
+      max-width: 900px;
+      margin-top: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 480px) {
+      .four-pillars .fp .fp-txt { font-size: 0.58rem; }
+      .four-pillars .fp { min-height: 64px; }
+    }
+
+    /* Staking CTA below video */
+    .below-video-cta {
+      position: relative;
+      z-index: 5;
+      text-align: center;
+      margin: -8px auto 28px;
+      max-width: 720px;
+      padding: 0 16px;
+      pointer-events: auto;
+    }
+    .below-video-cta a, .below-video-cta button {
+      pointer-events: auto;
+      touch-action: manipulation;
+    }
   </style>
 </head>
 <body>
@@ -354,6 +437,13 @@
   <div class="tab active" id="tab0">
     <div class="container theme-welcome">
       <div class="welcome-badge">🐾 欢迎加入 PAWLY · Welcome to PAWLY Family</div>
+      <div class="four-pillars" aria-hidden="true">
+        <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
+        <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
+        <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
+        <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
+      </div>
+
       <div class="hero-frame">
         <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女欢迎你" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
       </div>
@@ -460,15 +550,9 @@
         <div class="welcome-badge" style="margin-bottom:14px; border-color:rgba(167,139,250,0.6); color:#e9ddff;">⚡ 一起质押赚取奖励 · Stake Together</div>
         <h1>🔥 Staking Rewards</h1>
         <p>
-          社区一起 Staking，共享质押收益。点击进入专业 dApp。<br>
-          Stake with the community and earn rewards. Open the pro dApp below.
+          社区一起 Staking，共享质押收益<br>
+          Stake with the community and earn rewards
         </p>
-        <span class="cta-glow">
-        <a href="javascript:void(0)" onclick="goToDAppWithData()"
-           style="display: inline-block; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.15rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 20px rgba(124,58,237,0.55); cursor: pointer;">
-          进入 dApp Staking / Open dApp
-        </a>
-        </span>
       </div>
     </div>
 
@@ -480,6 +564,19 @@
       </button>
     </div>
   </section>
+  <div class="four-pillars four-pillars-wide" aria-hidden="true">
+    <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
+    <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
+    <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
+    <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
+  </div>
+  <div class="below-video-cta">
+    <a href="javascript:void(0)" onclick="goToDAppWithData()"
+       style="display: inline-block; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.15rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 20px rgba(124,58,237,0.55); cursor: pointer; -webkit-tap-highlight-color: rgba(124,58,237,0.3); touch-action: manipulation;">
+      进入 dApp Staking / Open dApp
+    </a>
+  </div>
+
     
       <!-- 折叠式 Staking 说明 -->
 <div style="margin: 25px 0 20px 0;">
@@ -528,8 +625,8 @@
   </div>
 </div>
       <p style="color:#888; font-size:0.95em; text-align:center; margin-top:30px;">
-        专业版 Staking 功能已在 dApp 上线<br>
-        Professional Staking features are being developed in the dApp is launch now
+        专业版 Staking 功能已在 dApp 中开发中<br>
+        Professional Staking features are being developed in the dApp
       </p>
     </div>
   </div>
@@ -548,13 +645,7 @@
           宠物店 · 服务支付 · 用 PAWLY 轻松结账<br>
           Pet shops & services — pay smoothly with PAWLY
         </p>
-        <span class="cta-glow">
-        <a href="javascript:void(0)" onclick="goToDAppWithData()"
-           style="display: inline-block; background: linear-gradient(135deg,#ec4899,#f59e0b); color: white; padding: 14px 40px; border-radius: 50px; font-size: 1.1rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 18px rgba(236,72,153,0.45); cursor: pointer;">
-          进入支付 dApp / Open Payment
-        </a>
-        </span>
-        
+   
     <!-- 圆形喇叭按钮 -->
     <div style="position: absolute; bottom: 25px; right: 25px; z-index: 10;">
       <button onclick="unmuteVideo('payment-video', this)"
@@ -563,6 +654,12 @@
       </button>
     </div>
   </section>
+  <div class="four-pillars four-pillars-wide" aria-hidden="true">
+    <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
+    <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
+    <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
+    <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
+  </div>
 
   <div class="container">
   <h1>🐶 宠物支付 / Pet Payment</h1>
@@ -633,12 +730,7 @@
         与爱同行：支持流浪动物收容所与救助组织<br>
         Give with love — support shelters and rescue groups worldwide
       </p>
-      <span class="cta-glow">
-      <a href="javascript:void(0)" onclick="goToDAppWithData()"
-         style="display: inline-block; background: linear-gradient(135deg,#ef4444,#fb7185); color: white; padding: 14px 40px; border-radius: 50px; font-size: 1.1rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 18px rgba(239,68,68,0.45); cursor: pointer;">
-        进入慈善 dApp / Open Charity
-      </a>
-      </span>
+
     </div>
   </div>
 
@@ -651,6 +743,12 @@
   </div>
 
 </section>
+  <div class="four-pillars four-pillars-wide" aria-hidden="true">
+    <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
+    <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
+    <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
+    <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
+  </div>
 
   <!-- 完整故事：从 About 搬到 Charity 视频底部 -->
   <div class="container" style="max-width:780px; margin: 0 auto 30px;">
@@ -734,12 +832,18 @@
         <span class="concept-chip">🐾 宠物生态 PetFi</span>
         <span class="concept-chip">🔗 链上力量 On-chain</span>
       </div>
+      <div class="four-pillars" aria-hidden="true">
+        <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
+        <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
+        <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
+        <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
+      </div>
 
             <!-- Staking：点击进入视频页，文案在视频底部展开 -->
       <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
         <h3 style="color:#a78bfa; margin:0 0 16px 0;">🔥 质押挖矿 / Staking</h3>
         <button onclick="showTab(2)" style="background: linear-gradient(135deg, #7c3aed, #a78bfa); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          点击前往专业dApp页面 / Go to dApp 
+          点击前往专业dApp页面 / Go to dApp
         </button>
       </div>
 
@@ -775,11 +879,11 @@
       </div>
       
   <!-- ========== About 页最底部：自动钱包 + 版权政策（与更多项目信息同格式） ========== -->
-  <div style="margin: 48px 0 10px; padding-top: 28px; border-top: 1px solid rgba(0,255,157,0.25); text-align: center;">
+  <div style="position:relative; z-index:40; margin: 48px 0 10px; padding-top: 28px; border-top: 1px solid rgba(0,255,157,0.25); text-align: center; pointer-events:auto;">
 
     <div style="margin: 0 0 14px;">
       <button type="button" onclick="toggleWalletGuide()" id="walletGuideBtn"
-              style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
+              style="position:relative; z-index:50; display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); -webkit-tap-highlight-color: rgba(0,255,157,0.3); touch-action: manipulation; pointer-events: auto;">
         📖 了解我的自动钱包 / About My Auto Wallet
       </button>
     </div>
@@ -805,7 +909,7 @@
 
     <div style="margin: 0 0 14px;">
       <button type="button" onclick="toggleAboutPolicies()" id="aboutPoliciesBtn"
-              style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">
+              style="position:relative; z-index:50; display: inline-block; background: linear-gradient(135deg, #8b5cf6, #10b981); color: white; border: none; padding: 14px 36px; border-radius: 9999px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); -webkit-tap-highlight-color: rgba(0,255,157,0.3); touch-action: manipulation; pointer-events: auto;">
         © 2026 PAWLY PETS. All rights reserved. &amp; Policies
       </button>
     </div>
@@ -882,6 +986,13 @@
         <h1 style="font-size:2.5rem; color:#00ff9d;">欢迎来到 PAWLY 大家庭</h1>
         <p style="color:#ffccdd;">Welcome to the PAWLY Family</p>
       </div>
+      <div class="four-pillars four-pillars-wide" aria-hidden="true">
+        <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
+        <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
+        <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
+        <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
+      </div>
+
       <div style="display:flex; justify-content:center; margin-bottom:50px;">
         <div class="stat-card" style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15); max-width:420px; width:100%;">
           <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">🐾 REGISTERED MEMBERS</div>
@@ -1242,7 +1353,7 @@ async function ensureSolanaWallet() {
         walletDisplay.innerText = result.wallet_address;
       }
       console.log(
-        result.created ? "✅ 已自动创建 Solana 钱包" : "✅ 已有钱包",
+        result.created ? "✅ 已自动创建 Solana 钱包/Your Wallet Address Is Ready" : "✅ 已有钱包/Wallet Address Already Exist ",
         result.wallet_address
       );
       return result.wallet_address;
@@ -1273,6 +1384,7 @@ async function bindWallet() {
     if (error) throw error;
 
     await refreshMyPawlyBalance();
+
 
     alert("✅ 钱包绑定成功！\n✅ Wallet bound successfully!");
 
@@ -1677,6 +1789,10 @@ function hideModal(type) {
   if (modal) modal.style.display = 'none';
 }
 
+
+
+
+
 function initEmailReminderButton() {
   // Reminder disabled after check-in rewards ended
   const btn = document.getElementById('emailReminderBtn');
@@ -1814,4 +1930,5 @@ function goToDashboard() {
 
 </script>
 </body>
+</html>
 </html>
