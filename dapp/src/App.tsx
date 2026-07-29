@@ -1,12 +1,10 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 29.07.2026 v4（对齐 PWA 动态视觉 + pawly-token-helps 背景）
- * 基于完美版 v2 + 本次：
- *   1. Swap 完整可计算框架（PAWLY↔USDC/USDT/SOL，CA 预留可插）
- *   2. Transfer 增加 PAWLY
- *   3. 全功能页：链上基础 Gas 估算（真实 Solana base fee）
- *   4. 全功能页：CA 未上线双语警告
- *   5. 全部中英双语
+ * PAWLY DApp — 29.07.2026 v5
+ * v4 + 本次：
+ *   1. Payment / Transfer / Swap / Charity 补 MAX（与 Staking 一致）
+ *   2. My Data：Streak→USDC/USDT 链上余额，Points→SOL 链上余额
+ *   3. 共享 fetchTokenBalance 读主网余额
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -86,6 +84,38 @@ const HELIUS_RPC_GLOBAL =
   "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
 const LAMPORTS_PER_SOL = 1e9;
 const BASE_FEE_LAMPORTS = 5000;
+
+/** 读取钱包某代币余额（主网，不依赖 adapter 连接状态，有地址即可） */
+async function fetchTokenBalance(owner, token) {
+  if (!owner) return 0;
+  try {
+    const pubkey =
+      typeof owner === "string"
+        ? new PublicKey(owner)
+        : owner instanceof PublicKey
+          ? owner
+          : new PublicKey(owner.toString());
+    const connection = new Connection(HELIUS_RPC_GLOBAL, "confirmed");
+    if (token === "SOL") {
+      const lamports = await connection.getBalance(pubkey);
+      return lamports / LAMPORTS_PER_SOL;
+    }
+    const mintStr = TOKEN_MINTS[token];
+    if (!mintStr) return 0;
+    const mint = new PublicKey(mintStr);
+    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
+    return accounts.value[0]?.account.data.parsed.info.tokenAmount.uiAmount || 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function fmtBal(n, digits = 4) {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (n === 0) return "0";
+  if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return Number(n).toFixed(digits).replace(/\.?0+$/, (m) => (m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m));
+}
 
 /** 各操作预估计算单元 / 签名费（Solana 基础费用，真实区间） */
 const GAS_PRESETS = {
@@ -434,6 +464,40 @@ function HomePage() {
   const navigate = useNavigate();
   const { pwaData, verified, refreshUserData } = useUserData();
   const [showExport, setShowExport] = useState(false);
+  const [balSol, setBalSol] = useState(null);
+  const [balUsdc, setBalUsdc] = useState(null);
+  const [balUsdt, setBalUsdt] = useState(null);
+  const [balLoading, setBalLoading] = useState(false);
+
+  const loadChainBalances = useCallback(async () => {
+    const addr =
+      (wallet.publicKey && wallet.publicKey.toString()) ||
+      pwaData.wallet ||
+      "";
+    if (!addr) {
+      setBalSol(null);
+      setBalUsdc(null);
+      setBalUsdt(null);
+      return;
+    }
+    setBalLoading(true);
+    try {
+      const [sol, usdc, usdt] = await Promise.all([
+        fetchTokenBalance(addr, "SOL"),
+        fetchTokenBalance(addr, "USDC"),
+        fetchTokenBalance(addr, "USDT"),
+      ]);
+      setBalSol(sol);
+      setBalUsdc(usdc);
+      setBalUsdt(usdt);
+    } catch (_) {
+      setBalSol(null);
+      setBalUsdc(null);
+      setBalUsdt(null);
+    } finally {
+      setBalLoading(false);
+    }
+  }, [wallet.publicKey, pwaData.wallet]);
 
   useEffect(() => {
     if (wallet.publicKey) {
@@ -441,8 +505,13 @@ function HomePage() {
     }
   }, [wallet.publicKey]);
 
+  useEffect(() => {
+    loadChainBalances();
+  }, [loadChainBalances]);
+
   const onRefresh = () => {
     refreshUserData(wallet.publicKey || null);
+    loadChainBalances();
   };
 
   const features = [
@@ -485,7 +554,7 @@ function HomePage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
             <div>
               <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: "1.05rem" }}>我的数据 / My Data</div>
-              <div style={{ color: "#778", fontSize: "0.8rem", marginTop: 2 }}>与 PWA 主站同步 / Synced from PWA</div>
+              <div style={{ color: "#778", fontSize: "0.8rem", marginTop: 2 }}>PWA 同步 · 链上余额 / PWA sync · on-chain balances</div>
             </div>
             <button onClick={onRefresh} style={ghostBtn}>🔄 刷新</button>
           </div>
@@ -501,12 +570,19 @@ function HomePage() {
                 </div>
               )}
               <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
-                <div style={{ color: "#778", fontSize: 12 }}>连续签到 / Streak</div>
-                <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: 4 }}>{pwaData.streak} 天</div>
+                <div style={{ color: "#778", fontSize: 12 }}>USDC / USDT</div>
+                <div style={{ fontSize: "1.05rem", fontWeight: 700, marginTop: 4, color: "#00ff9d" }}>
+                  {balLoading ? "…" : fmtBal(balUsdc)} USDC
+                </div>
+                <div style={{ fontSize: "0.95rem", fontWeight: 600, marginTop: 4, color: "#a5b4fc" }}>
+                  {balLoading ? "…" : fmtBal(balUsdt)} USDT
+                </div>
               </div>
               <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
-                <div style={{ color: "#778", fontSize: 12 }}>Points</div>
-                <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: 4 }}>{pwaData.points || "—"}</div>
+                <div style={{ color: "#778", fontSize: 12 }}>SOL</div>
+                <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: 4, color: "#ffaa00" }}>
+                  {balLoading ? "…" : fmtBal(balSol, 6)} SOL
+                </div>
               </div>
               <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
                 <div style={{ color: "#778", fontSize: 12 }}>Total PAWLY</div>
@@ -585,34 +661,19 @@ function StakingPage() {
   const [loading, setLoading] = useState(false);
   const [realBalance, setRealBalance] = useState(0);
 
-  const TOKEN_MINTS = {
-    USDC: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    USDT: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
-  };
-  const HELIUS_RPC =
-    "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
-
-  const fetchBalance = async (token) => {
-    if (!publicKey) return setRealBalance(0);
-    if (token === "PAWLY") return setRealBalance(0);
-    try {
-      const connection = new Connection(HELIUS_RPC, "confirmed");
-      if (token === "SOL") {
-        const lamports = await connection.getBalance(publicKey);
-        setRealBalance(lamports / 1e9);
-      } else {
-        const mint = new PublicKey(TOKEN_MINTS[token]);
-        const accounts = await connection.getParsedTokenAccountsByOwner(publicKey, { mint });
-        setRealBalance(accounts.value[0]?.account.data.parsed.info.tokenAmount.uiAmount || 0);
-      }
-    } catch {
-      setRealBalance(0);
-    }
-  };
-
   useEffect(() => {
-    if (connected && publicKey) fetchBalance(selectedToken);
-    else setRealBalance(0);
+    let alive = true;
+    (async () => {
+      if (!connected || !publicKey) {
+        if (alive) setRealBalance(0);
+        return;
+      }
+      const bal = await fetchTokenBalance(publicKey, selectedToken);
+      if (alive) setRealBalance(bal);
+    })();
+    return () => {
+      alive = false;
+    };
   }, [connected, publicKey, selectedToken]);
 
   const handleStake = () => {
@@ -703,6 +764,7 @@ function StakingPage() {
 }
 
 function PaymentPage() {
+  const { pwaData } = useUserData();
   const [amount, setAmount] = useState("");
   const [usdcText, setUsdcText] = useState("0.00 USDC");
   const [myrText, setMyrText] = useState("RM 0.00");
@@ -710,6 +772,7 @@ function PaymentPage() {
   const [rateLoading, setRateLoading] = useState(true);
   const [payMethod, setPayMethod] = useState("usdc");
   const PAWLY_PER_USDC = 5;
+  const maxPawly = parseFloat(pwaData?.total_pawly) || 0;
 
   const fetchRates = async () => {
     setRateLoading(true);
@@ -771,7 +834,21 @@ function PaymentPage() {
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <CaWarningBanner feature="宠物支付 / Pet Payment" />
 
-        <label style={{ color: "#99a", fontSize: 13 }}>支付金额（PAWLY） / Amount</label>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <label style={{ color: "#99a", fontSize: 13 }}>支付金额（PAWLY） / Amount</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ color: "#667", fontSize: 12 }}>
+              可用 / Avail: {fmtBal(maxPawly)} PAWLY
+            </span>
+            <button
+              type="button"
+              onClick={() => setAmount(String(maxPawly || 0))}
+              style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
+            >
+              MAX
+            </button>
+          </div>
+        </div>
         <input
           type="number"
           min="1"
@@ -781,7 +858,7 @@ function PaymentPage() {
           style={{
             width: "100%",
             boxSizing: "border-box",
-            margin: "8px 0 16px",
+            margin: "0 0 16px",
             background: "#12121f",
             border: "1px solid #333",
             borderRadius: 12,
@@ -853,10 +930,26 @@ function TransferPage() {
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [gasKey, setGasKey] = useState(0);
+  const [realBalance, setRealBalance] = useState(0);
 
   const isPawly = token === "PAWLY";
   const gasPreset =
     token === "SOL" ? "transfer_sol" : isPawly ? "transfer_pawly" : "transfer_token";
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!publicKey) {
+        if (alive) setRealBalance(0);
+        return;
+      }
+      const bal = await fetchTokenBalance(publicKey, token);
+      if (alive) setRealBalance(bal);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [publicKey, token]);
 
   const handleSend = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
@@ -932,7 +1025,21 @@ function TransferPage() {
             fontSize: 13,
           }}
         />
-        <label style={{ color: "#99a", fontSize: 13 }}>数量 / Amount</label>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <label style={{ color: "#99a", fontSize: 13 }}>数量 / Amount</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ color: "#667", fontSize: 12 }}>
+              余额 / Bal: {fmtBal(realBalance)} {token}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAmount(String(realBalance || 0))}
+              style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
+            >
+              MAX
+            </button>
+          </div>
+        </div>
         <input
           type="number"
           value={amount}
@@ -941,7 +1048,7 @@ function TransferPage() {
           style={{
             width: "100%",
             boxSizing: "border-box",
-            margin: "8px 0 12px",
+            margin: "0 0 12px",
             background: "#12121f",
             border: "1px solid #333",
             borderRadius: 12,
@@ -967,7 +1074,7 @@ function TransferPage() {
 }
 
 function SwapPage() {
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
   const [fromToken, setFromToken] = useState("SOL");
   const [toToken, setToToken] = useState("USDC");
   const [amount, setAmount] = useState("");
@@ -975,8 +1082,24 @@ function SwapPage() {
   const [rateText, setRateText] = useState("—");
   const [solUsd, setSolUsd] = useState(null);
   const [gasKey, setGasKey] = useState(0);
+  const [realBalance, setRealBalance] = useState(0);
 
   const tokens = ["SOL", "USDC", "USDT", "PAWLY"];
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!publicKey) {
+        if (alive) setRealBalance(0);
+        return;
+      }
+      const bal = await fetchTokenBalance(publicKey, fromToken);
+      if (alive) setRealBalance(bal);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [publicKey, fromToken]);
 
   // 拉取 SOL/USD 便于真实换算 SOL↔稳定币
   useEffect(() => {
@@ -1107,6 +1230,21 @@ function SwapPage() {
             })
           )}
         </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ color: "#99a", fontSize: 13 }}>数量 / Amount</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ color: "#667", fontSize: 12 }}>
+              余额 / Bal: {fmtBal(realBalance)} {fromToken}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAmount(String(realBalance || 0))}
+              style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
+            >
+              MAX
+            </button>
+          </div>
+        </div>
         <input
           type="number"
           min="0"
@@ -1196,11 +1334,39 @@ function SwapPage() {
 }
 
 function CharityPage() {
+  const { connected, publicKey } = useWallet();
+  const [token, setToken] = useState("SOL");
+  const [amount, setAmount] = useState("");
+  const [realBalance, setRealBalance] = useState(0);
+
   const shelters = [
     { name: "SPCA Selangor", url: "https://www.spca.org.my/" },
     { name: "PAWS Animal Welfare Society", url: "https://www.paws.org.my/" },
     { name: "SPCA Penang", url: "https://spcapenang.org/" },
   ];
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!publicKey) {
+        if (alive) setRealBalance(0);
+        return;
+      }
+      const bal = await fetchTokenBalance(publicKey, token);
+      if (alive) setRealBalance(bal);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [publicKey, token]);
+
+  const handleDonate = () => {
+    if (!connected) return alert("请先连接钱包\nPlease connect wallet");
+    if (!amount || parseFloat(amount) <= 0) return alert("请输入捐赠数量\nEnter donation amount");
+    alert(
+      `捐赠预览 / Donation Preview\n\n${amount} ${token}\n\n链上捐赠将在金库地址确定后开放真实签名。\nOn-chain donate after treasury address is set.`
+    );
+  };
 
   return (
     <div style={pageWrap}>
@@ -1211,7 +1377,7 @@ function CharityPage() {
         <p style={{ color: "#bcc", lineHeight: 1.7, marginTop: 0 }}>
           PAWLY 计划将部分生态收益用于动物保护。你可先通过下列官方渠道直接支持收容所。/PAWLY plans to use part of ecosystem revenue for animal protection. You can support shelters directly via the official channels below.
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
           {shelters.map((s) => (
             <a
               key={s.name}
@@ -1230,13 +1396,71 @@ function CharityPage() {
             </a>
           ))}
         </div>
-        <GasEstimateBox presetKey="charity" refreshKey={0} />
+
+        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>链上捐赠预览 / On-chain donate (preview)</p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          {["SOL", "USDC", "USDT"].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setToken(t)}
+              style={{
+                flex: 1,
+                minWidth: 64,
+                padding: 10,
+                borderRadius: 12,
+                border: "none",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: token === t ? "#00ff9d" : "#1a1a2e",
+                color: token === t ? "#000" : "#fff",
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ color: "#99a", fontSize: 13 }}>数量 / Amount</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ color: "#667", fontSize: 12 }}>
+              余额 / Bal: {fmtBal(realBalance)} {token}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAmount(String(realBalance || 0))}
+              style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
+            >
+              MAX
+            </button>
+          </div>
+        </div>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="0.00"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            marginBottom: 12,
+            background: "#12121f",
+            border: "1px solid #333",
+            borderRadius: 12,
+            padding: 14,
+            color: "#fff",
+            fontSize: "1.1rem",
+          }}
+        />
+        <GasEstimateBox presetKey="charity" refreshKey={token} />
+        <button type="button" onClick={handleDonate} style={{ ...neonBtn, width: "100%", marginTop: 8 }}>
+          捐赠预览 / Donate (Preview)
+        </button>
         <p style={{ color: "#667", fontSize: 12, marginTop: 12, textAlign: "center", lineHeight: 1.5 }}>
           链上捐赠路由将在 PAWLY CA 与金库地址确定后接入。上方为 Solana 基础 Gas 参考。
           <br />
           On-chain donation route after PAWLY CA & treasury address. Gas above is Solana base fee reference.
         </p>
-
       </div>
     </div>
   );
