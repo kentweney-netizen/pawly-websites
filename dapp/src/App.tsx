@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 25.07.2026 v3
+ * PAWLY DApp — 29.07.2026 v4（对齐 PWA 动态视觉 + pawly-token-helps 背景）
  * 基于完美版 v2 + 本次：
  *   1. Swap 完整可计算框架（PAWLY↔USDC/USDT/SOL，CA 预留可插）
  *   2. Transfer 增加 PAWLY
@@ -240,9 +240,19 @@ function saveUser(data) {
   } catch (_) {}
 }
 
+const HERO_IMG = "/pawly-token-helps.png"; // 与 PWA 主站同图（站点根目录）
+
 const pageWrap = {
   minHeight: "100vh",
-  background: "linear-gradient(160deg, #07070f 0%, #12001f 45%, #0a1a14 100%)",
+  backgroundColor: "#07070f",
+  backgroundImage:
+    "linear-gradient(160deg, rgba(7,7,15,0.78) 0%, rgba(18,0,34,0.82) 45%, rgba(10,26,20,0.88) 100%), url(" +
+    HERO_IMG +
+    ")",
+  backgroundSize: "cover",
+  backgroundPosition: "center center",
+  backgroundAttachment: "fixed",
+  backgroundRepeat: "no-repeat",
   color: "#e8fff5",
   padding: "16px 16px 48px",
   fontFamily:
@@ -250,11 +260,13 @@ const pageWrap = {
 };
 
 const card = {
-  background: "linear-gradient(145deg, rgba(26,0,51,0.95), rgba(18,0,34,0.98))",
+  background: "linear-gradient(145deg, rgba(26,0,51,0.88), rgba(18,0,34,0.92))",
   border: "1px solid rgba(0,255,157,0.35)",
   borderRadius: 20,
   padding: 24,
   boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
 };
 
 const neonBtn = {
@@ -445,7 +457,22 @@ function HomePage() {
     <div style={pageWrap}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: "2.6rem", marginBottom: 6 }}>🐾</div>
+          <div
+            style={{
+              margin: "0 auto 16px",
+              maxWidth: 420,
+              borderRadius: 20,
+              overflow: "hidden",
+              border: "3px solid rgba(255,158,205,0.55)",
+              boxShadow: "0 12px 36px rgba(255,158,205,0.25)",
+            }}
+          >
+            <img
+              src={HERO_IMG}
+              alt="PAWLY"
+              style={{ width: "100%", height: "auto", display: "block", verticalAlign: "middle" }}
+            />
+          </div>
           <h1 style={{ margin: 0, fontSize: "1.85rem", color: "#00ff9d", fontWeight: 800 }}>PAWLY DApp</h1>
           <p style={{ margin: "8px 0 0", color: "#8a9", fontSize: "0.95rem" }}>
             钱包 · 质押 · 支付 · 转账 · 交易
@@ -495,8 +522,13 @@ function HomePage() {
           )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 20px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px", gap: 10 }}>
           <WalletConnect />
+          <p style={{ margin: 0, color: "#778", fontSize: 12, lineHeight: 1.5, textAlign: "center", maxWidth: 420 }}>
+            Android：若先打开网页，请再点「打开应用」。已安装钱包时第二次即可进入确认。
+            <br />
+            Android: If a webpage opens first, tap Open in App again.
+          </p>
         </div>
 
         <div style={{ textAlign: "center", marginBottom: 24 }}>
