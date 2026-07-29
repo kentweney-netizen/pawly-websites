@@ -14,7 +14,6 @@ const SUPABASE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 const DAPP_CANONICAL = "https://pawlypets.netlify.app/dapp";
 
 function getCurrentDappUrl() {
@@ -24,11 +23,10 @@ function getCurrentDappUrl() {
   return DAPP_CANONICAL;
 }
 
-/** 与 App.tsx wallets 对齐的全平台深链 / 打开方式 */
+/** 与 App.tsx wallets 对齐 */
 function buildWalletOpenLinks(targetUrl: string) {
   const encoded = encodeURIComponent(targetUrl);
   const ref = encodeURIComponent("https://pawlypets.netlify.app");
-
   return [
     {
       id: "phantom",
@@ -37,9 +35,7 @@ function buildWalletOpenLinks(targetUrl: string) {
       emoji: "👻",
       color: "linear-gradient(135deg, #ab9ff2, #7c6fd6)",
       textColor: "#1a1030",
-      // 官方 Universal Link：在 App 内置浏览器打开 dApp
       href: `https://phantom.app/ul/browse/${encoded}?ref=${ref}`,
-      tip: "推荐 · Recommended",
     },
     {
       id: "solflare",
@@ -49,7 +45,6 @@ function buildWalletOpenLinks(targetUrl: string) {
       color: "linear-gradient(135deg, #fc6, #f90)",
       textColor: "#1a1000",
       href: `https://solflare.com/ul/v1/browse/${encoded}`,
-      tip: "",
     },
     {
       id: "trust",
@@ -58,9 +53,7 @@ function buildWalletOpenLinks(targetUrl: string) {
       emoji: "🛡️",
       color: "linear-gradient(135deg, #3375bb, #1a4a8a)",
       textColor: "#fff",
-      // Trust：用内置浏览器打开 dApp（Solana coin_id=501）
       href: `https://link.trustwallet.com/open_url?coin_id=501&url=${encoded}`,
-      tip: "",
     },
     {
       id: "coinbase",
@@ -70,7 +63,6 @@ function buildWalletOpenLinks(targetUrl: string) {
       color: "linear-gradient(135deg, #0052ff, #0039b3)",
       textColor: "#fff",
       href: `https://go.cb-w.com/dapp?cb_url=${encoded}`,
-      tip: "",
     },
   ];
 }
@@ -81,18 +73,14 @@ function detectEnv() {
       isAndroid: false,
       isIOS: false,
       isMobile: false,
-      inPhantom: false,
-      inSolflare: false,
-      inTrust: false,
-      inCoinbase: false,
       inWalletBrowser: false,
+      envLabel: null as string | null,
     };
   }
   const ua = navigator.userAgent || "";
   const isAndroid = /Android/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   const isMobile = isAndroid || isIOS || /Mobile/i.test(ua);
-
   const w = window as any;
   const sol = w.solana || w.phantom?.solana;
   const inPhantom =
@@ -103,17 +91,16 @@ function detectEnv() {
   const inCoinbase =
     !!w.coinbaseSolana || !!w.coinbaseWalletExtension || /Coinbase/i.test(ua);
   const inWalletBrowser = inPhantom || inSolflare || inTrust || inCoinbase;
-
-  return {
-    isAndroid,
-    isIOS,
-    isMobile,
-    inPhantom,
-    inSolflare,
-    inTrust,
-    inCoinbase,
-    inWalletBrowser,
-  };
+  const envLabel = inPhantom
+    ? "Phantom"
+    : inSolflare
+      ? "Solflare"
+      : inTrust
+        ? "Trust"
+        : inCoinbase
+          ? "Coinbase"
+          : null;
+  return { isAndroid, isIOS, isMobile, inWalletBrowser, envLabel };
 }
 
 export default function WalletConnect() {
@@ -121,7 +108,7 @@ export default function WalletConnect() {
   const { setVisible } = useWalletModal();
   const [syncStatus, setSyncStatus] = useState("");
   const [showHelp, setShowHelp] = useState(false);
-  const [showAllWallets, setShowAllWallets] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
 
   const env = useMemo(() => detectEnv(), []);
   const walletLinks = useMemo(
@@ -130,11 +117,11 @@ export default function WalletConnect() {
     [typeof window !== "undefined" ? window.location.href : ""]
   );
 
-  // Android / iOS 外站：优先深链进钱包 App，避免跳下载页
-  const needsDeepLinkOpen =
-    env.isMobile && !env.inWalletBrowser && !connected;
+  /** 手机 + 不在钱包内 → 用弹窗深链；否则用官方 modal */
+  const useDeepLinkFlow = env.isMobile && !env.inWalletBrowser;
 
   const openLink = useCallback((href: string) => {
+    setShowPicker(false);
     try {
       window.location.href = href;
     } catch (_) {
@@ -142,20 +129,48 @@ export default function WalletConnect() {
     }
   }, []);
 
+  /** 断开：始终可点 */
   const handleDisconnect = () => {
+    setShowPicker(false);
     if (!connected) {
-      alert("当前没有连接签名钱包\nNo signing wallet connected");
+      alert(
+        "当前没有连接签名钱包\n可点「请选择您的钱包平台」重新连接\n\nNo signing wallet connected.\nTap “Choose your wallet platform” to connect."
+      );
       return;
     }
     disconnect();
     setSyncStatus("");
   };
 
+  /** 更换钱包：始终可点 —— 先断开再打开选择 */
   const handleChangeWallet = () => {
-    if (needsDeepLinkOpen) {
-      setShowAllWallets(true);
+    if (connected) {
+      disconnect();
+      setSyncStatus("");
+      setTimeout(() => {
+        if (useDeepLinkFlow) {
+          setShowPicker(true);
+        } else {
+          setVisible(true);
+        }
+      }, 280);
       return;
     }
+    // 未连接：直接打开选择
+    if (useDeepLinkFlow) {
+      setShowPicker(true);
+    } else {
+      setVisible(true);
+    }
+  };
+
+  /** 主按钮：选择平台 */
+  const handleChoosePlatform = () => {
+    if (useDeepLinkFlow) {
+      setShowPicker(true);
+      return;
+    }
+    // 已在钱包内 / 桌面
     if (connected) {
       disconnect();
       setTimeout(() => setVisible(true), 280);
@@ -164,20 +179,13 @@ export default function WalletConnect() {
     }
   };
 
-  const handleConnectModal = () => {
-    if (needsDeepLinkOpen) {
-      setShowAllWallets(true);
-      return;
-    }
-    if (connected) {
-      disconnect();
-      setTimeout(() => setVisible(true), 280);
-    } else {
-      setVisible(true);
-    }
+  /** 弹窗内：系统钱包 MWA */
+  const handleMwa = () => {
+    setShowPicker(false);
+    setVisible(true);
   };
 
-  // 软同步：不 upsert 空行，避免 RLS 导致「同步失败」
+  // 软同步
   useEffect(() => {
     const softSync = async () => {
       if (!connected || !publicKey) return;
@@ -188,40 +196,34 @@ export default function WalletConnect() {
           .select("id")
           .eq("wallet_address", walletAddress)
           .maybeSingle();
-
         if (!row?.id) {
           setSyncStatus("✓ 签名钱包已连接 / Signing wallet connected");
           return;
         }
-
         const { error } = await supabase
           .from("USERS")
           .update({ last_wallet_connected_at: new Date().toISOString() })
           .eq("id", row.id);
-
         if (error) {
-          console.warn("wallet soft-sync skipped:", error.message);
           setSyncStatus("✓ 签名钱包已连接 / Signing wallet connected");
         } else {
           setSyncStatus("✅ 已同步 / Synced");
         }
-      } catch (e) {
-        console.warn("wallet soft-sync error", e);
+      } catch (_) {
         setSyncStatus("✓ 签名钱包已连接 / Signing wallet connected");
       }
     };
     softSync();
   }, [connected, publicKey]);
 
-  const envLabel = env.inPhantom
-    ? "Phantom"
-    : env.inSolflare
-      ? "Solflare"
-      : env.inTrust
-        ? "Trust"
-        : env.inCoinbase
-          ? "Coinbase"
-          : null;
+  const btnBase: React.CSSProperties = {
+    border: "none",
+    borderRadius: 12,
+    cursor: "pointer",
+    fontWeight: 700,
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+  };
 
   return (
     <div
@@ -237,228 +239,79 @@ export default function WalletConnect() {
         width: "100%",
         maxWidth: 380,
         boxSizing: "border-box",
+        position: "relative",
       }}
     >
       <div style={{ fontSize: 11, color: "#778", letterSpacing: 0.3 }}>
         {env.isAndroid ? "📱 Android" : env.isIOS ? "📱 iOS" : "💻 Desktop"}
-        {envLabel ? ` · ${envLabel} 内` : ""}
-        {connecting ? " · 连接中…" : ""}
+        {env.envLabel ? ` · ${env.envLabel}` : ""}
+        {connecting ? " · 连接中… / Connecting…" : ""}
         {connected && wallet?.adapter?.name ? ` · ${wallet.adapter.name}` : ""}
       </div>
 
-      {/* ========== 手机外站：全平台「在钱包 App 内打开 dApp」 ========== */}
-      {needsDeepLinkOpen && (
-        <>
-          <div
-            style={{
-              background: "rgba(255, 170, 0, 0.12)",
-              border: "1px solid rgba(255, 170, 0, 0.4)",
-              borderRadius: 12,
-              padding: "10px 12px",
-              fontSize: 12,
-              lineHeight: 1.5,
-              color: "#ffcc80",
-              textAlign: "left",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            ⚠️ 在 APK / 系统浏览器里直接 Connect，常会打开钱包<strong>官网下载页</strong>，而不是已安装的 App。
-            <br />
-            请先选你的钱包，在 <strong>App 内置浏览器</strong>打开本 dApp，再连接签名。
-            <br />
-            <span style={{ color: "#c9a06a" }}>
-              On mobile, Connect often opens the wallet website. Open this dApp
-              inside your wallet app first, then connect.
-            </span>
-          </div>
+      {/* ===== 主按钮：只显示一个「请选择您的钱包平台」 ===== */}
+      <button
+        type="button"
+        onClick={handleChoosePlatform}
+        disabled={connecting}
+        style={{
+          ...btnBase,
+          background: connecting
+            ? "#444"
+            : "linear-gradient(135deg, #512da8, #7c3aed)",
+          color: "#fff",
+          padding: "14px 20px",
+          fontSize: 15,
+          width: "100%",
+          maxWidth: 300,
+          boxShadow: "0 4px 18px rgba(124, 58, 237, 0.4)",
+          opacity: connecting ? 0.75 : 1,
+          lineHeight: 1.35,
+        }}
+      >
+        {connecting
+          ? "连接中… / Connecting…"
+          : connected
+            ? "重新选择平台 / Reselect platform"
+            : "请选择您的钱包平台\nPlease choose your wallet platform"}
+      </button>
 
-          <div
-            style={{
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                color: "#9aa",
-                marginBottom: 2,
-                textAlign: "center",
-              }}
-            >
-              选择钱包打开 dApp / Open dApp in wallet
-            </div>
-
-            {walletLinks.map((w) => (
-              <button
-                key={w.id}
-                type="button"
-                onClick={() => openLink(w.href)}
-                style={{
-                  background: w.color,
-                  color: w.textColor,
-                  border: "none",
-                  padding: "13px 16px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontSize: 14,
-                  fontWeight: 800,
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  boxShadow: "0 3px 12px rgba(0,0,0,0.25)",
-                  touchAction: "manipulation",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-              >
-                <span>
-                  {w.emoji} {w.nameZh} / {w.name}
-                </span>
-                {w.tip ? (
-                  <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>
-                    {w.tip}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 12, opacity: 0.7 }}>打开 ↗</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Mobile Wallet Adapter：系统钱包选择器（Seed Vault 等） */}
-          <button
-            type="button"
-            onClick={() => setVisible(true)}
-            style={{
-              background: "linear-gradient(135deg, #00ff9d, #00c853)",
-              color: "#04140c",
-              border: "none",
-              padding: "13px 16px",
-              borderRadius: 12,
-              cursor: "pointer",
-              fontSize: 14,
-              fontWeight: 800,
-              width: "100%",
-              boxShadow: "0 3px 14px rgba(0,255,157,0.35)",
-              touchAction: "manipulation",
-            }}
-          >
-            📲 系统钱包 / Mobile Wallet Adapter
-          </button>
-
-          <p
-            style={{
-              margin: 0,
-              fontSize: 11,
-              color: "#889",
-              textAlign: "center",
-              lineHeight: 1.5,
-            }}
-          >
-            支持：Phantom · Solflare · Trust · Coinbase · MWA
-            <br />
-            打开后若未自动连接，在钱包内再点一次 Connect。
-            <br />
-            After opening, tap Connect once inside the wallet if needed.
-          </p>
-        </>
+      {/* 桌面 / 已在钱包内：备用官方 MultiButton（小） */}
+      {!useDeepLinkFlow && !connected && (
+        <div style={{ transform: "scale(0.88)", opacity: 0.9 }}>
+          <WalletMultiButton />
+        </div>
       )}
 
-      {/* ========== 已在钱包浏览器 / 桌面：正常连接 ========== */}
-      {!needsDeepLinkOpen && (
-        <>
-          {!connected ? (
-            <button
-              type="button"
-              onClick={handleConnectModal}
-              disabled={connecting}
-              style={{
-                background: "linear-gradient(135deg, #512da8, #7c3aed)",
-                color: "#fff",
-                border: "none",
-                padding: "14px 28px",
-                borderRadius: 12,
-                cursor: connecting ? "wait" : "pointer",
-                fontSize: 16,
-                fontWeight: 700,
-                minWidth: 200,
-                boxShadow: "0 4px 18px rgba(124, 58, 237, 0.4)",
-                opacity: connecting ? 0.7 : 1,
-                touchAction: "manipulation",
-              }}
-            >
-              {connecting
-                ? "连接中… / Connecting…"
-                : "连接签名钱包 / Connect Wallet"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleConnectModal}
-              style={{
-                background: "#512da8",
-                color: "#fff",
-                border: "none",
-                padding: "12px 24px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 15,
-                fontWeight: 600,
-                minWidth: 180,
-                touchAction: "manipulation",
-              }}
-            >
-              重新选择 / Reselect
-            </button>
-          )}
-
-          {!connected && (
-            <div style={{ transform: "scale(0.92)", opacity: 0.95 }}>
-              <WalletMultiButton />
-            </div>
-          )}
-        </>
-      )}
-
+      {/* ===== 断开：始终可点 ===== */}
       <button
         type="button"
         onClick={handleDisconnect}
         style={{
+          ...btnBase,
           background: "linear-gradient(135deg, #ff4d4d, #ff1a1a)",
           color: "#fff",
-          border: "none",
           padding: "12px 24px",
-          borderRadius: 12,
-          cursor: "pointer",
           fontSize: 15,
-          fontWeight: 700,
           width: 240,
           boxShadow: "0 4px 15px rgba(255, 50, 50, 0.45)",
-          touchAction: "manipulation",
         }}
       >
         断开连接 / Disconnect
       </button>
 
+      {/* ===== 更换：始终可点（Phantom ↔ Solflare 等） ===== */}
       <button
         type="button"
         onClick={handleChangeWallet}
         style={{
+          ...btnBase,
           background: "linear-gradient(135deg, #00ff9d, #00c853)",
           color: "#000",
-          border: "none",
           padding: "12px 24px",
-          borderRadius: 12,
-          cursor: "pointer",
           fontSize: 15,
-          fontWeight: 700,
           width: 240,
           boxShadow: "0 4px 15px rgba(0, 255, 157, 0.45)",
-          touchAction: "manipulation",
         }}
       >
         更换钱包 / Change Wallet
@@ -480,14 +333,7 @@ export default function WalletConnect() {
       )}
 
       {syncStatus && (
-        <div
-          style={{
-            fontSize: "0.85rem",
-            color: syncStatus.includes("❌") ? "#ff6b6b" : "#00ff9d",
-          }}
-        >
-          {syncStatus}
-        </div>
+        <div style={{ fontSize: "0.85rem", color: "#00ff9d" }}>{syncStatus}</div>
       )}
 
       <button
@@ -512,7 +358,6 @@ export default function WalletConnect() {
       {showHelp && (
         <div
           style={{
-            marginTop: 4,
             padding: "12px 14px",
             background: "rgba(139, 92, 246, 0.12)",
             border: "1px solid rgba(139, 92, 246, 0.35)",
@@ -524,7 +369,7 @@ export default function WalletConnect() {
             maxWidth: 340,
           }}
         >
-          <strong style={{ color: "#e9ddff" }}>支持的钱包 / Supported</strong>
+          <strong style={{ color: "#e9ddff" }}>支持的钱包 / Supported wallets</strong>
           <br />
           Phantom · Solflare · Trust Wallet · Coinbase Wallet · Mobile Wallet
           Adapter（系统钱包）
@@ -532,28 +377,184 @@ export default function WalletConnect() {
           <br />
           <strong style={{ color: "#e9ddff" }}>Android / APK</strong>
           <br />
-          请点对应按钮，在<strong>钱包 App 内</strong>打开本页，再 Connect。
-          直接在系统浏览器点 Connect 容易进官网下载页。
+          请先点「请选择您的钱包平台」，在弹出列表中选你的钱包。将在{" "}
+          <strong>钱包 App 内</strong>打开本 dApp，再连接即可。直接在系统浏览器点
+          Connect 容易跳到官网下载页。
+          <br />
+          Tap “Choose your wallet platform”, pick your wallet. The dApp opens
+          inside the wallet app — then connect. Direct Connect in system browser
+          often opens the download page instead.
           <br />
           <br />
-          <strong style={{ color: "#e9ddff" }}>iOS</strong>
+          <strong style={{ color: "#e9ddff" }}>更换平台 / Switch wallet</strong>
           <br />
-          多数情况可直接 Connect；若跳转异常，同样可用「在钱包内打开」。
+          点「更换钱包」可断开当前连接并重新选择（例如从 Phantom 换到 Solflare
+          再转账）。
+          <br />
+          Use “Change Wallet” to disconnect and pick another platform (e.g.
+          Phantom → Solflare to transfer).
           <br />
           <br />
-          <strong style={{ color: "#e9ddff" }}>Desktop</strong>
+          <strong style={{ color: "#e9ddff" }}>iOS / Desktop</strong>
           <br />
-          安装浏览器扩展后点 Connect 即可。
+          多数情况可直接选择平台连接。桌面请先安装对应浏览器扩展。
+          <br />
+          Usually connect directly. On desktop, install the browser extension
+          first.
           <br />
           <br />
           <span style={{ color: "#a78bfa" }}>
             「我的数据」来自 PWA 邮箱绑定，无需连钱包也能查看。Connect
-            只用于质押 / 转账 / 兑换等签名。
+            仅用于质押 / 转账 / 兑换等签名操作。
             <br />
-            My Data is from PWA login. Connect is only for signing actions.
+            My Data comes from PWA login — no wallet needed to view. Connect is
+            only required for signing (stake / transfer / swap).
           </span>
+        </div>
+      )}
+
+      {/* ========== 平台选择弹窗（默认收起，点主按钮才出现） ========== */}
+      {showPicker && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.72)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: "16px 12px 28px",
+            boxSizing: "border-box",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPicker(false);
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 400,
+              background: "linear-gradient(165deg, #1a1030, #0d0d18)",
+              border: "1px solid rgba(0,255,157,0.35)",
+              borderRadius: 20,
+              padding: "18px 16px 20px",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.5)",
+              maxHeight: "85vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 14,
+              }}
+            >
+              <div>
+                <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 16 }}>
+                  选择钱包平台
+                </div>
+                <div style={{ color: "#889", fontSize: 12, marginTop: 2 }}>
+                  Choose your wallet platform
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPicker(false)}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "none",
+                  color: "#ccc",
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  fontSize: 18,
+                  cursor: "pointer",
+                  touchAction: "manipulation",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p
+              style={{
+                margin: "0 0 12px",
+                fontSize: 12,
+                color: "#9aa",
+                lineHeight: 1.45,
+              }}
+            >
+              将在对应钱包 App 内打开本 dApp，避免跳到下载页。
+              <br />
+              Opens this dApp inside the wallet app (avoids download pages).
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {walletLinks.map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => openLink(w.href)}
+                  style={{
+                    ...btnBase,
+                    background: w.color,
+                    color: w.textColor,
+                    padding: "13px 16px",
+                    fontSize: 14,
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    boxShadow: "0 3px 12px rgba(0,0,0,0.25)",
+                  }}
+                >
+                  <span>
+                    {w.emoji} {w.nameZh} / {w.name}
+                  </span>
+                  <span style={{ fontSize: 12, opacity: 0.75 }}>打开 ↗</span>
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={handleMwa}
+                style={{
+                  ...btnBase,
+                  background: "linear-gradient(135deg, #00ff9d, #00c853)",
+                  color: "#04140c",
+                  padding: "13px 16px",
+                  fontSize: 14,
+                  width: "100%",
+                  boxShadow: "0 3px 14px rgba(0,255,157,0.3)",
+                }}
+              >
+                📲 系统钱包 / Mobile Wallet Adapter
+              </button>
+            </div>
+
+            <p
+              style={{
+                margin: "14px 0 0",
+                fontSize: 11,
+                color: "#667",
+                textAlign: "center",
+                lineHeight: 1.45,
+              }}
+            >
+              打开后若未自动连接，在钱包内再点一次 Connect 即可。
+              <br />
+              After opening, tap Connect once inside the wallet if needed.
+            </p>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
