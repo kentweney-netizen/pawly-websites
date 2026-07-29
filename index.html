@@ -30,14 +30,9 @@
     /* ===== Global ambient animated mesh ===== */
     body::before {
       content:"";
-      position:fixed; inset:0; z-index:-2;
+      position:fixed; inset:0; z-index:-3;
       pointer-events:none;
-      background:
-        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(139,92,246,0.22), transparent 50%),
-        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0,255,157,0.1), transparent 50%),
-        radial-gradient(ellipse 50% 50% at 50% 90%, rgba(255,158,205,0.08), transparent 50%),
-        linear-gradient(160deg, #07070f, #12001f 45%, #0a1a14);
-      animation: meshShift 20s ease-in-out infinite alternate;
+      background: #07070f;
     }
     @keyframes meshShift {
       0% { opacity: 0.85; filter: hue-rotate(0deg); }
@@ -343,82 +338,131 @@
       }
     }
 
-    /* ===== 四元素动态背景条：美女 · 小动物 · 宠物店 · 收容所 ===== */
-    .four-pillars {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin: 0 auto 18px;
-      max-width: 720px;
-      padding: 0 4px;
+    
+    /* ===== 全页真实感动态背景（融入页面，非小窗卡通） ===== */
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background-color: #0a0a0a;
+    }
+    .page-bg img.bg-photo {
+      position: absolute;
+      inset: -4%;
+      width: 108%;
+      height: 108%;
+      object-fit: cover;
+      object-position: center;
+      animation: bgKenBurns 22s ease-in-out infinite alternate;
+      filter: brightness(0.38) saturate(1.05);
+    }
+    .page-bg .bg-veil {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(7,7,15,0.55) 0%, rgba(10,10,20,0.72) 45%, rgba(7,7,15,0.88) 100%),
+        radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.18), transparent 50%);
       pointer-events: none;
     }
-    .four-pillars .fp {
-      position: relative;
-      border-radius: 14px;
-      overflow: hidden;
-      min-height: 72px;
-      border: 1px solid rgba(255,255,255,0.12);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 4px;
-      animation: fpFloat 5s ease-in-out infinite;
-    }
-    .four-pillars .fp:nth-child(1) {
-      background: linear-gradient(145deg, rgba(255,158,205,0.35), rgba(120,40,80,0.4));
-      animation-delay: 0s;
-    }
-    .four-pillars .fp:nth-child(2) {
-      background: linear-gradient(145deg, rgba(0,255,157,0.28), rgba(20,80,50,0.4));
-      animation-delay: 0.4s;
-    }
-    .four-pillars .fp:nth-child(3) {
-      background: linear-gradient(145deg, rgba(251,191,36,0.3), rgba(180,80,40,0.35));
-      animation-delay: 0.8s;
-    }
-    .four-pillars .fp:nth-child(4) {
-      background: linear-gradient(145deg, rgba(248,113,113,0.3), rgba(120,30,40,0.4));
-      animation-delay: 1.2s;
-    }
-    .four-pillars .fp .fp-ico { font-size: 1.45rem; line-height: 1; margin-bottom: 4px; }
-    .four-pillars .fp .fp-txt {
-      font-size: 0.65rem;
-      color: rgba(255,255,255,0.92);
-      line-height: 1.25;
-      font-weight: 600;
-    }
-    @keyframes fpFloat {
-      0%, 100% { transform: translateY(0); filter: brightness(1); }
-      50% { transform: translateY(-4px); filter: brightness(1.12); }
-    }
-    .four-pillars-wide {
-      max-width: 900px;
-      margin-top: 12px;
-      margin-bottom: 20px;
-    }
-    @media (max-width: 480px) {
-      .four-pillars .fp .fp-txt { font-size: 0.58rem; }
-      .four-pillars .fp { min-height: 64px; }
+    @keyframes bgKenBurns {
+      from { transform: scale(1) translate(0, 0); }
+      to { transform: scale(1.08) translate(-1.5%, -1%); }
     }
 
-    /* Staking CTA below video */
-    .below-video-cta {
+    /* 登录欢迎：美女主视觉 */
+    .page-bg--welcome .bg-veil {
+      background:
+        linear-gradient(160deg, rgba(20,0,30,0.45) 0%, rgba(0,20,15,0.7) 100%),
+        radial-gradient(ellipse at 50% 30%, rgba(255,158,205,0.2), transparent 55%);
+    }
+    /* About：概念感 */
+    .page-bg--about img.bg-photo { filter: brightness(0.32) saturate(0.9) hue-rotate(-8deg); }
+    .page-bg--about .bg-veil {
+      background:
+        linear-gradient(180deg, rgba(15,0,35,0.65), rgba(5,10,20,0.85)),
+        radial-gradient(ellipse at 70% 40%, rgba(139,92,246,0.25), transparent 50%);
+    }
+    /* Members */
+    .page-bg--members img.bg-photo { filter: brightness(0.3) saturate(1.1); }
+    .page-bg--members .bg-veil {
+      background:
+        linear-gradient(180deg, rgba(10,0,25,0.6), rgba(0,15,20,0.88)),
+        radial-gradient(ellipse at 40% 60%, rgba(0,255,157,0.12), transparent 50%);
+    }
+
+    /* 视频页：全幅真实视频即背景 */
+    .video-hero {
       position: relative;
-      z-index: 5;
-      text-align: center;
-      margin: -8px auto 28px;
-      max-width: 720px;
-      padding: 0 16px;
-      pointer-events: auto;
+      width: 100%;
+      height: min(78vh, 620px);
+      min-height: 300px;
+      overflow: hidden;
+      margin: 0 0 20px 0;
+      border-radius: 0;
     }
-    .below-video-cta a, .below-video-cta button {
-      pointer-events: auto;
-      touch-action: manipulation;
+    .video-hero video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      filter: brightness(0.85);
+      animation: none;
     }
+    .video-hero .overlay {
+      position: absolute; inset: 0; z-index: 1;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; color: #fff;
+      padding: 24px;
+      pointer-events: none;
+    }
+    .video-hero .overlay a,
+    .video-hero .overlay button { pointer-events: auto; }
+
+    /* 内容层压在背景之上 */
+    .tab > .container,
+    .tab > .below-video-cta,
+    .tab > section.video-hero,
+    .theme-members > .max-wrap,
+    #pawlyMembersPage > div { position: relative; z-index: 2; }
+
+    .nav { z-index: 30; }
+
+    .container {
+      background: rgba(8, 0, 20, 0.72) !important;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(0,255,157,0.28);
+    }
+
+    /* 减弱卡片呼吸，避免抢背景 */
+    .container { animation: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .page-bg img.bg-photo { animation: none !important; }
+    }
+
+
+    .page-bg--shop img.bg-photo { filter: brightness(0.4) saturate(1.05); }
+    .page-bg--shop .bg-veil {
+      background:
+        linear-gradient(180deg, rgba(30,10,20,0.5), rgba(10,5,15,0.85)),
+        radial-gradient(ellipse at 60% 40%, rgba(255,158,100,0.15), transparent 50%);
+    }
+    .page-bg--shelter img.bg-photo { filter: brightness(0.42) saturate(0.95); }
+    .page-bg--shelter .bg-veil {
+      background:
+        linear-gradient(180deg, rgba(20,15,10,0.45), rgba(10,8,12,0.88)),
+        radial-gradient(ellipse at 40% 50%, rgba(255,120,120,0.12), transparent 50%);
+    }
+    .page-bg--staking img.bg-photo { filter: brightness(0.35) saturate(1.1); }
+    .page-bg--staking .bg-veil {
+      background:
+        linear-gradient(180deg, rgba(20,0,40,0.55), rgba(5,0,15,0.88)),
+        radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.22), transparent 50%);
+    }
+
   </style>
 </head>
 <body>
@@ -435,14 +479,16 @@
 
   <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
+    <div class="page-bg page-bg--welcome" aria-hidden="true">
+      <img class="bg-photo" src="/bg-welcome.jpg" alt="" decoding="async">
+      <div class="bg-veil"></div>
+    </div>
+
     <div class="container theme-welcome">
       <div class="welcome-badge">🐾 欢迎加入 PAWLY · Welcome to PAWLY Family</div>
-      <div class="four-pillars" aria-hidden="true">
-        <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
-        <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
-        <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
-        <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
-      </div>
+
+
+</div>
 
       <div class="hero-frame">
         <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女欢迎你" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
@@ -539,6 +585,11 @@
 
   <!-- tab2 质押挖矿 -->
 <div class="tab" id="tab2">
+  <div class="page-bg page-bg--staking" aria-hidden="true">
+    <img class="bg-photo" src="/bg-staking.jpg" alt="" decoding="async">
+    <div class="bg-veil"></div>
+  </div>
+
   <section class="video-hero theme-staking">
     <video id="staking-video" muted loop playsinline autoplay>
       <source src="pawly-staking.mp4" type="video/mp4">
@@ -564,12 +615,9 @@
       </button>
     </div>
   </section>
-  <div class="four-pillars four-pillars-wide" aria-hidden="true">
-    <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
-    <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
-    <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
-    <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
-  </div>
+
+
+</div>
   <div class="below-video-cta">
     <a href="javascript:void(0)" onclick="goToDAppWithData()"
        style="display: inline-block; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.15rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 20px rgba(124,58,237,0.55); cursor: pointer; -webkit-tap-highlight-color: rgba(124,58,237,0.3); touch-action: manipulation;">
@@ -633,6 +681,11 @@
 
   <!-- tab3 宠物支付 -->
 <div class="tab" id="tab3">
+  <div class="page-bg page-bg--shop" aria-hidden="true">
+    <img class="bg-photo" src="/bg-shop.jpg" alt="" decoding="async">
+    <div class="bg-veil"></div>
+  </div>
+
   <section class="video-hero theme-payment">
     <video id="payment-video" muted loop playsinline autoplay>
       <source src="pawly-pet-payment.mp4" type="video/mp4">
@@ -654,12 +707,9 @@
       </button>
     </div>
   </section>
-  <div class="four-pillars four-pillars-wide" aria-hidden="true">
-    <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
-    <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
-    <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
-    <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
-  </div>
+
+
+</div>
 
   <div class="container">
   <h1>🐶 宠物支付 / Pet Payment</h1>
@@ -718,6 +768,11 @@
 
   <!-- tab4 慈善基金 -->
 <div class="tab" id="tab4">
+  <div class="page-bg page-bg--shelter" aria-hidden="true">
+    <img class="bg-photo" src="/bg-shelter.jpg" alt="" decoding="async">
+    <div class="bg-veil"></div>
+  </div>
+
 <section class="video-hero theme-charity">
   <video id="charity-video" muted loop playsinline autoplay>
     <source src="pawly-charity.mp4" type="video/mp4">
@@ -743,12 +798,9 @@
   </div>
 
 </section>
-  <div class="four-pillars four-pillars-wide" aria-hidden="true">
-    <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
-    <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
-    <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
-    <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
-  </div>
+
+
+</div>
 
   <!-- 完整故事：从 About 搬到 Charity 视频底部 -->
   <div class="container" style="max-width:780px; margin: 0 auto 30px;">
@@ -823,6 +875,11 @@
   
   <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
+    <div class="page-bg page-bg--about" aria-hidden="true">
+      <img class="bg-photo" src="/bg-about.jpg" alt="" decoding="async">
+      <div class="bg-veil"></div>
+    </div>
+
     <div class="container theme-about" style="max-width: 780px;">
       <h1 style="color:#00ff9d; font-size:1.9rem; margin-bottom:8px;">🌟 关于 PAWLY / About PAWLY</h1>
       <p style="color:#ff9ecd; margin-bottom:16px; font-size:1.05rem;">宠物生态 · 爱与守护 · 区块链力量 / Pet Ecosystem · Love & Protection · Powered by Blockchain</p>
@@ -832,12 +889,9 @@
         <span class="concept-chip">🐾 宠物生态 PetFi</span>
         <span class="concept-chip">🔗 链上力量 On-chain</span>
       </div>
-      <div class="four-pillars" aria-hidden="true">
-        <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
-        <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
-        <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
-        <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
-      </div>
+
+
+</div>
 
             <!-- Staking：点击进入视频页，文案在视频底部展开 -->
       <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
@@ -979,19 +1033,21 @@
   </div>
 
   <!-- PAWLY 成员表页面 -->
-  <div id="pawlyMembersPage" class="theme-members" style="display:none; min-height:100vh; background: linear-gradient(135deg, #0f0022, #1a0033); padding:20px;">
+  <div id="pawlyMembersPage" class="theme-members" style="display:none; min-height:100vh; background: transparent; padding:20px; position:relative;">
+    <div class="page-bg page-bg--members" aria-hidden="true">
+      <img class="bg-photo" src="/bg-members.jpg" alt="" decoding="async">
+      <div class="bg-veil"></div>
+    </div>
+
     <div style="max-width:1100px; margin:0 auto;">
       <div style="text-align:center; margin-bottom:25px;">
         <div style="font-size:4rem;">🐾</div>
         <h1 style="font-size:2.5rem; color:#00ff9d;">欢迎来到 PAWLY 大家庭</h1>
         <p style="color:#ffccdd;">Welcome to the PAWLY Family</p>
       </div>
-      <div class="four-pillars four-pillars-wide" aria-hidden="true">
-        <div class="fp"><span class="fp-ico">👩</span><span class="fp-txt">美女<br>Beauty</span></div>
-        <div class="fp"><span class="fp-ico">🐾</span><span class="fp-txt">小动物<br>Pets</span></div>
-        <div class="fp"><span class="fp-ico">🛍️</span><span class="fp-txt">宠物店<br>Pet Shop</span></div>
-        <div class="fp"><span class="fp-ico">🏠</span><span class="fp-txt">收容所<br>Shelter</span></div>
-      </div>
+
+
+</div>
 
       <div style="display:flex; justify-content:center; margin-bottom:50px;">
         <div class="stat-card" style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15); max-width:420px; width:100%;">
@@ -1789,10 +1845,6 @@ function hideModal(type) {
   if (modal) modal.style.display = 'none';
 }
 
-
-
-
-
 function initEmailReminderButton() {
   // Reminder disabled after check-in rewards ended
   const btn = document.getElementById('emailReminderBtn');
@@ -1930,5 +1982,4 @@ function goToDashboard() {
 
 </script>
 </body>
-</html>
 </html>
