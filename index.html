@@ -30,9 +30,14 @@
     /* ===== Global ambient animated mesh ===== */
     body::before {
       content:"";
-      position:fixed; inset:0; z-index:-3;
+      position:fixed; inset:0; z-index:-2;
       pointer-events:none;
-      background: #07070f;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(139,92,246,0.22), transparent 50%),
+        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0,255,157,0.1), transparent 50%),
+        radial-gradient(ellipse 50% 50% at 50% 90%, rgba(255,158,205,0.08), transparent 50%),
+        linear-gradient(160deg, #07070f, #12001f 45%, #0a1a14);
+      animation: meshShift 20s ease-in-out infinite alternate;
     }
     @keyframes meshShift {
       0% { opacity: 0.85; filter: hue-rotate(0deg); }
@@ -337,132 +342,6 @@
         transition-duration: 0.01ms !important;
       }
     }
-
-    
-    /* ===== 全页真实感动态背景（融入页面，非小窗卡通） ===== */
-    .page-bg {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      overflow: hidden;
-      background-color: #0a0a0a;
-    }
-    .page-bg img.bg-photo {
-      position: absolute;
-      inset: -4%;
-      width: 108%;
-      height: 108%;
-      object-fit: cover;
-      object-position: center;
-      animation: bgKenBurns 22s ease-in-out infinite alternate;
-      filter: brightness(0.38) saturate(1.05);
-    }
-    .page-bg .bg-veil {
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(180deg, rgba(7,7,15,0.55) 0%, rgba(10,10,20,0.72) 45%, rgba(7,7,15,0.88) 100%),
-        radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.18), transparent 50%);
-      pointer-events: none;
-    }
-    @keyframes bgKenBurns {
-      from { transform: scale(1) translate(0, 0); }
-      to { transform: scale(1.08) translate(-1.5%, -1%); }
-    }
-
-    /* 登录欢迎：美女主视觉 */
-    .page-bg--welcome .bg-veil {
-      background:
-        linear-gradient(160deg, rgba(20,0,30,0.45) 0%, rgba(0,20,15,0.7) 100%),
-        radial-gradient(ellipse at 50% 30%, rgba(255,158,205,0.2), transparent 55%);
-    }
-    /* About：概念感 */
-    .page-bg--about img.bg-photo { filter: brightness(0.32) saturate(0.9) hue-rotate(-8deg); }
-    .page-bg--about .bg-veil {
-      background:
-        linear-gradient(180deg, rgba(15,0,35,0.65), rgba(5,10,20,0.85)),
-        radial-gradient(ellipse at 70% 40%, rgba(139,92,246,0.25), transparent 50%);
-    }
-    /* Members */
-    .page-bg--members img.bg-photo { filter: brightness(0.3) saturate(1.1); }
-    .page-bg--members .bg-veil {
-      background:
-        linear-gradient(180deg, rgba(10,0,25,0.6), rgba(0,15,20,0.88)),
-        radial-gradient(ellipse at 40% 60%, rgba(0,255,157,0.12), transparent 50%);
-    }
-
-    /* 视频页：全幅真实视频即背景 */
-    .video-hero {
-      position: relative;
-      width: 100%;
-      height: min(78vh, 620px);
-      min-height: 300px;
-      overflow: hidden;
-      margin: 0 0 20px 0;
-      border-radius: 0;
-    }
-    .video-hero video {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      object-fit: cover;
-      z-index: 0;
-      filter: brightness(0.85);
-      animation: none;
-    }
-    .video-hero .overlay {
-      position: absolute; inset: 0; z-index: 1;
-      display: flex; align-items: center; justify-content: center;
-      text-align: center; color: #fff;
-      padding: 24px;
-      pointer-events: none;
-    }
-    .video-hero .overlay a,
-    .video-hero .overlay button { pointer-events: auto; }
-
-    /* 内容层压在背景之上 */
-    .tab > .container,
-    .tab > .below-video-cta,
-    .tab > section.video-hero,
-    .theme-members > .max-wrap,
-    #pawlyMembersPage > div { position: relative; z-index: 2; }
-
-    .nav { z-index: 30; }
-
-    .container {
-      background: rgba(8, 0, 20, 0.72) !important;
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(0,255,157,0.28);
-    }
-
-    /* 减弱卡片呼吸，避免抢背景 */
-    .container { animation: none; }
-
-    @media (prefers-reduced-motion: reduce) {
-      .page-bg img.bg-photo { animation: none !important; }
-    }
-
-
-    .page-bg--shop img.bg-photo { filter: brightness(0.4) saturate(1.05); }
-    .page-bg--shop .bg-veil {
-      background:
-        linear-gradient(180deg, rgba(30,10,20,0.5), rgba(10,5,15,0.85)),
-        radial-gradient(ellipse at 60% 40%, rgba(255,158,100,0.15), transparent 50%);
-    }
-    .page-bg--shelter img.bg-photo { filter: brightness(0.42) saturate(0.95); }
-    .page-bg--shelter .bg-veil {
-      background:
-        linear-gradient(180deg, rgba(20,15,10,0.45), rgba(10,8,12,0.88)),
-        radial-gradient(ellipse at 40% 50%, rgba(255,120,120,0.12), transparent 50%);
-    }
-    .page-bg--staking img.bg-photo { filter: brightness(0.35) saturate(1.1); }
-    .page-bg--staking .bg-veil {
-      background:
-        linear-gradient(180deg, rgba(20,0,40,0.55), rgba(5,0,15,0.88)),
-        radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.22), transparent 50%);
-    }
-
   </style>
 </head>
 <body>
@@ -479,17 +358,8 @@
 
   <!-- tab0 签到页面 -->
   <div class="tab active" id="tab0">
-    <div class="page-bg page-bg--welcome" aria-hidden="true">
-      <img class="bg-photo" src="/bg-welcome.jpg" alt="" decoding="async">
-      <div class="bg-veil"></div>
-    </div>
-
     <div class="container theme-welcome">
       <div class="welcome-badge">🐾 欢迎加入 PAWLY · Welcome to PAWLY Family</div>
-
-
-</div>
-
       <div class="hero-frame">
         <img src="/pawly-token-helps.png" alt="PAWLY - 可爱的赛博宠物和美女欢迎你" width="520" loading="eager" fetchpriority="high" style="width:100%; height:auto; display:block;">
       </div>
@@ -585,11 +455,6 @@
 
   <!-- tab2 质押挖矿 -->
 <div class="tab" id="tab2">
-  <div class="page-bg page-bg--staking" aria-hidden="true">
-    <img class="bg-photo" src="/bg-staking.jpg" alt="" decoding="async">
-    <div class="bg-veil"></div>
-  </div>
-
   <section class="video-hero theme-staking">
     <video id="staking-video" muted loop playsinline autoplay>
       <source src="pawly-staking.mp4" type="video/mp4">
@@ -601,9 +466,15 @@
         <div class="welcome-badge" style="margin-bottom:14px; border-color:rgba(167,139,250,0.6); color:#e9ddff;">⚡ 一起质押赚取奖励 · Stake Together</div>
         <h1>🔥 Staking Rewards</h1>
         <p>
-          社区一起 Staking，共享质押收益<br>
-          Stake with the community and earn rewards
+          社区一起 Staking，共享质押收益。点击进入专业 dApp。<br>
+          Stake with the community and earn rewards. Open the pro dApp below.
         </p>
+        <span class="cta-glow">
+        <a href="javascript:void(0)" onclick="goToDAppWithData()"
+           style="display: inline-block; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.15rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 20px rgba(124,58,237,0.55); cursor: pointer;">
+          进入 dApp Staking / Open dApp
+        </a>
+        </span>
       </div>
     </div>
 
@@ -615,16 +486,6 @@
       </button>
     </div>
   </section>
-
-
-</div>
-  <div class="below-video-cta">
-    <a href="javascript:void(0)" onclick="goToDAppWithData()"
-       style="display: inline-block; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: white; padding: 16px 48px; border-radius: 50px; font-size: 1.15rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 20px rgba(124,58,237,0.55); cursor: pointer; -webkit-tap-highlight-color: rgba(124,58,237,0.3); touch-action: manipulation;">
-      进入 dApp Staking / Open dApp
-    </a>
-  </div>
-
     
       <!-- 折叠式 Staking 说明 -->
 <div style="margin: 25px 0 20px 0;">
@@ -681,11 +542,6 @@
 
   <!-- tab3 宠物支付 -->
 <div class="tab" id="tab3">
-  <div class="page-bg page-bg--shop" aria-hidden="true">
-    <img class="bg-photo" src="/bg-shop.jpg" alt="" decoding="async">
-    <div class="bg-veil"></div>
-  </div>
-
   <section class="video-hero theme-payment">
     <video id="payment-video" muted loop playsinline autoplay>
       <source src="pawly-pet-payment.mp4" type="video/mp4">
@@ -698,7 +554,13 @@
           宠物店 · 服务支付 · 用 PAWLY 轻松结账<br>
           Pet shops & services — pay smoothly with PAWLY
         </p>
-   
+        <span class="cta-glow">
+        <a href="javascript:void(0)" onclick="goToDAppWithData()"
+           style="display: inline-block; background: linear-gradient(135deg,#ec4899,#f59e0b); color: white; padding: 14px 40px; border-radius: 50px; font-size: 1.1rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 18px rgba(236,72,153,0.45); cursor: pointer;">
+          进入支付 dApp / Open Payment
+        </a>
+        </span>
+        
     <!-- 圆形喇叭按钮 -->
     <div style="position: absolute; bottom: 25px; right: 25px; z-index: 10;">
       <button onclick="unmuteVideo('payment-video', this)"
@@ -707,9 +569,6 @@
       </button>
     </div>
   </section>
-
-
-</div>
 
   <div class="container">
   <h1>🐶 宠物支付 / Pet Payment</h1>
@@ -768,11 +627,6 @@
 
   <!-- tab4 慈善基金 -->
 <div class="tab" id="tab4">
-  <div class="page-bg page-bg--shelter" aria-hidden="true">
-    <img class="bg-photo" src="/bg-shelter.jpg" alt="" decoding="async">
-    <div class="bg-veil"></div>
-  </div>
-
 <section class="video-hero theme-charity">
   <video id="charity-video" muted loop playsinline autoplay>
     <source src="pawly-charity.mp4" type="video/mp4">
@@ -785,7 +639,12 @@
         与爱同行：支持流浪动物收容所与救助组织<br>
         Give with love — support shelters and rescue groups worldwide
       </p>
-
+      <span class="cta-glow">
+      <a href="javascript:void(0)" onclick="goToDAppWithData()"
+         style="display: inline-block; background: linear-gradient(135deg,#ef4444,#fb7185); color: white; padding: 14px 40px; border-radius: 50px; font-size: 1.1rem; text-decoration: none; font-weight: bold; box-shadow: 0 4px 18px rgba(239,68,68,0.45); cursor: pointer;">
+        进入慈善 dApp / Open Charity
+      </a>
+      </span>
     </div>
   </div>
 
@@ -798,9 +657,6 @@
   </div>
 
 </section>
-
-
-</div>
 
   <!-- 完整故事：从 About 搬到 Charity 视频底部 -->
   <div class="container" style="max-width:780px; margin: 0 auto 30px;">
@@ -830,6 +686,7 @@
       </div>
     </div>
   </div>
+
 
   <!-- 收容所列表（默认隐藏） -->
   <div id="shelterList" style="display: none; max-width: 900px; margin: 0 auto; padding: 0 20px 60px;">
@@ -875,11 +732,6 @@
   
   <!-- tab5 关于 PAWLY -->
   <div class="tab" id="tab5">
-    <div class="page-bg page-bg--about" aria-hidden="true">
-      <img class="bg-photo" src="/bg-about.jpg" alt="" decoding="async">
-      <div class="bg-veil"></div>
-    </div>
-
     <div class="container theme-about" style="max-width: 780px;">
       <h1 style="color:#00ff9d; font-size:1.9rem; margin-bottom:8px;">🌟 关于 PAWLY / About PAWLY</h1>
       <p style="color:#ff9ecd; margin-bottom:16px; font-size:1.05rem;">宠物生态 · 爱与守护 · 区块链力量 / Pet Ecosystem · Love & Protection · Powered by Blockchain</p>
@@ -890,14 +742,11 @@
         <span class="concept-chip">🔗 链上力量 On-chain</span>
       </div>
 
-
-</div>
-
             <!-- Staking：点击进入视频页，文案在视频底部展开 -->
       <div style="background:rgba(124,58,237,0.1); border:2px solid #7c3aed; border-radius:20px; padding:24px; margin:20px 0; text-align:center;">
         <h3 style="color:#a78bfa; margin:0 0 16px 0;">🔥 质押挖矿 / Staking</h3>
         <button onclick="showTab(2)" style="background: linear-gradient(135deg, #7c3aed, #a78bfa); color:white; border:none; padding:14px 40px; border-radius:9999px; font-weight:bold; cursor:pointer;">
-          点击前往专业dApp页面 / Go to dApp
+          点击前往专业dApp页面 / Go to dApp 
         </button>
       </div>
 
@@ -1033,22 +882,13 @@
   </div>
 
   <!-- PAWLY 成员表页面 -->
-  <div id="pawlyMembersPage" class="theme-members" style="display:none; min-height:100vh; background: transparent; padding:20px; position:relative;">
-    <div class="page-bg page-bg--members" aria-hidden="true">
-      <img class="bg-photo" src="/bg-members.jpg" alt="" decoding="async">
-      <div class="bg-veil"></div>
-    </div>
-
+  <div id="pawlyMembersPage" class="theme-members" style="display:none; min-height:100vh; background: linear-gradient(135deg, #0f0022, #1a0033); padding:20px;">
     <div style="max-width:1100px; margin:0 auto;">
       <div style="text-align:center; margin-bottom:25px;">
         <div style="font-size:4rem;">🐾</div>
         <h1 style="font-size:2.5rem; color:#00ff9d;">欢迎来到 PAWLY 大家庭</h1>
         <p style="color:#ffccdd;">Welcome to the PAWLY Family</p>
       </div>
-
-
-</div>
-
       <div style="display:flex; justify-content:center; margin-bottom:50px;">
         <div class="stat-card" style="background:#1a0033; border:3px solid #00ff9d; border-radius:24px; padding:36px 26px; text-align:center; box-shadow:0 12px 35px rgba(0,255,157,0.15); max-width:420px; width:100%;">
           <div style="font-size:0.95rem; color:#ffaa00; margin-bottom:10px; letter-spacing:1.5px; font-weight:bold;">🐾 REGISTERED MEMBERS</div>
@@ -1409,7 +1249,7 @@ async function ensureSolanaWallet() {
         walletDisplay.innerText = result.wallet_address;
       }
       console.log(
-        result.created ? "✅ 已自动创建 Solana 钱包/Your Wallet Address Is Ready" : "✅ 已有钱包/Wallet Address Already Exist ",
+        result.created ? "✅ 已自动创建 Solana 钱包/Your Wallet Address Is Ready" : "✅ 已有钱包/Wallet Address Already Exist",
         result.wallet_address
       );
       return result.wallet_address;
