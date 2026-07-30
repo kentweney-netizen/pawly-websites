@@ -1,11 +1,12 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 30.07.2026 v6
+ * PAWLY DApp — 30.07.2026 v6.1
  * v5 + 本次：
  *   1. Charity 捐赠加 PAWLY
  *   2. Payment：PAWLY/SOL/USDC/USDT 全开放 + SOL 实时价
  *   3. Payment 多国汇率弹窗（MYR/SGD/CNY/JPY/KRW/IDR/THB/HKD/MOP/TWD）
  *   4. 各功能页 CA 警告改为「重要提醒」按钮弹窗
+ *   5. SOL/法币多源实时价（Binance→Coinbase→CoinGecko / exchangerate→Frankfurter）
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -116,6 +117,62 @@ function fmtBal(n, digits = 4) {
   if (n === 0) return "0";
   if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return Number(n).toFixed(digits).replace(/\.?0+$/, (m) => (m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m));
+}
+
+
+/** 多源拉取 SOL/USD（浏览器可跨域优先，避免 CoinGecko CORS 卡死在 150） */
+async function fetchSolUsdPrice() {
+  // 1) Binance（通常允许浏览器跨域）
+  try {
+    const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
+    if (r.ok) {
+      const d = await r.json();
+      const p = parseFloat(d?.price);
+      if (Number.isFinite(p) && p > 0) return { usd: p, source: "Binance" };
+    }
+  } catch (_) {}
+  // 2) Coinbase
+  try {
+    const r = await fetch("https://api.coinbase.com/v2/prices/SOL-USD/spot");
+    if (r.ok) {
+      const d = await r.json();
+      const p = parseFloat(d?.data?.amount);
+      if (Number.isFinite(p) && p > 0) return { usd: p, source: "Coinbase" };
+    }
+  } catch (_) {}
+  // 3) CoinGecko（可能被 CORS/限流）
+  try {
+    const r = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+    );
+    if (r.ok) {
+      const d = await r.json();
+      const p = d?.solana?.usd;
+      if (Number.isFinite(p) && p > 0) return { usd: p, source: "CoinGecko" };
+    }
+  } catch (_) {}
+  return null;
+}
+
+/** 多源拉取法币汇率（USD 基准） */
+async function fetchFiatRatesUsd() {
+  // 1) exchangerate-api
+  try {
+    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.rates) return { rates: data.rates, source: "exchangerate-api" };
+    }
+  } catch (_) {}
+  // 2) Frankfurter（ECB，CORS 友好）
+  try {
+    const res = await fetch("https://api.frankfurter.app/latest?from=USD");
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.rates) return { rates: data.rates, source: "Frankfurter" };
+    }
+  } catch (_) {}
+  return null;
 }
 
 /** 各操作预估计算单元 / 签名费（Solana 基础费用，真实区间） */
@@ -859,6 +916,7 @@ function PaymentPage() {
   const [rateLoading, setRateLoading] = useState(true);
   const [showRates, setShowRates] = useState(false);
   const [fiatCode, setFiatCode] = useState("MYR");
+  const [solSource, setSolSource] = useState("");
 
   const FIATS = [
     { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
@@ -897,25 +955,21 @@ function PaymentPage() {
   const fetchRates = async () => {
     setRateLoading(true);
     try {
-      const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
-      if (!res.ok) throw new Error("rate fail");
-      const data = await res.json();
-      if (data?.rates) setFiatRates(data.rates);
+      const [fiat, sol] = await Promise.all([fetchFiatRatesUsd(), fetchSolUsdPrice()]);
+      if (fiat?.rates) setFiatRates(fiat.rates);
+      else setFiatRates(null);
+      if (sol?.usd) {
+        setSolUsd(sol.usd);
+        setSolSource(sol.source || "");
+      } else {
+        setSolUsd(null);
+        setSolSource("");
+      }
     } catch (e) {
       console.error(e);
       setFiatRates(null);
-    }
-    try {
-      const r = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
-      );
-      if (r.ok) {
-        const d = await r.json();
-        if (d?.solana?.usd) setSolUsd(d.solana.usd);
-        else setSolUsd(150);
-      } else setSolUsd(150);
-    } catch (_) {
-      setSolUsd(150);
+      setSolUsd(null);
+      setSolSource("");
     } finally {
       setRateLoading(false);
     }
@@ -1041,9 +1095,13 @@ function PaymentPage() {
               {amt > 0 ? usdcEq.toFixed(4) : "0.00"} USDC
             </span>
           </div>
-          {payToken === "SOL" && solUsd && (
+          {payToken === "SOL" && (
             <div style={{ color: "#667", fontSize: 12, marginBottom: 8 }}>
-              SOL 参考价 / SOL ref: ${solUsd.toFixed(2)}
+              {solUsd
+                ? `SOL 参考价 / SOL ref: $${solUsd.toFixed(2)}${solSource ? ` · ${solSource}` : ""}`
+                : rateLoading
+                  ? "SOL 价格加载中… / Loading SOL price…"
+                  : "SOL 价格暂不可用 / SOL price unavailable"}
             </div>
           )}
           {payToken === "PAWLY" && (
@@ -1407,24 +1465,14 @@ function SwapPage() {
     };
   }, [publicKey, fromToken]);
 
-  // 拉取 SOL/USD 便于真实换算 SOL↔稳定币
+  // 多源拉取 SOL/USD（Binance → Coinbase → CoinGecko）
   useEffect(() => {
     let alive = true;
     (async () => {
-      try {
-        const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
-        // 该 API 无 SOL；用备用公开价
-      } catch (_) {}
-      try {
-        const r = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
-        );
-        if (!r.ok) throw new Error("cg");
-        const d = await r.json();
-        if (alive && d?.solana?.usd) setSolUsd(d.solana.usd);
-      } catch (_) {
-        if (alive) setSolUsd(150); // 合理回退，仅用于预览
-      }
+      const sol = await fetchSolUsdPrice();
+      if (!alive) return;
+      if (sol?.usd) setSolUsd(sol.usd);
+      else setSolUsd(null);
     })();
     return () => {
       alive = false;
@@ -1617,9 +1665,11 @@ function SwapPage() {
               Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (on-chain price after pool)
             </p>
           )}
-          {solUsd && (fromToken === "SOL" || toToken === "SOL") && (
+          {(fromToken === "SOL" || toToken === "SOL") && (
             <p style={{ color: "#556", fontSize: 11, margin: "6px 0 0" }}>
-              SOL 参考价 / SOL ref: ${solUsd.toFixed(2)}
+              {solUsd
+                ? `SOL 参考价 / SOL ref: $${solUsd.toFixed(2)}`
+                : "SOL 价格加载中或暂不可用 / SOL price loading or unavailable"}
             </p>
           )}
         </div>
