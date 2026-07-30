@@ -1,12 +1,12 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 30.07.2026 v6.1
+ * PAWLY DApp — 30.07.2026 v6.2
  * v5 + 本次：
  *   1. Charity 捐赠加 PAWLY
  *   2. Payment：PAWLY/SOL/USDC/USDT 全开放 + SOL 实时价
  *   3. Payment 多国汇率弹窗（MYR/SGD/CNY/JPY/KRW/IDR/THB/HKD/MOP/TWD）
  *   4. 各功能页 CA 警告改为「重要提醒」按钮弹窗
- *   5. SOL/法币多源实时价（Binance→Coinbase→CoinGecko / exchangerate→Frankfurter）
+ *   5. SOL/法币多源+超时（Jupiter/DexScreener/Binance… + open.er-api）；杜绝无限 Loading
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -120,30 +120,85 @@ function fmtBal(n, digits = 4) {
 }
 
 
-/** 多源拉取 SOL/USD（浏览器可跨域优先，避免 CoinGecko CORS 卡死在 150） */
-async function fetchSolUsdPrice() {
-  // 1) Binance（通常允许浏览器跨域）
+
+/** 带超时的 fetch，避免一直 Loading */
+async function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
   try {
-    const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { Accept: "application/json" },
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * 多源拉取 SOL/USD
+ * 优先 Jupiter / DexScreener（前端较易成功），再 Binance / Coinbase / CoinGecko
+ */
+async function fetchSolUsdPrice() {
+  // 1) Jupiter Price API（dApp 常用，CORS 相对友好）
+  try {
+    const r = await fetchWithTimeout(
+      "https://price.jup.ag/v6/price?ids=SOL",
+      7000
+    );
+    if (r.ok) {
+      const d = await r.json();
+      const p = parseFloat(d?.data?.SOL?.price);
+      if (Number.isFinite(p) && p > 0) return { usd: p, source: "Jupiter" };
+    }
+  } catch (_) {}
+
+  // 2) DexScreener（SOL 主池价）
+  try {
+    const r = await fetchWithTimeout(
+      "https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112",
+      7000
+    );
+    if (r.ok) {
+      const d = await r.json();
+      const pair = (d?.pairs || []).find((x) => x?.priceUsd) || d?.pairs?.[0];
+      const p = parseFloat(pair?.priceUsd);
+      if (Number.isFinite(p) && p > 0) return { usd: p, source: "DexScreener" };
+    }
+  } catch (_) {}
+
+  // 3) Binance
+  try {
+    const r = await fetchWithTimeout(
+      "https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT",
+      7000
+    );
     if (r.ok) {
       const d = await r.json();
       const p = parseFloat(d?.price);
       if (Number.isFinite(p) && p > 0) return { usd: p, source: "Binance" };
     }
   } catch (_) {}
-  // 2) Coinbase
+
+  // 4) Coinbase
   try {
-    const r = await fetch("https://api.coinbase.com/v2/prices/SOL-USD/spot");
+    const r = await fetchWithTimeout(
+      "https://api.coinbase.com/v2/prices/SOL-USD/spot",
+      7000
+    );
     if (r.ok) {
       const d = await r.json();
       const p = parseFloat(d?.data?.amount);
       if (Number.isFinite(p) && p > 0) return { usd: p, source: "Coinbase" };
     }
   } catch (_) {}
-  // 3) CoinGecko（可能被 CORS/限流）
+
+  // 5) CoinGecko
   try {
-    const r = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+    const r = await fetchWithTimeout(
+      "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
+      7000
     );
     if (r.ok) {
       const d = await r.json();
@@ -151,27 +206,47 @@ async function fetchSolUsdPrice() {
       if (Number.isFinite(p) && p > 0) return { usd: p, source: "CoinGecko" };
     }
   } catch (_) {}
+
   return null;
 }
 
 /** 多源拉取法币汇率（USD 基准） */
 async function fetchFiatRatesUsd() {
-  // 1) exchangerate-api
+  // 1) open.er-api（公开、常可用于浏览器）
   try {
-    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    const res = await fetchWithTimeout("https://open.er-api.com/v6/latest/USD", 8000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.rates && (data.result === "success" || data.rates.MYR)) {
+        return { rates: data.rates, source: "open.er-api" };
+      }
+    }
+  } catch (_) {}
+
+  // 2) exchangerate-api
+  try {
+    const res = await fetchWithTimeout(
+      "https://api.exchangerate-api.com/v4/latest/USD",
+      8000
+    );
     if (res.ok) {
       const data = await res.json();
       if (data?.rates) return { rates: data.rates, source: "exchangerate-api" };
     }
   } catch (_) {}
-  // 2) Frankfurter（ECB，CORS 友好）
+
+  // 3) Frankfurter（ECB；部分亚洲货币可能没有）
   try {
-    const res = await fetch("https://api.frankfurter.app/latest?from=USD");
+    const res = await fetchWithTimeout(
+      "https://api.frankfurter.app/latest?from=USD",
+      8000
+    );
     if (res.ok) {
       const data = await res.json();
       if (data?.rates) return { rates: data.rates, source: "Frankfurter" };
     }
   } catch (_) {}
+
   return null;
 }
 
@@ -955,7 +1030,12 @@ function PaymentPage() {
   const fetchRates = async () => {
     setRateLoading(true);
     try {
-      const [fiat, sol] = await Promise.all([fetchFiatRatesUsd(), fetchSolUsdPrice()]);
+      const results = await Promise.allSettled([
+        fetchFiatRatesUsd(),
+        fetchSolUsdPrice(),
+      ]);
+      const fiat = results[0].status === "fulfilled" ? results[0].value : null;
+      const sol = results[1].status === "fulfilled" ? results[1].value : null;
       if (fiat?.rates) setFiatRates(fiat.rates);
       else setFiatRates(null);
       if (sol?.usd) {
@@ -1228,6 +1308,13 @@ function PaymentPage() {
 
             {rateLoading && (
               <p style={{ color: "#889", textAlign: "center" }}>加载中… / Loading…</p>
+            )}
+            {!rateLoading && !fiatRates && (
+              <p style={{ color: "#ff9f43", textAlign: "center", fontSize: 13, lineHeight: 1.5 }}>
+                汇率接口暂时不可用，请点「刷新汇率」重试。
+                <br />
+                Rates unavailable. Tap Refresh Rate to retry.
+              </p>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
