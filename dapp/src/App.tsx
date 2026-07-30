@@ -1,12 +1,12 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 30.07.2026 v6.2
+ * PAWLY DApp — 30.07.2026 v6.3
  * v5 + 本次：
  *   1. Charity 捐赠加 PAWLY
  *   2. Payment：PAWLY/SOL/USDC/USDT 全开放 + SOL 实时价
  *   3. Payment 多国汇率弹窗（MYR/SGD/CNY/JPY/KRW/IDR/THB/HKD/MOP/TWD）
  *   4. 各功能页 CA 警告改为「重要提醒」按钮弹窗
- *   5. SOL/法币多源+超时（Jupiter/DexScreener/Binance… + open.er-api）；杜绝无限 Loading
+ *   5. SOL 优先 Supabase Edge get-sol-price（真实市价~73）+ 区间校验；法币 open.er-api
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -121,6 +121,7 @@ function fmtBal(n, digits = 4) {
 
 
 
+
 /** 带超时的 fetch，避免一直 Loading */
 async function fetchWithTimeout(url, ms = 8000) {
   const ctrl = new AbortController();
@@ -136,25 +137,54 @@ async function fetchWithTimeout(url, ms = 8000) {
   }
 }
 
+/** 价格合理性：当前市价约 $70–80，拒绝异常解析值 */
+function isSaneSolUsd(p) {
+  return Number.isFinite(p) && p >= 15 && p <= 400;
+}
+
 /**
- * 多源拉取 SOL/USD
- * 优先 Jupiter / DexScreener（前端较易成功），再 Binance / Coinbase / CoinGecko
+ * 拉取真实 SOL/USD
+ * 1) 优先 Supabase Edge get-sol-price（服务端，无 CORS）
+ * 2) 浏览器备用：Jupiter / DexScreener / Binance…
  */
 async function fetchSolUsdPrice() {
-  // 1) Jupiter Price API（dApp 常用，CORS 相对友好）
+  // —— 1) Edge Function（推荐，部署后即用真实 Binance/CoinGecko）——
   try {
-    const r = await fetchWithTimeout(
-      "https://price.jup.ag/v6/price?ids=SOL",
-      7000
-    );
-    if (r.ok) {
-      const d = await r.json();
-      const p = parseFloat(d?.data?.SOL?.price);
-      if (Number.isFinite(p) && p > 0) return { usd: p, source: "Jupiter" };
+    const { data, error } = await supabase.functions.invoke("get-sol-price", {
+      method: "GET",
+    });
+    if (!error && data?.usd != null) {
+      const p = parseFloat(data.usd);
+      if (isSaneSolUsd(p)) {
+        return { usd: p, source: data.source || "Edge", usdc: data.usdc ?? p };
+      }
     }
   } catch (_) {}
 
-  // 2) DexScreener（SOL 主池价）
+  // 也可用匿名 REST 直调（若 function 允许 no-verify-jwt）
+  try {
+    const base = SUPABASE_URL.replace(/\/$/, "");
+    const r = await fetchWithTimeout(`${base}/functions/v1/get-sol-price`, 9000);
+    if (r.ok) {
+      const d = await r.json();
+      const p = parseFloat(d?.usd);
+      if (isSaneSolUsd(p)) {
+        return { usd: p, source: d.source || "Edge", usdc: d.usdc ?? p };
+      }
+    }
+  } catch (_) {}
+
+  // —— 2) Jupiter ——
+  try {
+    const r = await fetchWithTimeout("https://price.jup.ag/v6/price?ids=SOL", 7000);
+    if (r.ok) {
+      const d = await r.json();
+      const p = parseFloat(d?.data?.SOL?.price ?? d?.SOL?.price);
+      if (isSaneSolUsd(p)) return { usd: p, source: "Jupiter" };
+    }
+  } catch (_) {}
+
+  // —— 3) DexScreener（取流动性最高的 pair）——
   try {
     const r = await fetchWithTimeout(
       "https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112",
@@ -162,13 +192,16 @@ async function fetchSolUsdPrice() {
     );
     if (r.ok) {
       const d = await r.json();
-      const pair = (d?.pairs || []).find((x) => x?.priceUsd) || d?.pairs?.[0];
+      const pairs = (d?.pairs || [])
+        .filter((x) => x?.priceUsd && (x?.quoteToken?.symbol === "USDC" || x?.quoteToken?.symbol === "USDT" || x?.quoteToken?.symbol === "USD"))
+        .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+      const pair = pairs[0] || (d?.pairs || []).find((x) => x?.priceUsd);
       const p = parseFloat(pair?.priceUsd);
-      if (Number.isFinite(p) && p > 0) return { usd: p, source: "DexScreener" };
+      if (isSaneSolUsd(p)) return { usd: p, source: "DexScreener" };
     }
   } catch (_) {}
 
-  // 3) Binance
+  // —— 4) Binance ——
   try {
     const r = await fetchWithTimeout(
       "https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT",
@@ -177,11 +210,11 @@ async function fetchSolUsdPrice() {
     if (r.ok) {
       const d = await r.json();
       const p = parseFloat(d?.price);
-      if (Number.isFinite(p) && p > 0) return { usd: p, source: "Binance" };
+      if (isSaneSolUsd(p)) return { usd: p, source: "Binance" };
     }
   } catch (_) {}
 
-  // 4) Coinbase
+  // —— 5) Coinbase ——
   try {
     const r = await fetchWithTimeout(
       "https://api.coinbase.com/v2/prices/SOL-USD/spot",
@@ -190,11 +223,11 @@ async function fetchSolUsdPrice() {
     if (r.ok) {
       const d = await r.json();
       const p = parseFloat(d?.data?.amount);
-      if (Number.isFinite(p) && p > 0) return { usd: p, source: "Coinbase" };
+      if (isSaneSolUsd(p)) return { usd: p, source: "Coinbase" };
     }
   } catch (_) {}
 
-  // 5) CoinGecko
+  // —— 6) CoinGecko ——
   try {
     const r = await fetchWithTimeout(
       "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
@@ -203,7 +236,7 @@ async function fetchSolUsdPrice() {
     if (r.ok) {
       const d = await r.json();
       const p = d?.solana?.usd;
-      if (Number.isFinite(p) && p > 0) return { usd: p, source: "CoinGecko" };
+      if (isSaneSolUsd(p)) return { usd: p, source: "CoinGecko" };
     }
   } catch (_) {}
 
@@ -212,7 +245,6 @@ async function fetchSolUsdPrice() {
 
 /** 多源拉取法币汇率（USD 基准） */
 async function fetchFiatRatesUsd() {
-  // 1) open.er-api（公开、常可用于浏览器）
   try {
     const res = await fetchWithTimeout("https://open.er-api.com/v6/latest/USD", 8000);
     if (res.ok) {
@@ -222,8 +254,6 @@ async function fetchFiatRatesUsd() {
       }
     }
   } catch (_) {}
-
-  // 2) exchangerate-api
   try {
     const res = await fetchWithTimeout(
       "https://api.exchangerate-api.com/v4/latest/USD",
@@ -234,8 +264,6 @@ async function fetchFiatRatesUsd() {
       if (data?.rates) return { rates: data.rates, source: "exchangerate-api" };
     }
   } catch (_) {}
-
-  // 3) Frankfurter（ECB；部分亚洲货币可能没有）
   try {
     const res = await fetchWithTimeout(
       "https://api.frankfurter.app/latest?from=USD",
@@ -246,7 +274,6 @@ async function fetchFiatRatesUsd() {
       if (data?.rates) return { rates: data.rates, source: "Frankfurter" };
     }
   } catch (_) {}
-
   return null;
 }
 
@@ -1178,10 +1205,10 @@ function PaymentPage() {
           {payToken === "SOL" && (
             <div style={{ color: "#667", fontSize: 12, marginBottom: 8 }}>
               {solUsd
-                ? `SOL 参考价 / SOL ref: $${solUsd.toFixed(2)}${solSource ? ` · ${solSource}` : ""}`
+                ? `SOL ≈ $${solUsd.toFixed(2)} USD ≈ ${solUsd.toFixed(2)} USDC${solSource ? ` · ${solSource}` : ""}`
                 : rateLoading
                   ? "SOL 价格加载中… / Loading SOL price…"
-                  : "SOL 价格暂不可用 / SOL price unavailable"}
+                  : "SOL 价格暂不可用（请部署 Edge get-sol-price）/ SOL price unavailable"}
             </div>
           )}
           {payToken === "PAWLY" && (
