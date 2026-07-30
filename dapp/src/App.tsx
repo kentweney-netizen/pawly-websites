@@ -1,12 +1,13 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 30.07.2026 v6.3
+ * PAWLY DApp — 30.07.2026 v6.4
  * v5 + 本次：
  *   1. Charity 捐赠加 PAWLY
  *   2. Payment：PAWLY/SOL/USDC/USDT 全开放 + SOL 实时价
  *   3. Payment 多国汇率弹窗（MYR/SGD/CNY/JPY/KRW/IDR/THB/HKD/MOP/TWD）
  *   4. 各功能页 CA 警告改为「重要提醒」按钮弹窗
- *   5. SOL 优先 Supabase Edge get-sol-price（真实市价~73）+ 区间校验；法币 open.er-api
+ *   5. SOL Edge 真实价；法币 open.er-api
+ *   6. 各功能页余额回退 pwaData.wallet（与 My Data 一致）
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -905,20 +906,24 @@ function StakingPage() {
   const [loading, setLoading] = useState(false);
   const [realBalance, setRealBalance] = useState(0);
 
+  const { pwaData: stakePwa } = useUserData();
+  const walletAddr =
+    (publicKey && publicKey.toString()) || stakePwa?.wallet || "";
+
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!connected || !publicKey) {
+      if (!walletAddr) {
         if (alive) setRealBalance(0);
         return;
       }
-      const bal = await fetchTokenBalance(publicKey, selectedToken);
+      const bal = await fetchTokenBalance(walletAddr, selectedToken);
       if (alive) setRealBalance(bal);
     })();
     return () => {
       alive = false;
     };
-  }, [connected, publicKey, selectedToken]);
+  }, [walletAddr, selectedToken]);
 
   const handleStake = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
@@ -1035,6 +1040,9 @@ function PaymentPage() {
 
   const maxPawly = parseFloat(pwaData?.total_pawly) || 0;
 
+  const payWalletAddr =
+    (publicKey && publicKey.toString()) || pwaData?.wallet || "";
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -1042,17 +1050,17 @@ function PaymentPage() {
         if (alive) setRealBalance(maxPawly);
         return;
       }
-      if (!publicKey) {
+      if (!payWalletAddr) {
         if (alive) setRealBalance(0);
         return;
       }
-      const bal = await fetchTokenBalance(publicKey, payToken);
+      const bal = await fetchTokenBalance(payWalletAddr, payToken);
       if (alive) setRealBalance(bal);
     })();
     return () => {
       alive = false;
     };
-  }, [publicKey, payToken, maxPawly]);
+  }, [payWalletAddr, payToken, maxPawly]);
 
   const fetchRates = async () => {
     setRateLoading(true);
@@ -1413,21 +1421,24 @@ function TransferPage() {
   const isPawly = token === "PAWLY";
   const gasPreset =
     token === "SOL" ? "transfer_sol" : isPawly ? "transfer_pawly" : "transfer_token";
+  const { pwaData: transferPwa } = useUserData();
+  const transferAddr =
+    (publicKey && publicKey.toString()) || transferPwa?.wallet || "";
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!publicKey) {
+      if (!transferAddr) {
         if (alive) setRealBalance(0);
         return;
       }
-      const bal = await fetchTokenBalance(publicKey, token);
+      const bal = await fetchTokenBalance(transferAddr, token);
       if (alive) setRealBalance(bal);
     })();
     return () => {
       alive = false;
     };
-  }, [publicKey, token]);
+  }, [transferAddr, token]);
 
   const handleSend = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
@@ -1564,20 +1575,24 @@ function SwapPage() {
 
   const tokens = ["SOL", "USDC", "USDT", "PAWLY"];
 
+  const { pwaData: swapPwa } = useUserData();
+  const swapAddr =
+    (publicKey && publicKey.toString()) || swapPwa?.wallet || "";
+
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!publicKey) {
+      if (!swapAddr) {
         if (alive) setRealBalance(0);
         return;
       }
-      const bal = await fetchTokenBalance(publicKey, fromToken);
+      const bal = await fetchTokenBalance(swapAddr, fromToken);
       if (alive) setRealBalance(bal);
     })();
     return () => {
       alive = false;
     };
-  }, [publicKey, fromToken]);
+  }, [swapAddr, fromToken]);
 
   // 多源拉取 SOL/USD（Binance → Coinbase → CoinGecko）
   useEffect(() => {
@@ -1815,20 +1830,24 @@ function CharityPage() {
     { name: "SPCA Penang", url: "https://spcapenang.org/" },
   ];
 
+  const { pwaData: charityPwa } = useUserData();
+  const charityAddr =
+    (publicKey && publicKey.toString()) || charityPwa?.wallet || "";
+
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!publicKey) {
+      if (!charityAddr) {
         if (alive) setRealBalance(0);
         return;
       }
-      const bal = await fetchTokenBalance(publicKey, token);
+      const bal = await fetchTokenBalance(charityAddr, token);
       if (alive) setRealBalance(bal);
     })();
     return () => {
       alive = false;
     };
-  }, [publicKey, token]);
+  }, [charityAddr, token]);
 
   const handleDonate = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
