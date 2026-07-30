@@ -1,10 +1,11 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 29.07.2026 v5
- * v4 + 本次：
- *   1. Payment / Transfer / Swap / Charity 补 MAX（与 Staking 一致）
- *   2. My Data：Streak→USDC/USDT 链上余额，Points→SOL 链上余额
- *   3. 共享 fetchTokenBalance 读主网余额
+ * PAWLY DApp — 30.07.2026 v6
+ * v5 + 本次：
+ *   1. Charity 捐赠加 PAWLY
+ *   2. Payment：PAWLY/SOL/USDC/USDT 全开放 + SOL 实时价
+ *   3. Payment 多国汇率弹窗（MYR/SGD/CNY/JPY/KRW/IDR/THB/HKD/MOP/TWD）
+ *   4. 各功能页 CA 警告改为「重要提醒」按钮弹窗
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -164,31 +165,115 @@ async function estimateSolanaGas(presetKey = "transfer_sol") {
   };
 }
 
-/** 双语 CA 未上线警告条 */
-function CaWarningBanner({ feature }) {
+/** 重要提醒按钮 + 弹窗（节省页面空间） */
+function ImportantNotice({ feature }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div
-      style={{
-        background: "rgba(255,136,0,0.12)",
-        border: "1px solid rgba(255,136,0,0.45)",
-        borderRadius: 14,
-        padding: "12px 14px",
-        marginBottom: 16,
-        textAlign: "left",
-        lineHeight: 1.55,
-        fontSize: 13,
-        color: "#ffcc80",
-      }}
-    >
-      ⚠️ <strong>{feature || "本功能"}</strong>：PAWLY Token CA 尚未创建，状态为{" "}
-      <strong>To Be Announced</strong>。界面与 Gas 为真实链上框架，正式兑换/转账将在 CA + 流动性池上线后开放。
-      <br />
-      <span style={{ color: "#c9a06a" }}>
-        ⚠️ <strong>{feature || "This feature"}</strong>: PAWLY Token CA is not live yet (
-        <strong>TBA</strong>). UI & gas estimates use real Solana base fees; full on-chain execution opens after CA & pool launch.
-      </span>
-    </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          display: "block",
+          width: "100%",
+          marginBottom: 16,
+          padding: "12px 16px",
+          borderRadius: 12,
+          border: "1px solid rgba(255,136,0,0.5)",
+          background: "rgba(255,136,0,0.12)",
+          color: "#ffcc80",
+          fontWeight: 700,
+          fontSize: 14,
+          cursor: "pointer",
+          textAlign: "center",
+        }}
+      >
+        ⚠️ 重要提醒 / Important Notice
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.72)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 420,
+              width: "100%",
+              background: "linear-gradient(165deg, #1a1030, #0d0d18)",
+              border: "1px solid rgba(255,136,0,0.45)",
+              borderRadius: 18,
+              padding: 20,
+              color: "#ffcc80",
+              lineHeight: 1.6,
+              fontSize: 13,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <strong style={{ fontSize: 15 }}>⚠️ 重要提醒 / Important Notice</strong>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "none",
+                  color: "#ccc",
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ margin: "0 0 10px" }}>
+              <strong>{feature || "本功能"}</strong>：PAWLY Token CA 尚未创建，状态为{" "}
+              <strong>To Be Announced</strong>。界面与 Gas 为真实链上框架，正式功能将在 CA + 流动性池上线后开放。
+            </p>
+            <p style={{ margin: 0, color: "#c9a06a" }}>
+              <strong>{feature || "This feature"}</strong>: PAWLY Token CA is not live yet (
+              <strong>TBA</strong>). UI & gas use real Solana base fees; full on-chain execution opens after CA & pool launch.
+            </p>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              style={{
+                marginTop: 16,
+                width: "100%",
+                padding: 12,
+                borderRadius: 12,
+                border: "none",
+                background: "linear-gradient(135deg, #00ff9d, #00c853)",
+                color: "#04140c",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              知道了 / Got it
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
+}
+
+function CaWarningBanner({ feature }) {
+  return <ImportantNotice feature={feature} />;
 }
 
 /** Gas 估算展示盒 */
@@ -764,15 +849,50 @@ function StakingPage() {
 }
 
 function PaymentPage() {
+  const { publicKey, connected } = useWallet();
   const { pwaData } = useUserData();
+  const [payToken, setPayToken] = useState("PAWLY");
   const [amount, setAmount] = useState("");
-  const [usdcText, setUsdcText] = useState("0.00 USDC");
-  const [myrText, setMyrText] = useState("RM 0.00");
-  const [myrRate, setMyrRate] = useState(null);
+  const [realBalance, setRealBalance] = useState(0);
+  const [fiatRates, setFiatRates] = useState(null); // USD-based rates
+  const [solUsd, setSolUsd] = useState(null);
   const [rateLoading, setRateLoading] = useState(true);
-  const [payMethod, setPayMethod] = useState("usdc");
-  const PAWLY_PER_USDC = 5;
+  const [showRates, setShowRates] = useState(false);
+  const [fiatCode, setFiatCode] = useState("MYR");
+
+  const FIATS = [
+    { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
+    { code: "SGD", name: "新加坡 / Singapore", symbol: "S$" },
+    { code: "CNY", name: "中国 / China", symbol: "¥" },
+    { code: "JPY", name: "日本 / Japan", symbol: "¥" },
+    { code: "KRW", name: "韩国 / Korea", symbol: "₩" },
+    { code: "IDR", name: "印尼 / Indonesia", symbol: "Rp" },
+    { code: "THB", name: "泰国 / Thailand", symbol: "฿" },
+    { code: "HKD", name: "香港 / Hong Kong", symbol: "HK$" },
+    { code: "MOP", name: "澳门 / Macau", symbol: "MOP$" },
+    { code: "TWD", name: "台湾 / Taiwan", symbol: "NT$" },
+  ];
+
   const maxPawly = parseFloat(pwaData?.total_pawly) || 0;
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (payToken === "PAWLY") {
+        if (alive) setRealBalance(maxPawly);
+        return;
+      }
+      if (!publicKey) {
+        if (alive) setRealBalance(0);
+        return;
+      }
+      const bal = await fetchTokenBalance(publicKey, payToken);
+      if (alive) setRealBalance(bal);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [publicKey, payToken, maxPawly]);
 
   const fetchRates = async () => {
     setRateLoading(true);
@@ -780,12 +900,22 @@ function PaymentPage() {
       const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
       if (!res.ok) throw new Error("rate fail");
       const data = await res.json();
-      if (!data.rates?.MYR) throw new Error("no MYR");
-      setMyrRate(data.rates.MYR);
+      if (data?.rates) setFiatRates(data.rates);
     } catch (e) {
       console.error(e);
-      setMyrRate(null);
-      setMyrText("汇率获取失败 / Rate failed");
+      setFiatRates(null);
+    }
+    try {
+      const r = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+      );
+      if (r.ok) {
+        const d = await r.json();
+        if (d?.solana?.usd) setSolUsd(d.solana.usd);
+        else setSolUsd(150);
+      } else setSolUsd(150);
+    } catch (_) {
+      setSolUsd(150);
     } finally {
       setRateLoading(false);
     }
@@ -795,54 +925,90 @@ function PaymentPage() {
     fetchRates();
   }, []);
 
-  useEffect(() => {
-    const amt = parseFloat(amount) || 0;
-    if (amt <= 0) {
-      setUsdcText("0.00 USDC");
-      setMyrText(myrRate ? "RM 0.00" : rateLoading ? "汇率获取中..." : "—");
-      return;
-    }
-    const usdc = amt / PAWLY_PER_USDC;
-    setUsdcText(usdc.toFixed(2) + " USDC");
-    if (myrRate) setMyrText("RM " + (usdc * myrRate).toFixed(2));
-    else setMyrText(rateLoading ? "汇率获取中..." : "—");
-  }, [amount, myrRate, rateLoading]);
+  /** 将支付数量换算为 USDC 等值 */
+  const toUsdcValue = (tok, n) => {
+    if (!n || n <= 0) return 0;
+    if (tok === "USDC" || tok === "USDT") return n;
+    if (tok === "PAWLY") return n / PAWLY_PER_USDC;
+    if (tok === "SOL") return solUsd ? n * solUsd : 0;
+    return 0;
+  };
+
+  const amt = parseFloat(amount) || 0;
+  const usdcEq = toUsdcValue(payToken, amt);
+  const fiatRate = fiatRates?.[fiatCode];
+  const fiatEq = fiatRate != null ? usdcEq * fiatRate : null;
+  const fiatMeta = FIATS.find((f) => f.code === fiatCode) || FIATS[0];
 
   const confirm = () => {
-    const amt = parseFloat(amount);
     if (!amt || amt <= 0) {
       alert("请输入有效金额\nPlease enter a valid amount");
       return;
     }
-    if (!myrRate) {
-      alert("汇率尚未获取，请稍后重试\nExchange rate not ready");
-      return;
+    const lines = [
+      `✅ 支付确认（模拟） / Payment Preview`,
+      ``,
+      `支付 / Pay: ${amt} ${payToken}`,
+      `≈ ${usdcEq.toFixed(4)} USDC`,
+    ];
+    if (fiatEq != null) {
+      lines.push(`≈ ${fiatMeta.symbol}${fiatEq.toFixed(2)} ${fiatCode}`);
     }
-    const usdc = (amt / PAWLY_PER_USDC).toFixed(2);
-    const myr = (parseFloat(usdc) * myrRate).toFixed(2);
-    alert(
-      `✅ 支付确认（模拟）\n\n${amt} PAWLY ≈ ${usdc} USDC ≈ RM ${myr}\n支付方式: ${payMethod.toUpperCase()}\n\n正式链上支付将在 Token 上线后开放。\n\n✅ Simulated payment confirmed.\nOn-chain pay after token launch.`
-    );
+    if (payToken === "SOL" && solUsd) {
+      lines.push(`SOL 参考 / ref: $${solUsd.toFixed(2)}`);
+    }
+    if (payToken === "PAWLY") {
+      lines.push(`临时比例 / Temp: ${PAWLY_PER_USDC} PAWLY ≈ 1 USDC`);
+    }
+    lines.push(``, `正式链上支付将在 Token / 商户接入后开放。`, `On-chain pay after token & merchant launch.`);
+    alert(lines.join("\n"));
   };
 
   return (
     <div style={pageWrap}>
       <PageHeader
         title="💳 宠物支付 / Pet Payment"
-        subtitle="输入 PAWLY 数量 · 查看 USDC / MYR 换算（模拟/Simulated）"
+        subtitle="PAWLY · SOL · USDC · USDT 直接支付 · 多国汇率 / Pay with any token · multi-currency rates"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <CaWarningBanner feature="宠物支付 / Pet Payment" />
 
+        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>支付代币 / Pay with</p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {["PAWLY", "SOL", "USDC", "USDT"].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => {
+                setPayToken(t);
+                setAmount("");
+              }}
+              style={{
+                flex: 1,
+                minWidth: 64,
+                padding: 12,
+                borderRadius: 12,
+                border: "none",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: payToken === t ? "#00ff9d" : "#1a1a2e",
+                color: payToken === t ? "#000" : "#fff",
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <label style={{ color: "#99a", fontSize: 13 }}>支付金额（PAWLY） / Amount</label>
+          <label style={{ color: "#99a", fontSize: 13 }}>支付数量 / Amount ({payToken})</label>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ color: "#667", fontSize: 12 }}>
-              可用 / Avail: {fmtBal(maxPawly)} PAWLY
+              可用 / Avail: {fmtBal(realBalance)} {payToken}
             </span>
             <button
               type="button"
-              onClick={() => setAmount(String(maxPawly || 0))}
+              onClick={() => setAmount(String(realBalance || 0))}
               style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
             >
               MAX
@@ -851,14 +1017,14 @@ function PaymentPage() {
         </div>
         <input
           type="number"
-          min="1"
+          min="0"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder="例如 25"
+          placeholder="0.00"
           style={{
             width: "100%",
             boxSizing: "border-box",
-            margin: "0 0 16px",
+            margin: "0 0 14px",
             background: "#12121f",
             border: "1px solid #333",
             borderRadius: 12,
@@ -867,37 +1033,56 @@ function PaymentPage() {
             fontSize: "1.15rem",
           }}
         />
-        <div style={{ background: "#12121f", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+
+        <div style={{ background: "#12121f", borderRadius: 14, padding: 16, marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ color: "#889" }}>≈ USDC</span>
-            <span style={{ color: "#00ff9d", fontWeight: 700 }}>{usdcText}</span>
+            <span style={{ color: "#00ff9d", fontWeight: 700 }}>
+              {amt > 0 ? usdcEq.toFixed(4) : "0.00"} USDC
+            </span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#889" }}>≈ MYR（今日）</span>
-            <span style={{ color: "#ffaa00", fontWeight: 700 }}>{myrText}</span>
+          {payToken === "SOL" && solUsd && (
+            <div style={{ color: "#667", fontSize: 12, marginBottom: 8 }}>
+              SOL 参考价 / SOL ref: ${solUsd.toFixed(2)}
+            </div>
+          )}
+          {payToken === "PAWLY" && (
+            <p style={{ color: "#667", fontSize: 12, margin: "0 0 8px", lineHeight: 1.45 }}>
+              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（上线后改用链上价格）
+              <br />
+              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC
+            </p>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: "#889" }}>
+              ≈ {fiatMeta.symbol} {fiatCode}
+            </span>
+            <span style={{ color: "#ffaa00", fontWeight: 700 }}>
+              {amt > 0 && fiatEq != null
+                ? `${fiatMeta.symbol}${fiatEq.toFixed(2)}`
+                : rateLoading
+                  ? "…"
+                  : "—"}
+            </span>
           </div>
-          <p style={{ color: "#667", fontSize: 12, margin: "12px 0 0", lineHeight: 1.5 }}>
-            临时比例：5 PAWLY ≈ 1 USDC（上线后改用链上价格）
-            <br />
-            Temp: 5 PAWLY ≈ 1 USDC (Real price on Chain)
-          </p>
         </div>
 
-        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 10px" }}>支付方式 / Payment Method</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", color: "#e8fff5" }}>
-            <input type="radio" name="payMethod" checked={payMethod === "usdc"} onChange={() => setPayMethod("usdc")} />
-            <span>USDC（推荐 / Recommended）</span>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 10, color: "#667" }}>
-            <input type="radio" name="payMethod" disabled />
-            <span>USDT（即将开放 / Coming Soon）</span>
-          </label>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowRates(true)}
+          style={{
+            ...ghostBtn,
+            width: "100%",
+            boxSizing: "border-box",
+            marginBottom: 12,
+            padding: "12px 16px",
+          }}
+        >
+          🌍 今日汇率 / Today Currencies
+        </button>
 
-        
-        <GasEstimateBox presetKey="payment" refreshKey={amount} />
-<button onClick={confirm} style={{ ...neonBtn, width: "100%", marginBottom: 10 }}>
+        <GasEstimateBox presetKey="payment" refreshKey={amount + payToken} />
+        <button onClick={confirm} style={{ ...neonBtn, width: "100%", marginBottom: 10, marginTop: 4 }}>
           确认支付（模拟） / Confirm (Simulated)
         </button>
         <button onClick={fetchRates} style={{ ...ghostBtn, width: "100%", boxSizing: "border-box" }}>
@@ -917,9 +1102,130 @@ function PaymentPage() {
         </div>
 
         <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center" }}>
-          商户扫码与真实链上结算将在后续接入/Merchant QR & on-chain settlement coming later
+          支持 PAWLY / SOL / USDC / USDT 直接支付，减少不必要兑换与 Gas。
+          <br />
+          Pay with PAWLY / SOL / USDC / USDT directly — fewer swaps & less gas.
         </p>
       </div>
+
+      {/* 多国汇率弹窗 */}
+      {showRates && (
+        <div
+          role="dialog"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.75)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: "12px 12px 24px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowRates(false);
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              maxHeight: "80vh",
+              overflowY: "auto",
+              background: "linear-gradient(165deg, #1a1030, #0d0d18)",
+              border: "1px solid rgba(0,255,157,0.35)",
+              borderRadius: 20,
+              padding: "18px 16px 20px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div>
+                <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 16 }}>今日汇率</div>
+                <div style={{ color: "#889", fontSize: 12 }}>Today Currencies · vs USD</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRates(false)}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "none",
+                  color: "#ccc",
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  fontSize: 18,
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: "#9aa", lineHeight: 1.45 }}>
+              选择法币查看当前支付金额换算。汇率以 USD 为基准（公开接口）。
+              <br />
+              Pick a fiat to convert your pay amount (USD-based public rates).
+            </p>
+
+            {rateLoading && (
+              <p style={{ color: "#889", textAlign: "center" }}>加载中… / Loading…</p>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {FIATS.map((f) => {
+                const r = fiatRates?.[f.code];
+                const val = r != null && amt > 0 ? usdcEq * r : null;
+                const selected = fiatCode === f.code;
+                return (
+                  <button
+                    key={f.code}
+                    type="button"
+                    onClick={() => setFiatCode(f.code)}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      border: selected ? "1px solid #00ff9d" : "1px solid #333",
+                      background: selected ? "rgba(0,255,157,0.12)" : "#12121f",
+                      color: "#e8fff5",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span>
+                      <strong>{f.code}</strong>
+                      <span style={{ color: "#889", fontSize: 12, marginLeft: 8 }}>{f.name}</span>
+                    </span>
+                    <span style={{ color: selected ? "#00ff9d" : "#ffaa00", fontWeight: 700, fontSize: 13 }}>
+                      {val != null
+                        ? `${f.symbol}${val.toFixed(2)}`
+                        : r != null
+                          ? `1 USD = ${r.toFixed(2)}`
+                          : "—"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowRates(false)}
+              style={{
+                ...neonBtn,
+                width: "100%",
+                marginTop: 14,
+                boxSizing: "border-box",
+              }}
+            >
+              使用 {fiatCode} / Use {fiatCode}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1399,7 +1705,7 @@ function CharityPage() {
 
         <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>链上捐赠预览 / On-chain donate (preview)</p>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          {["SOL", "USDC", "USDT"].map((t) => (
+          {["SOL", "USDC", "USDT", "PAWLY"].map((t) => (
             <button
               key={t}
               type="button"
