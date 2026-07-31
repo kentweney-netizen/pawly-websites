@@ -1,13 +1,10 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 30.07.2026 v6.4
- * v5 + 本次：
- *   1. Charity 捐赠加 PAWLY
- *   2. Payment：PAWLY/SOL/USDC/USDT 全开放 + SOL 实时价
- *   3. Payment 多国汇率弹窗（MYR/SGD/CNY/JPY/KRW/IDR/THB/HKD/MOP/TWD）
- *   4. 各功能页 CA 警告改为「重要提醒」按钮弹窗
- *   5. SOL Edge 真实价；法币 open.er-api
- *   6. 各功能页余额回退 pwaData.wallet（与 My Data 一致）
+ * PAWLY DApp — 31.07.2026 v7.1
+ * v7 + 本次：
+ *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
+ *   2. 买入/入金 On-ramp：MoonPay + Transak 生产环境（SOL/USDC）
+ *   3. 支付·转账真实链上 + 汇率保留
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
@@ -37,7 +34,23 @@ import {
   createDefaultWalletNotFoundHandler,
 } from "@solana-mobile/wallet-adapter-mobile";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
-import { clusterApiUrl, Connection, PublicKey } from "@solana/web3.js";
+import {
+  clusterApiUrl,
+  Connection,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  VersionedTransaction,
+  LAMPORTS_PER_SOL as WEB3_LAMPORTS,
+} from "@solana/web3.js";
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
+  getAccount,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import { createClient } from "@supabase/supabase-js";
 import WalletConnect from "./components/WalletConnect";
 import ExportPawlyWallet from "./components/ExportPawlyWallet";
@@ -83,45 +96,347 @@ const TOKEN_MINTS = {
   SOL: "So11111111111111111111111111111111111111112",
   PAWLY: PAWLY_MINT,
 };
-const HELIUS_RPC_GLOBAL =
-  "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
-const LAMPORTS_PER_SOL = 1e9;
-const BASE_FEE_LAMPORTS = 5000;
+const TOKEN_DECIMALS = { SOL: 9, USDC: 6, USDT: 6, PAWLY: PAWLY_DECIMALS };
 
-/** 读取钱包某代币余额（主网，不依赖 adapter 连接状态，有地址即可） */
-async function fetchTokenBalance(owner, token) {
-  if (!owner) return 0;
+function toRawAmount(uiAmount, token) {
+  const d = TOKEN_DECIMALS[token] ?? 9;
+  const n = Number(uiAmount);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * Math.pow(10, d));
+}
+
+function getConnection() {
+  return new Connection(HELIUS_RPC_GLOBAL, "confirmed");
+}
+
+/** 真实 SOL / SPL 转账（需已连接可签名钱包） */
+async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress, uiAmount }) {
+  if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
+  let toPubkey;
   try {
-    const pubkey =
-      typeof owner === "string"
-        ? new PublicKey(owner)
-        : owner instanceof PublicKey
-          ? owner
-          : new PublicKey(owner.toString());
-    const connection = new Connection(HELIUS_RPC_GLOBAL, "confirmed");
-    if (token === "SOL") {
-      const lamports = await connection.getBalance(pubkey);
-      return lamports / LAMPORTS_PER_SOL;
-    }
+    toPubkey = new PublicKey(toAddress.trim());
+  } catch {
+    throw new Error("Invalid recipient address / 收款地址无效");
+  }
+  const raw = toRawAmount(uiAmount, token);
+  if (raw == null || raw <= 0) throw new Error("Invalid amount / 数量无效");
+
+  const connection = getConnection();
+  const tx = new Transaction();
+
+  if (token === "SOL") {
+    tx.add(
+      SystemProgram.transfer({
+        fromPubkey: publicKey,
+        toPubkey,
+        lamports: raw,
+      })
+    );
+  } else {
     const mintStr = TOKEN_MINTS[token];
-    if (!mintStr) return 0;
+    if (!mintStr) throw new Error(`${token} mint not available`);
     const mint = new PublicKey(mintStr);
-    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
-    return accounts.value[0]?.account.data.parsed.info.tokenAmount.uiAmount || 0;
-  } catch (_) {
-    return 0;
+    const fromAta = await getAssociatedTokenAddress(mint, publicKey);
+    const toAta = await getAssociatedTokenAddress(mint, toPubkey);
+
+    // ensure sender ATA has balance path exists
+    try {
+      await getAccount(connection, fromAta);
+    } catch {
+      throw new Error(`No ${token} token account / 没有 ${token} 代币账户`);
+    }
+
+    let needCreate = false;
+    try {
+      await getAccount(connection, toAta);
+    } catch {
+      needCreate = true;
+    }
+    if (needCreate) {
+      tx.add(
+        createAssociatedTokenAccountInstruction(
+          publicKey,
+          toAta,
+          toPubkey,
+          mint,
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+      );
+    }
+    tx.add(
+      createTransferInstruction(
+        fromAta,
+        toAta,
+        publicKey,
+        raw,
+        [],
+        TOKEN_PROGRAM_ID
+      )
+    );
+  }
+
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = publicKey;
+
+  const sig = await sendTransaction(tx, connection, { skipPreflight: false });
+  await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+  return sig;
+}
+
+/** Jupiter v6：SOL/USDC/USDT 真实兑换报价 */
+/** Jupiter 单次报价 */
+async function jupiterQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100) {
+  const inMint = TOKEN_MINTS[fromToken];
+  const outMint = TOKEN_MINTS[toToken];
+  if (!inMint || !outMint) throw new Error("Unsupported pair");
+  const raw = toRawAmount(uiAmount, fromToken);
+  if (raw == null) throw new Error("Invalid amount");
+  const url =
+    `https://quote-api.jup.ag/v6/quote?inputMint=${inMint}` +
+    `&outputMint=${outMint}&amount=${raw}&slippageBps=${slippageBps}`;
+  const r = await fetchWithTimeout(url, 12000);
+  if (!r.ok) throw new Error(`Jupiter quote failed (${r.status})`);
+  const data = await r.json();
+  if (data?.error || !data?.outAmount) throw new Error(data?.error || "Jupiter no route");
+  const outUi = Number(data.outAmount) / Math.pow(10, TOKEN_DECIMALS[toToken] || 6);
+  return {
+    source: "Jupiter",
+    slippageBps,
+    outAmount: data.outAmount,
+    outUi,
+    inAmount: data.inAmount,
+    priceImpactPct: data.priceImpactPct,
+    raw: data,
+  };
+}
+
+/** Raydium 计算报价（生产 transaction-v1） */
+async function raydiumQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100) {
+  const inMint = TOKEN_MINTS[fromToken];
+  const outMint = TOKEN_MINTS[toToken];
+  if (!inMint || !outMint) throw new Error("Unsupported pair");
+  const raw = toRawAmount(uiAmount, fromToken);
+  if (raw == null) throw new Error("Invalid amount");
+  const url =
+    `https://transaction-v1.raydium.io/compute/swap-base-in` +
+    `?inputMint=${inMint}&outputMint=${outMint}&amount=${raw}` +
+    `&slippageBps=${slippageBps}&txVersion=V0`;
+  const r = await fetchWithTimeout(url, 12000);
+  if (!r.ok) throw new Error(`Raydium quote failed (${r.status})`);
+  const data = await r.json();
+  if (data?.success === false || !data?.data) {
+    throw new Error(data?.msg || data?.message || "Raydium no route");
+  }
+  const d = data.data;
+  const outAmt = d.outputAmount || d.otherAmountThreshold || d.amountOut;
+  if (!outAmt) throw new Error("Raydium empty outAmount");
+  const outUi = Number(outAmt) / Math.pow(10, TOKEN_DECIMALS[toToken] || 6);
+  return {
+    source: "Raydium",
+    slippageBps,
+    outAmount: String(outAmt),
+    outUi,
+    inAmount: String(raw),
+    priceImpactPct: d.priceImpactPct ?? d.priceImpact,
+    raw: d,
+  };
+}
+
+/**
+ * 双路由实时报价：Jupiter 主 → Raydium 备 → Jupiter 宽滑点再试
+ * 返回最优 outUi，并带上可执行 raw
+ */
+async function getBestSwapQuote(fromToken, toToken, uiAmount) {
+  const errors = [];
+  // 1) Jupiter 1%
+  try {
+    return await jupiterQuoteOnce(fromToken, toToken, uiAmount, 100);
+  } catch (e) {
+    errors.push(`Jupiter: ${e?.message || e}`);
+  }
+  // 2) Raydium 1%
+  try {
+    return await raydiumQuoteOnce(fromToken, toToken, uiAmount, 100);
+  } catch (e) {
+    errors.push(`Raydium: ${e?.message || e}`);
+  }
+  // 3) Jupiter 2.5% 宽滑点
+  try {
+    const q = await jupiterQuoteOnce(fromToken, toToken, uiAmount, 250);
+    q.source = "Jupiter (wide)";
+    return q;
+  } catch (e) {
+    errors.push(`Jupiter-wide: ${e?.message || e}`);
+  }
+  // 4) Raydium 2.5%
+  try {
+    const q = await raydiumQuoteOnce(fromToken, toToken, uiAmount, 250);
+    q.source = "Raydium (wide)";
+    return q;
+  } catch (e) {
+    errors.push(`Raydium-wide: ${e?.message || e}`);
+  }
+  throw new Error(errors.join(" | ") || "All routes failed");
+}
+
+/** Jupiter 执行兑换 */
+async function executeJupiterSwap({ publicKey, sendTransaction, quoteResponse }) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000);
+  try {
+    const res = await fetch("https://quote-api.jup.ag/v6/swap", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        quoteResponse,
+        userPublicKey: publicKey.toString(),
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: "auto",
+      }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`Jupiter swap failed: ${t.slice(0, 220)}`);
+    }
+    const swapJson = await res.json();
+    const { swapTransaction } = swapJson;
+    if (!swapTransaction) throw new Error("No swapTransaction from Jupiter");
+    const raw = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
+    const vtx = VersionedTransaction.deserialize(raw);
+    const connection = getConnection();
+    const sig = await sendTransaction(vtx, connection, { skipPreflight: false });
+    const latest = await connection.getLatestBlockhash("confirmed");
+    await connection.confirmTransaction(
+      { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+      "confirmed"
+    );
+    return sig;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-function fmtBal(n, digits = 4) {
-  if (n == null || Number.isNaN(n)) return "—";
-  if (n === 0) return "0";
-  if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  return Number(n).toFixed(digits).replace(/\.?0+$/, (m) => (m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m));
+/** Raydium 执行兑换（可能多笔交易） */
+async function executeRaydiumSwap({ publicKey, sendTransaction, computeData }) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000);
+  try {
+    const res = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        computeUnitPriceMicroLamports: String(computeData?.computeUnitPriceMicroLamports || "100000"),
+        swapResponse: computeData,
+        txVersion: "V0",
+        wallet: publicKey.toString(),
+        wrapSol: true,
+        unwrapSol: true,
+      }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`Raydium swap tx failed: ${t.slice(0, 220)}`);
+    }
+    const body = await res.json();
+    const list = body?.data || body?.transactions || [];
+    const txs = Array.isArray(list) ? list : [];
+    if (!txs.length) throw new Error("Raydium returned no transactions");
+    const connection = getConnection();
+    let lastSig = "";
+    for (const item of txs) {
+      const b64 = typeof item === "string" ? item : item?.transaction || item?.tx;
+      if (!b64) continue;
+      const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      let sig;
+      try {
+        const vtx = VersionedTransaction.deserialize(raw);
+        sig = await sendTransaction(vtx, connection, { skipPreflight: false });
+      } catch (_) {
+        const tx = Transaction.from(raw);
+        sig = await sendTransaction(tx, connection, { skipPreflight: false });
+      }
+      const latest = await connection.getLatestBlockhash("confirmed");
+      await connection.confirmTransaction(
+        { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+        "confirmed"
+      );
+      lastSig = sig;
+    }
+    if (!lastSig) throw new Error("Raydium: failed to send any tx");
+    return lastSig;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
+/** 按报价来源执行真实兑换 */
+async function executeSwapRoute({ publicKey, sendTransaction, best }) {
+  if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
+  if (!best) throw new Error("No quote");
+  const src = (best.source || "").toLowerCase();
+  if (src.includes("jupiter")) {
+    return executeJupiterSwap({
+      publicKey,
+      sendTransaction,
+      quoteResponse: best.raw,
+    });
+  }
+  if (src.includes("raydium")) {
+    return executeRaydiumSwap({
+      publicKey,
+      sendTransaction,
+      computeData: best.raw,
+    });
+  }
+  throw new Error("Unknown route source");
+}
 
+/* ========== 法币入金 On-ramp（生产环境） ========== */
+const MOONPAY_API_KEY = import.meta.env.VITE_MOONPAY_API_KEY || "";
+const TRANSAK_API_KEY = import.meta.env.VITE_TRANSAK_API_KEY || "";
 
+/** MoonPay 生产买入页（非 sandbox） */
+function openMoonPayBuy(walletAddress, crypto) {
+  if (!walletAddress) throw new Error("Connect wallet first / 请先连接钱包");
+  const code = crypto === "USDC" ? "usdc" : "sol";
+  const params = new URLSearchParams({
+    currencyCode: code,
+    walletAddress: walletAddress,
+    baseCurrencyCode: "usd",
+    colorCode: "00ff9d",
+    showWalletAddressForm: "false",
+  });
+  if (MOONPAY_API_KEY) params.set("apiKey", MOONPAY_API_KEY);
+  // 生产域名（非 buy-sandbox）
+  const url = `https://buy.moonpay.com/?${params.toString()}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+  return url;
+}
+
+/** Transak 生产买入页（非 staging） */
+function openTransakBuy(walletAddress, crypto) {
+  if (!walletAddress) throw new Error("Connect wallet first / 请先连接钱包");
+  const code = crypto === "USDC" ? "USDC" : "SOL";
+  const params = new URLSearchParams({
+    walletAddress: walletAddress,
+    cryptoCurrencyCode: code,
+    network: "solana",
+    productsAvailed: "BUY",
+    defaultCryptoCurrency: code,
+    themeColor: "00ff9d",
+    hideMenu: "true",
+  });
+  if (TRANSAK_API_KEY) params.set("apiKey", TRANSAK_API_KEY);
+  // 生产域名 global.transak.com
+  const url = `https://global.transak.com/?${params.toString()}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+  return url;
+}
 
 /** 带超时的 fetch，避免一直 Loading */
 async function fetchWithTimeout(url, ms = 8000) {
@@ -696,7 +1011,7 @@ function SyncFromUrl() {
 
     if (action === "staking") navigate("/staking", { replace: true });
     if (action === "payment") navigate("/payment", { replace: true });
-    if (action === "transfer") navigate("/transfer", { replace: true });
+    if (action === "transfer") navigate("/payment", { replace: true });
     if (action === "swap") navigate("/swap", { replace: true });
     if (action === "charity") navigate("/charity", { replace: true });
   }, [searchParams]);
@@ -761,9 +1076,9 @@ function HomePage() {
 
   const features = [
     { path: "/staking", icon: "💰", title: "质押 / Staking", desc: "USDC · SOL · USDT · PAWLY", color: "#7c3aed" },
-    { path: "/payment", icon: "💳", title: "宠物支付 / Payment", desc: "PAWLY → 商户结算", color: "#2196f3" },
-    { path: "/transfer", icon: "📤", title: "转账 / Transfer", desc: "SOL · USDC · USDT", color: "#00c853" },
-    { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "PAWLY ↔ USDC", color: "#ff9ecd" },
+    { path: "/payment", icon: "💳", title: "支付·转账 / Payment·Transfer", desc: "PAWLY · SOL · USDC · USDT", color: "#2196f3" },
+    { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "Jupiter · Raydium 实时", color: "#ff9ecd" },
+    { path: "/buy", icon: "💵", title: "买入·入金 / Buy", desc: "MoonPay · Transak · SOL/USDC", color: "#ffc107" },
     { path: "/charity", icon: "❤️", title: "慈善 / Charity", desc: "支持收容所与护生", color: "#ff5252" },
   ];
 
@@ -1013,17 +1328,20 @@ function StakingPage() {
 }
 
 function PaymentPage() {
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected, sendTransaction } = useWallet();
   const { pwaData } = useUserData();
-  const [payToken, setPayToken] = useState("PAWLY");
+  const [payToken, setPayToken] = useState("SOL");
+  const [toAddress, setToAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [realBalance, setRealBalance] = useState(0);
-  const [fiatRates, setFiatRates] = useState(null); // USD-based rates
+  const [fiatRates, setFiatRates] = useState(null);
   const [solUsd, setSolUsd] = useState(null);
+  const [solSource, setSolSource] = useState("");
   const [rateLoading, setRateLoading] = useState(true);
   const [showRates, setShowRates] = useState(false);
   const [fiatCode, setFiatCode] = useState("MYR");
-  const [solSource, setSolSource] = useState("");
+  const [txLoading, setTxLoading] = useState(false);
+  const [lastSig, setLastSig] = useState("");
 
   const FIATS = [
     { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
@@ -1039,7 +1357,6 @@ function PaymentPage() {
   ];
 
   const maxPawly = parseFloat(pwaData?.total_pawly) || 0;
-
   const payWalletAddr =
     (publicKey && publicKey.toString()) || pwaData?.wallet || "";
 
@@ -1094,7 +1411,6 @@ function PaymentPage() {
     fetchRates();
   }, []);
 
-  /** 将支付数量换算为 USDC 等值 */
   const toUsdcValue = (tok, n) => {
     if (!n || n <= 0) return 0;
     if (tok === "USDC" || tok === "USDT") return n;
@@ -1109,42 +1425,68 @@ function PaymentPage() {
   const fiatEq = fiatRate != null ? usdcEq * fiatRate : null;
   const fiatMeta = FIATS.find((f) => f.code === fiatCode) || FIATS[0];
 
-  const confirm = () => {
+  const confirm = async () => {
+    if (!connected || !publicKey || !sendTransaction) {
+      alert("请先连接可签名的钱包\nPlease connect a signing wallet first");
+      return;
+    }
+    if (!toAddress.trim()) {
+      alert("请输入收款钱包地址\nPlease enter recipient wallet address");
+      return;
+    }
     if (!amt || amt <= 0) {
       alert("请输入有效金额\nPlease enter a valid amount");
       return;
     }
-    const lines = [
-      `✅ 支付确认（模拟） / Payment Preview`,
-      ``,
-      `支付 / Pay: ${amt} ${payToken}`,
-      `≈ ${usdcEq.toFixed(4)} USDC`,
-    ];
-    if (fiatEq != null) {
-      lines.push(`≈ ${fiatMeta.symbol}${fiatEq.toFixed(2)} ${fiatCode}`);
-    }
-    if (payToken === "SOL" && solUsd) {
-      lines.push(`SOL 参考 / ref: $${solUsd.toFixed(2)}`);
-    }
     if (payToken === "PAWLY") {
-      lines.push(`临时比例 / Temp: ${PAWLY_PER_USDC} PAWLY ≈ 1 USDC`);
+      alert(
+        "PAWLY Token CA 尚未创建（TBA）。请先使用 SOL / USDC / USDT。\nPAWLY CA is TBA. Use SOL / USDC / USDT for now."
+      );
+      return;
     }
-    lines.push(``, `正式链上支付将在 Token / 商户接入后开放。`, `On-chain pay after token & merchant launch.`);
-    alert(lines.join("\n"));
+    if (amt > realBalance + 1e-12) {
+      alert("余额不足\nInsufficient balance");
+      return;
+    }
+    setTxLoading(true);
+    setLastSig("");
+    try {
+      const sig = await sendTokenTransfer({
+        publicKey,
+        sendTransaction,
+        token: payToken,
+        toAddress,
+        uiAmount: amt,
+      });
+      setLastSig(sig);
+      alert(
+        `✅ 链上成功 / On-chain success\n\n${amt} ${payToken}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
+      );
+      const bal = await fetchTokenBalance(publicKey, payToken);
+      setRealBalance(bal);
+      setAmount("");
+    } catch (e) {
+      console.error(e);
+      alert(
+        `交易失败 / Transaction failed\n\n${e?.message || String(e)}`
+      );
+    } finally {
+      setTxLoading(false);
+    }
   };
 
   return (
     <div style={pageWrap}>
       <PageHeader
-        title="💳 宠物支付 / Pet Payment"
-        subtitle="PAWLY · SOL · USDC · USDT 直接支付 · 多国汇率 / Pay with any token · multi-currency rates"
+        title="💳 支付·转账 / Payment·Transfer"
+        subtitle="真实链上转账 SOL · USDC · USDT · 多国汇率 / Live on-chain transfer + multi-currency rates"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
-        <CaWarningBanner feature="宠物支付 / Pet Payment" />
+        <CaWarningBanner feature="支付·转账 / Payment·Transfer" />
 
-        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>支付代币 / Pay with</p>
+        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>代币 / Token</p>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          {["PAWLY", "SOL", "USDC", "USDT"].map((t) => (
+          {["SOL", "USDC", "USDT", "PAWLY"].map((t) => (
             <button
               key={t}
               type="button"
@@ -1162,12 +1504,35 @@ function PaymentPage() {
                 cursor: "pointer",
                 background: payToken === t ? "#00ff9d" : "#1a1a2e",
                 color: payToken === t ? "#000" : "#fff",
+                opacity: t === "PAWLY" && !PAWLY_MINT ? 0.75 : 1,
               }}
             >
               {t}
+              {t === "PAWLY" && !PAWLY_MINT ? " · TBA" : ""}
             </button>
           ))}
         </div>
+
+        <label style={{ color: "#99a", fontSize: 13, display: "block", marginBottom: 8 }}>
+          请输入钱包地址 / Please insert wallet address
+        </label>
+        <input
+          value={toAddress}
+          onChange={(e) => setToAddress(e.target.value)}
+          placeholder="Solana wallet address"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            margin: "0 0 14px",
+            background: "#12121f",
+            border: "1px solid #333",
+            borderRadius: 12,
+            padding: 14,
+            color: "#fff",
+            fontFamily: "monospace",
+            fontSize: 13,
+          }}
+        />
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <label style={{ color: "#99a", fontSize: 13 }}>支付数量 / Amount ({payToken})</label>
@@ -1216,14 +1581,14 @@ function PaymentPage() {
                 ? `SOL ≈ $${solUsd.toFixed(2)} USD ≈ ${solUsd.toFixed(2)} USDC${solSource ? ` · ${solSource}` : ""}`
                 : rateLoading
                   ? "SOL 价格加载中… / Loading SOL price…"
-                  : "SOL 价格暂不可用（请部署 Edge get-sol-price）/ SOL price unavailable"}
+                  : "SOL 价格暂不可用 / SOL price unavailable"}
             </div>
           )}
           {payToken === "PAWLY" && (
             <p style={{ color: "#667", fontSize: 12, margin: "0 0 8px", lineHeight: 1.45 }}>
-              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（上线后改用链上价格）
+              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（CA 上线后开放真实支付）
               <br />
-              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC
+              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (live pay after CA)
             </p>
           )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1254,13 +1619,40 @@ function PaymentPage() {
           🌍 今日汇率 / Today Currencies
         </button>
 
-        <GasEstimateBox presetKey="payment" refreshKey={amount + payToken} />
-        <button onClick={confirm} style={{ ...neonBtn, width: "100%", marginBottom: 10, marginTop: 4 }}>
-          确认支付（模拟） / Confirm (Simulated)
+        <GasEstimateBox
+          presetKey={payToken === "SOL" ? "transfer_sol" : "transfer_token"}
+          refreshKey={amount + payToken}
+        />
+        <button
+          onClick={confirm}
+          disabled={txLoading}
+          style={{
+            ...neonBtn,
+            width: "100%",
+            marginBottom: 10,
+            marginTop: 4,
+            opacity: txLoading ? 0.65 : 1,
+          }}
+        >
+          {txLoading ? "链上确认中… / Confirming…" : "确认 / Confirm"}
         </button>
         <button onClick={fetchRates} style={{ ...ghostBtn, width: "100%", boxSizing: "border-box" }}>
           🔄 刷新汇率 / Refresh Rate
         </button>
+
+        {lastSig && (
+          <p style={{ color: "#00ff9d", fontSize: 12, marginTop: 12, wordBreak: "break-all", textAlign: "center" }}>
+            最近交易 / Last tx:{" "}
+            <a
+              href={`https://solscan.io/tx/${lastSig}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#7dd3fc" }}
+            >
+              {lastSig.slice(0, 16)}…
+            </a>
+          </p>
+        )}
 
         <div style={{ marginTop: 20, padding: 16, background: "rgba(33,150,243,0.08)", border: "1px solid rgba(33,150,243,0.3)", borderRadius: 14 }}>
           <p style={{ color: "#64b5f6", fontWeight: 700, margin: "0 0 10px" }}>商户合作 / For Merchants</p>
@@ -1274,14 +1666,13 @@ function PaymentPage() {
           </button>
         </div>
 
-        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center" }}>
-          支持 PAWLY / SOL / USDC / USDT 直接支付，减少不必要兑换与 Gas。
+        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
+          SOL / USDC / USDT 为真实链上转账。PAWLY 待 CA 上线。汇率仅供参考。
           <br />
-          Pay with PAWLY / SOL / USDC / USDT directly — fewer swaps & less gas.
+          SOL / USDC / USDT are live on-chain transfers. PAWLY awaits CA. Rates are reference only.
         </p>
       </div>
 
-      {/* 多国汇率弹窗 */}
       {showRates && (
         <div
           role="dialog"
@@ -1334,13 +1725,11 @@ function PaymentPage() {
                 ✕
               </button>
             </div>
-
             <p style={{ margin: "0 0 10px", fontSize: 12, color: "#9aa", lineHeight: 1.45 }}>
-              选择法币查看当前支付金额换算。汇率以 USD 为基准（公开接口）。
+              选择法币查看当前支付金额换算。
               <br />
-              Pick a fiat to convert your pay amount (USD-based public rates).
+              Pick a fiat to convert your pay amount.
             </p>
-
             {rateLoading && (
               <p style={{ color: "#889", textAlign: "center" }}>加载中… / Loading…</p>
             )}
@@ -1351,7 +1740,6 @@ function PaymentPage() {
                 Rates unavailable. Tap Refresh Rate to retry.
               </p>
             )}
-
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {FIATS.map((f) => {
                 const r = fiatRates?.[f.code];
@@ -1390,7 +1778,6 @@ function PaymentPage() {
                 );
               })}
             </div>
-
             <button
               type="button"
               onClick={() => setShowRates(false)}
@@ -1410,170 +1797,29 @@ function PaymentPage() {
   );
 }
 
-function TransferPage() {
-  const { connected, publicKey } = useWallet();
-  const [token, setToken] = useState("SOL");
-  const [to, setTo] = useState("");
-  const [amount, setAmount] = useState("");
-  const [gasKey, setGasKey] = useState(0);
-  const [realBalance, setRealBalance] = useState(0);
-
-  const isPawly = token === "PAWLY";
-  const gasPreset =
-    token === "SOL" ? "transfer_sol" : isPawly ? "transfer_pawly" : "transfer_token";
-  const { pwaData: transferPwa } = useUserData();
-  const transferAddr =
-    (publicKey && publicKey.toString()) || transferPwa?.wallet || "";
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!transferAddr) {
-        if (alive) setRealBalance(0);
-        return;
-      }
-      const bal = await fetchTokenBalance(transferAddr, token);
-      if (alive) setRealBalance(bal);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [transferAddr, token]);
-
-  const handleSend = () => {
-    if (!connected) return alert("请先连接钱包\nPlease connect wallet");
-    if (!to.trim() || !amount) return alert("请填写收款地址与金额\nEnter recipient & amount");
-    if (isPawly && !PAWLY_MINT) {
-      alert(
-        "PAWLY Token CA 尚未创建（To Be Announced）。\n转账框架已就绪，CA 上线后即可签名上链。\n\nPAWLY Token CA is TBA.\nTransfer UI is ready; signing opens after CA launch."
-      );
-      return;
-    }
-    alert(
-      `转账预览 / Transfer Preview\n\n代币 / Token: ${token}\n数量 / Amount: ${amount}\n收款 / To: ${to.slice(0, 8)}…${to.slice(-6)}\n\nCA 就绪后将发起真实 System / SPL 签名。\nReal System / SPL signing after CA is live.`
-    );
-  };
-
-  return (
-    <div style={pageWrap}>
-      <PageHeader
-        title="📤 转账 / Transfer"
-        subtitle="发送 SOL · USDC · USDT · PAWLY 到任意 Solana 地址 / Send SOL · USDC · USDT · PAWLY to any Solana address"
-      />
-      <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
-        <CaWarningBanner feature="转账 / Transfer" />
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          {["SOL", "USDC", "USDT", "PAWLY"].map((t) => (
-            <button
-              key={t}
-              onClick={() => {
-                setToken(t);
-                setGasKey((k) => k + 1);
-              }}
-              style={{
-                flex: 1,
-                minWidth: 64,
-                padding: 12,
-                borderRadius: 12,
-                border: "none",
-                fontWeight: 700,
-                cursor: "pointer",
-                background: token === t ? "#00ff9d" : "#1a1a2e",
-                color: token === t ? "#000" : "#fff",
-              }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {isPawly && !PAWLY_MINT && (
-          <p style={{ color: "#ffaa00", fontSize: 12, marginTop: -8, marginBottom: 12 }}>
-            PAWLY mint：To Be Announced（创建后自动启用）
-            <br />
-            PAWLY mint: TBA — enabled after token create
-          </p>
-        )}
-
-        <label style={{ color: "#99a", fontSize: 13 }}>收款地址 / To</label>
-        <input
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          placeholder="Solana wallet address"
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            margin: "8px 0 16px",
-            background: "#12121f",
-            border: "1px solid #333",
-            borderRadius: 12,
-            padding: 14,
-            color: "#fff",
-            fontFamily: "monospace",
-            fontSize: 13,
-          }}
-        />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <label style={{ color: "#99a", fontSize: 13 }}>数量 / Amount</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ color: "#667", fontSize: 12 }}>
-              余额 / Bal: {fmtBal(realBalance)} {token}
-            </span>
-            <button
-              type="button"
-              onClick={() => setAmount(String(realBalance || 0))}
-              style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
-            >
-              MAX
-            </button>
-          </div>
-        </div>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            margin: "0 0 12px",
-            background: "#12121f",
-            border: "1px solid #333",
-            borderRadius: 12,
-            padding: 14,
-            color: "#fff",
-            fontSize: "1.1rem",
-          }}
-        />
-
-        <GasEstimateBox presetKey={gasPreset} refreshKey={gasKey} />
-
-        <button onClick={handleSend} style={{ ...neonBtn, width: "100%", marginTop: 8 }}>
-          发送 / Send {token}
-        </button>
-        <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
-          链上基础 Gas 已按 Solana 实时估算。PAWLY 转账在 CA 上线后开放真实签名。
-          <br />
-          Gas uses live Solana base fees. PAWLY transfer signing opens after CA launch.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function SwapPage() {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey, sendTransaction } = useWallet();
   const [fromToken, setFromToken] = useState("SOL");
   const [toToken, setToToken] = useState("USDC");
   const [amount, setAmount] = useState("");
   const [quote, setQuote] = useState("0.00");
   const [rateText, setRateText] = useState("—");
+  const [routeSource, setRouteSource] = useState("");
   const [solUsd, setSolUsd] = useState(null);
   const [gasKey, setGasKey] = useState(0);
   const [realBalance, setRealBalance] = useState(0);
+  const [bestQuote, setBestQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [txLoading, setTxLoading] = useState(false);
+  const [lastSig, setLastSig] = useState("");
 
   const tokens = ["SOL", "USDC", "USDT", "PAWLY"];
+  const livePair =
+    fromToken !== "PAWLY" &&
+    toToken !== "PAWLY" &&
+    fromToken !== toToken &&
+    ["SOL", "USDC", "USDT"].includes(fromToken) &&
+    ["SOL", "USDC", "USDT"].includes(toToken);
 
   const { pwaData: swapPwa } = useUserData();
   const swapAddr =
@@ -1594,7 +1840,6 @@ function SwapPage() {
     };
   }, [swapAddr, fromToken]);
 
-  // 多源拉取 SOL/USD（Binance → Coinbase → CoinGecko）
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -1609,68 +1854,147 @@ function SwapPage() {
   }, []);
 
   useEffect(() => {
+    let alive = true;
     const amt = parseFloat(amount) || 0;
+    setBestQuote(null);
+    setRouteSource("");
+
     if (amt <= 0 || fromToken === toToken) {
       setQuote("0.00");
       setRateText(fromToken === toToken ? "相同代币 / Same token" : "—");
+      setQuoteLoading(false);
       return;
     }
 
-    // 统一先换算到 USDC 价值，再换到目标
-    const toUsdc = (tok, n) => {
-      if (tok === "USDC" || tok === "USDT") return n;
-      if (tok === "PAWLY") return n / PAWLY_PER_USDC;
-      if (tok === "SOL") return solUsd ? n * solUsd : null;
-      return null;
-    };
-    const fromUsdc = (tok, usdc) => {
-      if (tok === "USDC" || tok === "USDT") return usdc;
-      if (tok === "PAWLY") return usdc * PAWLY_PER_USDC;
-      if (tok === "SOL") return solUsd ? usdc / solUsd : null;
-      return null;
-    };
+    if (fromToken === "PAWLY" || toToken === "PAWLY") {
+      const toUsdc = (tok, n) => {
+        if (tok === "USDC" || tok === "USDT") return n;
+        if (tok === "PAWLY") return n / PAWLY_PER_USDC;
+        if (tok === "SOL") return solUsd ? n * solUsd : null;
+        return null;
+      };
+      const fromUsdc = (tok, usdc) => {
+        if (tok === "USDC" || tok === "USDT") return usdc;
+        if (tok === "PAWLY") return usdc * PAWLY_PER_USDC;
+        if (tok === "SOL") return solUsd ? usdc / solUsd : null;
+        return null;
+      };
+      const mid = toUsdc(fromToken, amt);
+      if (mid == null) {
+        setQuote("—");
+        setRateText("汇率加载中… / Rate loading…");
+        return;
+      }
+      const out = fromUsdc(toToken, mid);
+      setQuote(
+        out == null
+          ? "—"
+          : out
+              .toFixed(6)
+              .replace(/\.?0+$/, (m) =>
+                m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m
+              )
+      );
+      const one = fromUsdc(toToken, toUsdc(fromToken, 1));
+      if (one != null) setRateText(`1 ${fromToken} ≈ ${one.toFixed(6)} ${toToken} (TBA preview)`);
+      setQuoteLoading(false);
+      return;
+    }
 
-    const mid = toUsdc(fromToken, amt);
-    if (mid == null) {
+    if (!livePair) {
       setQuote("—");
-      setRateText("汇率加载中… / Rate loading…");
+      setRateText("—");
       return;
     }
-    const out = fromUsdc(toToken, mid);
-    if (out == null) {
-      setQuote("—");
-      return;
-    }
-    setQuote(out.toFixed(6).replace(/\.?0+$/, (m) => (m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m)) || out.toFixed(4));
 
-    const one = fromUsdc(toToken, toUsdc(fromToken, 1));
-    if (one != null) {
-      setRateText(`1 ${fromToken} ≈ ${one.toFixed(6)} ${toToken}`);
-    }
-  }, [amount, fromToken, toToken, solUsd]);
+    setQuoteLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const q = await getBestSwapQuote(fromToken, toToken, amt);
+        if (!alive) return;
+        setBestQuote(q);
+        setRouteSource(q.source || "");
+        setQuote(
+          q.outUi
+            .toFixed(6)
+            .replace(/\.?0+$/, (m) =>
+              m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m
+            )
+        );
+        const rate = q.outUi / amt;
+        const impact =
+          q.priceImpactPct != null && q.priceImpactPct !== ""
+            ? ` · impact ${Number(q.priceImpactPct).toFixed(3)}%`
+            : "";
+        setRateText(`1 ${fromToken} ≈ ${rate.toFixed(6)} ${toToken} · ${q.source}${impact}`);
+      } catch (e) {
+        if (!alive) return;
+        console.error(e);
+        setBestQuote(null);
+        setQuote("—");
+        setRouteSource("");
+        setRateText(`报价失败 / Quote failed: ${(e?.message || "").slice(0, 80)}`);
+      } finally {
+        if (alive) setQuoteLoading(false);
+      }
+    }, 450);
+
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [amount, fromToken, toToken, solUsd, livePair]);
 
   const flip = () => {
     setFromToken(toToken);
     setToToken(fromToken);
     setGasKey((k) => k + 1);
+    setBestQuote(null);
   };
 
   const involvesPawly = fromToken === "PAWLY" || toToken === "PAWLY";
 
-  const handleSwap = () => {
-    if (!connected) return alert("请先连接钱包\nPlease connect wallet");
+  const handleSwap = async () => {
+    if (!connected || !publicKey || !sendTransaction) {
+      return alert("请先连接可签名的钱包\nPlease connect a signing wallet");
+    }
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
     if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
-    if (involvesPawly && !PAWLY_MINT) {
+    if (involvesPawly) {
       alert(
-        `兑换预览 / Swap Preview（模拟）\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n比率 / Rate: ${rateText}\n\nPAWLY CA 与流动性池尚未上线（To Be Announced）。\n框架已就绪，创建 CA 后可直接接入 Jupiter / Raydium。\n\nPAWLY CA & pool TBA. UI ready to wire Jupiter/Raydium after launch.`
+        "PAWLY Token CA 与流动性池尚未上线（TBA）。\n请先使用 SOL / USDC / USDT 兑换。\n\nPAWLY CA & pool TBA. Swap SOL / USDC / USDT for now."
       );
       return;
     }
-    alert(
-      `兑换预览 / Swap Preview\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n${rateText}\n\n将在接入路由后签名上链。\nWill sign on-chain after router is connected.`
-    );
+    if (!bestQuote) {
+      return alert("请等待实时报价完成（Jupiter / Raydium）\nWait for live quote (Jupiter / Raydium)");
+    }
+    if (amt > realBalance + 1e-12) {
+      return alert("余额不足\nInsufficient balance");
+    }
+    setTxLoading(true);
+    setLastSig("");
+    try {
+      const sig = await executeSwapRoute({
+        publicKey,
+        sendTransaction,
+        best: bestQuote,
+      });
+      setLastSig(sig);
+      alert(
+        `✅ 兑换成功 / Swap success\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n路由 / Route: ${bestQuote.source}\n\nTx: ${sig}\nhttps://solscan.io/tx/${sig}`
+      );
+      const bal = await fetchTokenBalance(publicKey, fromToken);
+      setRealBalance(bal);
+      setAmount("");
+      setBestQuote(null);
+    } catch (e) {
+      console.error(e);
+      alert(`兑换失败 / Swap failed\n\n${e?.message || String(e)}`);
+    } finally {
+      setTxLoading(false);
+    }
   };
 
   const tokBtn = (tok, selected, onClick) => (
@@ -1688,9 +2012,11 @@ function SwapPage() {
         cursor: "pointer",
         background: selected ? "#00ff9d" : "#1a1a2e",
         color: selected ? "#000" : "#fff",
+        opacity: tok === "PAWLY" && !PAWLY_MINT ? 0.75 : 1,
       }}
     >
       {tok}
+      {tok === "PAWLY" && !PAWLY_MINT ? "·TBA" : ""}
     </button>
   );
 
@@ -1698,7 +2024,7 @@ function SwapPage() {
     <div style={pageWrap}>
       <PageHeader
         title="🔄 交易 / Swap"
-        subtitle="PAWLY · USDC · USDT · SOL 兑换（可计算预览） / Swap PAWLY · USDC · USDT · SOL (live quote preview)"
+        subtitle="实时市价 · Jupiter + Raydium 双路由 / Live market · dual route"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <CaWarningBanner feature="交易 / Swap" />
@@ -1708,7 +2034,7 @@ function SwapPage() {
           {tokens.map((t) =>
             tokBtn(t, fromToken === t, () => {
               setFromToken(t);
-              if (t === toToken) setToToken(tokens.find((x) => x !== t) || "USDC");
+              if (t === toToken) setToToken(tokens.find((x) => x !== t && x !== "PAWLY") || "USDC");
               setGasKey((k) => k + 1);
             })
           )}
@@ -1748,15 +2074,7 @@ function SwapPage() {
         />
 
         <div style={{ textAlign: "center", margin: "4px 0 12px" }}>
-          <button
-            onClick={flip}
-            style={{
-              ...ghostBtn,
-              padding: "8px 18px",
-              fontSize: 16,
-            }}
-            title="切换方向 / Flip"
-          >
+          <button onClick={flip} style={{ ...ghostBtn, padding: "8px 18px", fontSize: 16 }} title="切换方向 / Flip">
             ⇅
           </button>
         </div>
@@ -1766,53 +2084,207 @@ function SwapPage() {
           {tokens.map((t) =>
             tokBtn(t, toToken === t, () => {
               setToToken(t);
-              if (t === fromToken) setFromToken(tokens.find((x) => x !== t) || "SOL");
+              if (t === fromToken) setFromToken(tokens.find((x) => x !== t && x !== "PAWLY") || "SOL");
               setGasKey((k) => k + 1);
             })
           )}
         </div>
 
-        <div
-          style={{
-            background: "#12121f",
-            borderRadius: 14,
-            padding: 16,
-            marginBottom: 8,
-          }}
-        >
+        <div style={{ background: "#12121f", borderRadius: 14, padding: 16, marginBottom: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ color: "#889" }}>预估获得 / Est. Receive</span>
+            <span style={{ color: "#889" }}>
+              {quoteLoading ? "多路由询价中… / Routing…" : "预估获得 / Est. Receive"}
+            </span>
             <span style={{ color: "#00ff9d", fontWeight: 700, fontSize: "1.1rem" }}>
               {quote} {toToken}
             </span>
           </div>
           <div style={{ color: "#667", fontSize: 12 }}>{rateText}</div>
-          {involvesPawly && (
-            <p style={{ color: "#ffaa00", fontSize: 11, margin: "10px 0 0", lineHeight: 1.45 }}>
-              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（池子上线后改用链上价格）
-              <br />
-              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (on-chain price after pool)
+          {routeSource && (
+            <p style={{ color: "#00c853", fontSize: 12, margin: "8px 0 0" }}>
+              当前路由 / Route: <strong>{routeSource}</strong>
             </p>
           )}
-          {(fromToken === "SOL" || toToken === "SOL") && (
+          {involvesPawly && (
+            <p style={{ color: "#ffaa00", fontSize: 11, margin: "10px 0 0", lineHeight: 1.45 }}>
+              PAWLY 为预览比例，CA + 池上线后开放真实兑换。
+              <br />
+              PAWLY is preview only until CA & pool launch.
+            </p>
+          )}
+          {livePair && (
             <p style={{ color: "#556", fontSize: 11, margin: "6px 0 0" }}>
-              {solUsd
-                ? `SOL 参考价 / SOL ref: $${solUsd.toFixed(2)}`
-                : "SOL 价格加载中或暂不可用 / SOL price loading or unavailable"}
+              保险路由：Jupiter → Raydium → 宽滑点重试 / Fallback: Jupiter → Raydium → wider slippage
             </p>
           )}
         </div>
 
         <GasEstimateBox presetKey="swap" refreshKey={gasKey} />
 
-        <button onClick={handleSwap} style={{ ...neonBtn, width: "100%", marginTop: 8 }}>
-          交易 / Swap {fromToken} → {toToken}
+        <button
+          onClick={handleSwap}
+          disabled={txLoading || quoteLoading}
+          style={{
+            ...neonBtn,
+            width: "100%",
+            marginTop: 8,
+            opacity: txLoading || quoteLoading ? 0.65 : 1,
+          }}
+        >
+          {txLoading
+            ? "链上兑换中… / Swapping…"
+            : `交易 / Swap ${fromToken} → ${toToken}`}
         </button>
+        {lastSig && (
+          <p style={{ color: "#00ff9d", fontSize: 12, marginTop: 12, wordBreak: "break-all", textAlign: "center" }}>
+            <a
+              href={`https://solscan.io/tx/${lastSig}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#7dd3fc" }}
+            >
+              Solscan: {lastSig.slice(0, 20)}…
+            </a>
+          </p>
+        )}
         <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
-          支持 PAWLY↔USDC / USDT / SOL。CA 与池子上线后接入 Jupiter 或 Raydium 真实路由。
+          实时市价兑换。主路由 Jupiter，失败自动切 Raydium。PAWLY 待 CA。
           <br />
-          Supports PAWLY↔USDC / USDT / SOL. Real Jupiter/Raydium route after CA & pool launch.
+          Live market swaps. Jupiter primary, Raydium fallback. PAWLY awaits CA.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function BuyPage() {
+  const { publicKey, connected } = useWallet();
+  const { pwaData } = useUserData();
+  const [crypto, setCrypto] = useState("SOL");
+  const addr =
+    (publicKey && publicKey.toString()) || pwaData?.wallet || "";
+
+  const openProvider = (name) => {
+    if (!addr) {
+      alert("请先连接钱包，入金地址将使用该钱包\nConnect wallet first — funds go to that address");
+      return;
+    }
+    try {
+      if (name === "moonpay") {
+        openMoonPayBuy(addr, crypto);
+      } else {
+        openTransakBuy(addr, crypto);
+      }
+    } catch (e) {
+      alert(e?.message || String(e));
+    }
+  };
+
+  return (
+    <div style={pageWrap}>
+      <PageHeader
+        title="💵 买入·入金 / Buy · On-ramp"
+        subtitle="法币购买 SOL / USDC · MoonPay · Transak 生产通道 / Fiat on-ramp production"
+      />
+      <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <p style={{ color: "#bcc", lineHeight: 1.65, marginTop: 0 }}>
+          连接 Phantom / Solflare / Coinbase / Trust 后，可直接在此用银行卡等购买 SOL 或 USDC，代币进入你的钱包地址。
+          <br />
+          After connecting your wallet, buy SOL or USDC with fiat. Tokens are sent to your wallet address.
+        </p>
+
+        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>购买代币 / Asset</p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {["SOL", "USDC"].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setCrypto(t)}
+              style={{
+                flex: 1,
+                padding: 14,
+                borderRadius: 12,
+                border: "none",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: crypto === t ? "#00ff9d" : "#1a1a2e",
+                color: crypto === t ? "#000" : "#fff",
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        <div
+          style={{
+            background: "#12121f",
+            borderRadius: 12,
+            padding: 14,
+            marginBottom: 16,
+            fontSize: 13,
+            wordBreak: "break-all",
+          }}
+        >
+          <div style={{ color: "#889", marginBottom: 6 }}>收款钱包 / Deposit wallet</div>
+          <div style={{ color: "#e8fff5", fontFamily: "monospace" }}>
+            {addr || (connected ? "—" : "未连接 / Not connected")}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => openProvider("moonpay")}
+          style={{
+            ...neonBtn,
+            width: "100%",
+            marginBottom: 10,
+            background: "linear-gradient(135deg, #7c4dff, #651fff)",
+            color: "#fff",
+          }}
+        >
+          MoonPay 购买 {crypto} / Buy {crypto} with MoonPay
+        </button>
+        <button
+          type="button"
+          onClick={() => openProvider("transak")}
+          style={{
+            ...neonBtn,
+            width: "100%",
+            marginBottom: 10,
+            background: "linear-gradient(135deg, #00bcd4, #0097a7)",
+            color: "#04140c",
+          }}
+        >
+          Transak 购买 {crypto} / Buy {crypto} with Transak
+        </button>
+
+        <div
+          style={{
+            marginTop: 16,
+            padding: 14,
+            borderRadius: 12,
+            background: "rgba(255,193,7,0.08)",
+            border: "1px solid rgba(255,193,7,0.35)",
+            fontSize: 12,
+            color: "#ffe082",
+            lineHeight: 1.55,
+          }}
+        >
+          <strong>生产环境说明 / Production notes</strong>
+          <br />
+          · 使用官方生产域名（非 sandbox）
+          <br />
+          · Netlify 环境变量建议配置：
+          <br />
+          <code style={{ color: "#fff" }}>VITE_MOONPAY_API_KEY</code>（MoonPay Live publishable key）
+          <br />
+          <code style={{ color: "#fff" }}>VITE_TRANSAK_API_KEY</code>（Transak production API key）
+          <br />
+          · 并在服务商后台把域名 <code style={{ color: "#fff" }}>pawlypets.netlify.app</code> 加入白名单
+          <br />
+          · 价格与汇率由 MoonPay / Transak 实时显示；KYC 在其页面完成
+        </div>
       </div>
     </div>
   );
@@ -1963,8 +2435,8 @@ function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/staking" element={<StakingPage />} />
         <Route path="/payment" element={<PaymentPage />} />
-        <Route path="/transfer" element={<TransferPage />} />
         <Route path="/swap" element={<SwapPage />} />
+        <Route path="/buy" element={<BuyPage />} />
         <Route path="/charity" element={<CharityPage />} />
       </Routes>
     </>
