@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 31.07.2026 v7.1.2（Jupiter 执行优先；入金跳转官方站）
+ * PAWLY DApp — 31.07.2026 v7.1.4（Swap 询价+执行纯 Jupiter 加强版）
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入/入金 On-ramp：MoonPay + Transak 生产环境（SOL/USDC）
@@ -229,26 +229,49 @@ async function jupiterQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100)
   if (!inMint || !outMint) throw new Error("Unsupported pair");
   const raw = toRawAmount(uiAmount, fromToken);
   if (raw == null) throw new Error("Invalid amount");
-  const url =
-    `https://quote-api.jup.ag/v6/quote?inputMint=${inMint}` +
-    `&outputMint=${outMint}&amount=${raw}&slippageBps=${slippageBps}`;
-  const r = await fetchWithTimeout(url, 12000);
-  if (!r.ok) throw new Error(`Jupiter quote failed (${r.status})`);
-  const data = await r.json();
-  if (data?.error || !data?.outAmount) throw new Error(data?.error || "Jupiter no route");
-  const outUi = Number(data.outAmount) / Math.pow(10, TOKEN_DECIMALS[toToken] || 6);
-  return {
-    source: "Jupiter",
-    slippageBps,
-    outAmount: data.outAmount,
-    outUi,
-    inAmount: data.inAmount,
-    priceImpactPct: data.priceImpactPct,
-    raw: data,
+  const qs =
+    `inputMint=${inMint}&outputMint=${outMint}&amount=${raw}&slippageBps=${slippageBps}`;
+  const urls = [
+    `https://quote-api.jup.ag/v6/quote?${qs}`,
+    `https://lite-api.jup.ag/swap/v1/quote?${qs}`,
+  ];
+  const tryUrl = async (url) => {
+    const r = await fetchWithTimeout(url, 15000);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (data?.error || !data?.outAmount) throw new Error(data?.error || "no outAmount");
+    const outUi = Number(data.outAmount) / Math.pow(10, TOKEN_DECIMALS[toToken] || 6);
+    return {
+      source: "Jupiter",
+      slippageBps,
+      outAmount: data.outAmount,
+      outUi,
+      inAmount: data.inAmount,
+      priceImpactPct: data.priceImpactPct,
+      raw: data,
+    };
   };
+  return await new Promise((resolve, reject) => {
+    let pending = urls.length;
+    let lastErr = "Jupiter no route";
+    let done = false;
+    urls.forEach((url) => {
+      tryUrl(url)
+        .then((q) => {
+          if (!done) {
+            done = true;
+            resolve(q);
+          }
+        })
+        .catch((e) => {
+          lastErr = e?.message || String(e);
+          pending -= 1;
+          if (pending === 0 && !done) reject(new Error(lastErr));
+        });
+    });
+  });
 }
 
-/** Raydium 计算报价（生产 transaction-v1） */
 async function raydiumQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100) {
   const inMint = TOKEN_MINTS[fromToken];
   const outMint = TOKEN_MINTS[toToken];
@@ -286,35 +309,19 @@ async function raydiumQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100)
  */
 async function getBestSwapQuote(fromToken, toToken, uiAmount) {
   const errors = [];
-  // 1) Jupiter 1%
-  try {
-    return await jupiterQuoteOnce(fromToken, toToken, uiAmount, 100);
-  } catch (e) {
-    errors.push(`Jupiter: ${e?.message || e}`);
+  for (const slip of [50, 100, 150, 300]) {
+    try {
+      const q = await jupiterQuoteOnce(fromToken, toToken, uiAmount, slip);
+      q.source = slip <= 100 ? "Jupiter" : `Jupiter (${(slip / 100).toFixed(1)}% slip)`;
+      return q;
+    } catch (e) {
+      errors.push(`@${slip}bps: ${e?.message || e}`);
+    }
   }
-  // 2) Raydium 1%
-  try {
-    return await raydiumQuoteOnce(fromToken, toToken, uiAmount, 100);
-  } catch (e) {
-    errors.push(`Raydium: ${e?.message || e}`);
-  }
-  // 3) Jupiter 2.5% 宽滑点
-  try {
-    const q = await jupiterQuoteOnce(fromToken, toToken, uiAmount, 250);
-    q.source = "Jupiter (wide)";
-    return q;
-  } catch (e) {
-    errors.push(`Jupiter-wide: ${e?.message || e}`);
-  }
-  // 4) Raydium 2.5%
-  try {
-    const q = await raydiumQuoteOnce(fromToken, toToken, uiAmount, 250);
-    q.source = "Raydium (wide)";
-    return q;
-  } catch (e) {
-    errors.push(`Raydium-wide: ${e?.message || e}`);
-  }
-  throw new Error(errors.join(" | ") || "All routes failed");
+  throw new Error(
+    "Jupiter 报价暂时不可用，请稍后重试 / Jupiter quote unavailable, retry shortly. " +
+      errors.slice(0, 2).join(" | ")
+  );
 }
 
 /** Jupiter 执行兑换 */
@@ -468,27 +475,37 @@ function openMoonPayBuy(walletAddress, crypto) {
     colorCode: "00ff9d",
   });
   if (MOONPAY_API_KEY) params.set("apiKey", MOONPAY_API_KEY);
-  // 官方生产站（用户在 MoonPay 站内完成合规）
   const url = `https://buy.moonpay.com/?${params.toString()}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  const w = window.open(url, "_blank", "noopener,noreferrer");
+  if (!w) {
+    // 弹窗被拦时直接跳转
+    window.location.href = url;
+  }
   return url;
 }
 
 function openTransakBuy(walletAddress, crypto) {
   if (!walletAddress) throw new Error("Connect wallet first / 请先连接钱包");
   const code = crypto === "USDC" ? "USDC" : crypto === "USDT" ? "USDT" : "SOL";
+  // Transak 官方买币页：优先 global widget 参数；无 key 时仍打开官网买币入口
   const params = new URLSearchParams({
     walletAddress: String(walletAddress),
     cryptoCurrencyCode: code,
+    defaultCryptoCurrency: code,
     network: "solana",
     productsAvailed: "BUY",
-    defaultCryptoCurrency: code,
+    colorMode: "DARK",
     themeColor: "00ff9d",
+    disableWalletAddressForm: "true",
   });
   if (TRANSAK_API_KEY) params.set("apiKey", TRANSAK_API_KEY);
-  // 官方生产站（用户在 Transak 站内完成合规）
-  const url = `https://global.transak.com/?${params.toString()}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  // 官方域名（生产）
+  const url = `https://global.transak.com?${params.toString()}`;
+  const w = window.open(url, "_blank", "noopener,noreferrer");
+  if (!w) {
+    // 备用：Transak 主站买币（用户可自选 SOL）
+    window.location.href = `https://transak.com/buy/${code.toLowerCase()}?walletAddress=${encodeURIComponent(walletAddress)}`;
+  }
   return url;
 }
 
@@ -1131,7 +1148,7 @@ function HomePage() {
   const features = [
     { path: "/staking", icon: "💰", title: "质押 / Staking", desc: "USDC · SOL · USDT · PAWLY", color: "#7c3aed" },
     { path: "/payment", icon: "💳", title: "支付·转账 / Payment·Transfer", desc: "PAWLY · SOL · USDC · USDT", color: "#2196f3" },
-    { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "Jupiter · Raydium 实时", color: "#ff9ecd" },
+    { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "Jupiter 实时聚合", color: "#ff9ecd" },
     { path: "/buy", icon: "💵", title: "买入·入金 / Buy", desc: "MoonPay · Transak · SOL/USDC", color: "#ffc107" },
     { path: "/charity", icon: "❤️", title: "慈善 / Charity", desc: "支持收容所与护生", color: "#ff5252" },
   ];
@@ -2081,7 +2098,7 @@ function SwapPage() {
     <div style={pageWrap}>
       <PageHeader
         title="🔄 交易 / Swap"
-        subtitle="实时市价 · Jupiter + Raydium 双路由 / Live market · dual route"
+        subtitle="实时市价 · Jupiter 聚合 / Live market · Jupiter"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <CaWarningBanner feature="交易 / Swap" />
@@ -2171,7 +2188,7 @@ function SwapPage() {
           )}
           {livePair && (
             <p style={{ color: "#556", fontSize: 11, margin: "6px 0 0" }}>
-              保险路由：Jupiter → Raydium → 宽滑点重试 / Fallback: Jupiter → Raydium → wider slippage
+              纯 Jupiter 聚合路由（已含各池深度）/ Jupiter-only aggregated route
             </p>
           )}
         </div>
@@ -2205,9 +2222,9 @@ function SwapPage() {
           </p>
         )}
         <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
-          实时市价询价（Jupiter + Raydium）；上链执行以 Jupiter 为准。PAWLY 待 CA。
+          询价与上链均为 Jupiter 加强通道。PAWLY 待 CA。
           <br />
-          Live quotes (Jupiter + Raydium); on-chain execution uses Jupiter. PAWLY awaits CA.
+          Quote & swap use hardened Jupiter only. PAWLY awaits CA.
         </p>
       </div>
     </div>
@@ -2218,6 +2235,7 @@ function BuyPage() {
   const { publicKey, connected } = useWallet();
   const { pwaData } = useUserData();
   const [crypto, setCrypto] = useState("SOL");
+  const [showNotes, setShowNotes] = useState(false);
   const addr =
     (publicKey && publicKey.toString()) || pwaData?.wallet || "";
 
@@ -2245,9 +2263,9 @@ function BuyPage() {
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <p style={{ color: "#bcc", lineHeight: 1.65, marginTop: 0 }}>
-          连接钱包后，点击下方按钮将打开 <strong>MoonPay / Transak 官方网站</strong>。请在其合规页面完成身份验证与支付；SOL / USDC 会直接进入你的钱包地址。PAWLY 不托管资金、不保存银行卡信息。
+          连接钱包后，点击下方按钮将打开 <strong>MoonPay / Transak 官方网站</strong>，在对方页面完成验证与支付。
           <br />
-          After connecting your wallet, the buttons open the <strong>official MoonPay / Transak website</strong>. Complete KYC and payment on their compliant pages; SOL / USDC go to your wallet. PAWLY never custodies funds or card data.
+          Connect wallet, then open official MoonPay / Transak to complete KYC & payment there.
         </p>
 
         <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>购买代币 / Asset</p>
@@ -2316,32 +2334,118 @@ function BuyPage() {
           Transak 购买 {crypto} / Buy {crypto} with Transak
         </button>
 
-        <div
+        <button
+          type="button"
+          onClick={() => setShowNotes(true)}
           style={{
-            marginTop: 16,
-            padding: 14,
+            display: "block",
+            width: "100%",
+            marginTop: 4,
+            marginBottom: 8,
+            padding: "12px 16px",
             borderRadius: 12,
-            background: "rgba(255,193,7,0.08)",
-            border: "1px solid rgba(255,193,7,0.35)",
-            fontSize: 12,
+            border: "1px solid rgba(255,193,7,0.45)",
+            background: "rgba(255,193,7,0.12)",
             color: "#ffe082",
-            lineHeight: 1.55,
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: "pointer",
+            textAlign: "center",
           }}
         >
-          <strong>入金说明 / On-ramp notes（双语）</strong>
-          <br />
-          · 点击后跳转 <strong>MoonPay / Transak 官方站</strong>，由你在对方平台完成合规与付款
-          <br />
-          · Buttons open official MoonPay / Transak sites; you complete compliance and payment there
-          <br />
-          · 代币进入上方显示的钱包地址 / Crypto is sent to the wallet address shown above
-          <br />
-          · 也可在 Phantom / Solflare App 内使用「买入」后返回本 dApp
-          <br />
-          · Or buy inside Phantom / Solflare, then return to this dApp
-          <br />
-          · 可选配置 Netlify：VITE_MOONPAY_API_KEY / VITE_TRANSAK_API_KEY（有则附带，无也可打开官方页）
-        </div>
+          📋 入金说明 / On-ramp Notes
+        </button>
+
+        {showNotes && (
+          <div
+            role="dialog"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.72)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowNotes(false);
+            }}
+          >
+            <div
+              style={{
+                maxWidth: 420,
+                width: "100%",
+                background: "linear-gradient(165deg, #1a1030, #0d0d18)",
+                border: "1px solid rgba(255,193,7,0.4)",
+                borderRadius: 18,
+                padding: 20,
+                color: "#ffe082",
+                lineHeight: 1.6,
+                fontSize: 13,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <strong style={{ fontSize: 15 }}>📋 入金说明 / On-ramp Notes</strong>
+                <button
+                  type="button"
+                  onClick={() => setShowNotes(false)}
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "none",
+                    color: "#ccc",
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontSize: 16,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <p style={{ margin: "0 0 10px" }}>
+                · 点击后跳转 <strong>MoonPay / Transak 官方站</strong>，由你在对方平台完成合规与付款。
+                <br />
+                · Buttons open official sites; you complete compliance & payment there.
+              </p>
+              <p style={{ margin: "0 0 10px" }}>
+                · 代币进入上方显示的钱包地址。
+                <br />
+                · Crypto is sent to the wallet address shown above.
+              </p>
+              <p style={{ margin: "0 0 10px" }}>
+                · 也可在 Phantom / Solflare App 内使用「买入」后返回本 dApp。
+                <br />
+                · Or buy inside Phantom / Solflare, then return here.
+              </p>
+              <p style={{ margin: 0, color: "#c9a06a" }}>
+                · PAWLY 不托管资金、不保存银行卡信息。
+                <br />
+                · PAWLY never custodies funds or card data.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowNotes(false)}
+                style={{
+                  marginTop: 16,
+                  width: "100%",
+                  padding: 12,
+                  borderRadius: 12,
+                  border: "none",
+                  background: "linear-gradient(135deg, #00ff9d, #00c853)",
+                  color: "#04140c",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                知道了 / Got it
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
