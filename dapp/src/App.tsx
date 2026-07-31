@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 31.07.2026 v7.1
+ * PAWLY DApp — 31.07.2026 v7.1.1（白屏修复：补回 HELIUS + fetchTokenBalance）
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入/入金 On-ramp：MoonPay + Transak 生产环境（SOL/USDC）
@@ -97,6 +97,42 @@ const TOKEN_MINTS = {
   PAWLY: PAWLY_MINT,
 };
 const TOKEN_DECIMALS = { SOL: 9, USDC: 6, USDT: 6, PAWLY: PAWLY_DECIMALS };
+const HELIUS_RPC_GLOBAL =
+  "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
+const LAMPORTS_PER_SOL = 1e9;
+const BASE_FEE_LAMPORTS = 5000;
+
+/** 读取钱包某代币余额（主网，有地址即可） */
+async function fetchTokenBalance(owner, token) {
+  if (!owner) return 0;
+  try {
+    const pubkey =
+      typeof owner === "string"
+        ? new PublicKey(owner)
+        : owner instanceof PublicKey
+          ? owner
+          : new PublicKey(owner.toString());
+    const connection = new Connection(HELIUS_RPC_GLOBAL, "confirmed");
+    if (token === "SOL") {
+      const lamports = await connection.getBalance(pubkey);
+      return lamports / LAMPORTS_PER_SOL;
+    }
+    const mintStr = TOKEN_MINTS[token];
+    if (!mintStr) return 0;
+    const mint = new PublicKey(mintStr);
+    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
+    return accounts.value[0]?.account.data.parsed.info.tokenAmount.uiAmount || 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function fmtBal(n, digits = 4) {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (n === 0) return "0";
+  if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return Number(n).toFixed(digits).replace(/\.?0+$/, (m) => (m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m));
+}
 
 function toRawAmount(uiAmount, token) {
   const d = TOKEN_DECIMALS[token] ?? 9;
@@ -403,7 +439,7 @@ const TRANSAK_API_KEY = import.meta.env.VITE_TRANSAK_API_KEY || "";
 /** MoonPay 生产买入页（非 sandbox） */
 function openMoonPayBuy(walletAddress, crypto) {
   if (!walletAddress) throw new Error("Connect wallet first / 请先连接钱包");
-  const code = crypto === "USDC" ? "usdc" : "sol";
+  const code = crypto === "USDC" ? "usdc_sol" : "sol";
   const params = new URLSearchParams({
     currencyCode: code,
     walletAddress: walletAddress,
@@ -2271,19 +2307,16 @@ function BuyPage() {
             lineHeight: 1.55,
           }}
         >
-          <strong>生产环境说明 / Production notes</strong>
+          <strong>入金说明 / On-ramp notes</strong>
           <br />
-          · 使用官方生产域名（非 sandbox）
+          · MoonPay 正式 Live 需注册公司（legal entity）并完成 KYB 后才有 pk_live_ 密钥
           <br />
-          · Netlify 环境变量建议配置：
+          · 当前可优先使用 Transak，或在 Phantom/Solflare 钱包内买入后再回 dApp
           <br />
-          <code style={{ color: "#fff" }}>VITE_MOONPAY_API_KEY</code>（MoonPay Live publishable key）
+          · Netlify 可配置：<code style={{ color: "#fff" }}>VITE_MOONPAY_API_KEY</code> /
+          <code style={{ color: "#fff" }}>VITE_TRANSAK_API_KEY</code>
           <br />
-          <code style={{ color: "#fff" }}>VITE_TRANSAK_API_KEY</code>（Transak production API key）
-          <br />
-          · 并在服务商后台把域名 <code style={{ color: "#fff" }}>pawlypets.netlify.app</code> 加入白名单
-          <br />
-          · 价格与汇率由 MoonPay / Transak 实时显示；KYC 在其页面完成
+          · 域名白名单：<code style={{ color: "#fff" }}>pawlypets.netlify.app</code>
         </div>
       </div>
     </div>
