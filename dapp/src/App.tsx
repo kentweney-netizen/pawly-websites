@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 31.07.2026 v7.1.1（白屏修复：补回 HELIUS + fetchTokenBalance）
+ * PAWLY DApp — 31.07.2026 v7.1.2（Jupiter 执行优先；入金跳转官方站）
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入/入金 On-ramp：MoonPay + Transak 生产环境（SOL/USDC）
@@ -410,65 +410,83 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, computeData }) {
   }
 }
 
-/** 按报价来源执行真实兑换 */
-async function executeSwapRoute({ publicKey, sendTransaction, best }) {
+/**
+ * 执行兑换：始终优先 Jupiter 真实交易（避免 Raydium 空 tx）
+ * 若当前 best 不是 Jupiter，会重新拉 Jupiter 报价再执行
+ */
+async function executeSwapRoute({ publicKey, sendTransaction, best, fromToken, toToken, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   if (!best) throw new Error("No quote");
+
+  let jup = null;
   const src = (best.source || "").toLowerCase();
-  if (src.includes("jupiter")) {
-    return executeJupiterSwap({
+  if (src.includes("jupiter") && best.raw) {
+    jup = best.raw;
+  } else {
+    // Raydium 仅作参考价；真正上链用 Jupiter
+    const q = await jupiterQuoteOnce(fromToken, toToken, uiAmount, 100);
+    jup = q.raw;
+  }
+  try {
+    return await executeJupiterSwap({
       publicKey,
       sendTransaction,
-      quoteResponse: best.raw,
+      quoteResponse: jup,
     });
+  } catch (e1) {
+    // 最后一次宽滑点 Jupiter
+    try {
+      const q2 = await jupiterQuoteOnce(fromToken, toToken, uiAmount, 250);
+      return await executeJupiterSwap({
+        publicKey,
+        sendTransaction,
+        quoteResponse: q2.raw,
+      });
+    } catch (e2) {
+      throw new Error(
+        (e1?.message || String(e1)) + " | retry: " + (e2?.message || String(e2))
+      );
+    }
   }
-  if (src.includes("raydium")) {
-    return executeRaydiumSwap({
-      publicKey,
-      sendTransaction,
-      computeData: best.raw,
-    });
-  }
-  throw new Error("Unknown route source");
 }
 
 /* ========== 法币入金 On-ramp（生产环境） ========== */
 const MOONPAY_API_KEY = import.meta.env.VITE_MOONPAY_API_KEY || "";
 const TRANSAK_API_KEY = import.meta.env.VITE_TRANSAK_API_KEY || "";
 
-/** MoonPay 生产买入页（非 sandbox） */
+/**
+ * 跳转 MoonPay / Transak 官方合规站点，用户自行完成 KYC 与入金。
+ * 预填钱包地址；不依赖商户 Live API（有 key 则附带，无 key 也可打开官方页）
+ */
 function openMoonPayBuy(walletAddress, crypto) {
   if (!walletAddress) throw new Error("Connect wallet first / 请先连接钱包");
-  const code = crypto === "USDC" ? "usdc_sol" : "sol";
+  const code = crypto === "USDC" ? "usdc_sol" : crypto === "USDT" ? "usdt_sol" : "sol";
   const params = new URLSearchParams({
     currencyCode: code,
-    walletAddress: walletAddress,
+    walletAddress: String(walletAddress),
     baseCurrencyCode: "usd",
     colorCode: "00ff9d",
-    showWalletAddressForm: "false",
   });
   if (MOONPAY_API_KEY) params.set("apiKey", MOONPAY_API_KEY);
-  // 生产域名（非 buy-sandbox）
+  // 官方生产站（用户在 MoonPay 站内完成合规）
   const url = `https://buy.moonpay.com/?${params.toString()}`;
   window.open(url, "_blank", "noopener,noreferrer");
   return url;
 }
 
-/** Transak 生产买入页（非 staging） */
 function openTransakBuy(walletAddress, crypto) {
   if (!walletAddress) throw new Error("Connect wallet first / 请先连接钱包");
-  const code = crypto === "USDC" ? "USDC" : "SOL";
+  const code = crypto === "USDC" ? "USDC" : crypto === "USDT" ? "USDT" : "SOL";
   const params = new URLSearchParams({
-    walletAddress: walletAddress,
+    walletAddress: String(walletAddress),
     cryptoCurrencyCode: code,
     network: "solana",
     productsAvailed: "BUY",
     defaultCryptoCurrency: code,
     themeColor: "00ff9d",
-    hideMenu: "true",
   });
   if (TRANSAK_API_KEY) params.set("apiKey", TRANSAK_API_KEY);
-  // 生产域名 global.transak.com
+  // 官方生产站（用户在 Transak 站内完成合规）
   const url = `https://global.transak.com/?${params.toString()}`;
   window.open(url, "_blank", "noopener,noreferrer");
   return url;
@@ -2016,6 +2034,9 @@ function SwapPage() {
         publicKey,
         sendTransaction,
         best: bestQuote,
+        fromToken,
+        toToken,
+        uiAmount: amt,
       });
       setLastSig(sig);
       alert(
@@ -2184,9 +2205,9 @@ function SwapPage() {
           </p>
         )}
         <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
-          实时市价兑换。主路由 Jupiter，失败自动切 Raydium。PAWLY 待 CA。
+          实时市价询价（Jupiter + Raydium）；上链执行以 Jupiter 为准。PAWLY 待 CA。
           <br />
-          Live market swaps. Jupiter primary, Raydium fallback. PAWLY awaits CA.
+          Live quotes (Jupiter + Raydium); on-chain execution uses Jupiter. PAWLY awaits CA.
         </p>
       </div>
     </div>
@@ -2220,13 +2241,13 @@ function BuyPage() {
     <div style={pageWrap}>
       <PageHeader
         title="💵 买入·入金 / Buy · On-ramp"
-        subtitle="法币购买 SOL / USDC · MoonPay · Transak 生产通道 / Fiat on-ramp production"
+        subtitle="跳转官方站自行入金 SOL / USDC · Official MoonPay / Transak pages"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <p style={{ color: "#bcc", lineHeight: 1.65, marginTop: 0 }}>
-          连接 Phantom / Solflare / Coinbase / Trust 后，可直接在此用银行卡等购买 SOL 或 USDC，代币进入你的钱包地址。
+          连接钱包后，点击下方按钮将打开 <strong>MoonPay / Transak 官方网站</strong>。请在其合规页面完成身份验证与支付；SOL / USDC 会直接进入你的钱包地址。PAWLY 不托管资金、不保存银行卡信息。
           <br />
-          After connecting your wallet, buy SOL or USDC with fiat. Tokens are sent to your wallet address.
+          After connecting your wallet, the buttons open the <strong>official MoonPay / Transak website</strong>. Complete KYC and payment on their compliant pages; SOL / USDC go to your wallet. PAWLY never custodies funds or card data.
         </p>
 
         <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>购买代币 / Asset</p>
@@ -2307,16 +2328,19 @@ function BuyPage() {
             lineHeight: 1.55,
           }}
         >
-          <strong>入金说明 / On-ramp notes</strong>
+          <strong>入金说明 / On-ramp notes（双语）</strong>
           <br />
-          · MoonPay 正式 Live 需注册公司（legal entity）并完成 KYB 后才有 pk_live_ 密钥
+          · 点击后跳转 <strong>MoonPay / Transak 官方站</strong>，由你在对方平台完成合规与付款
           <br />
-          · 当前可优先使用 Transak，或在 Phantom/Solflare 钱包内买入后再回 dApp
+          · Buttons open official MoonPay / Transak sites; you complete compliance and payment there
           <br />
-          · Netlify 可配置：<code style={{ color: "#fff" }}>VITE_MOONPAY_API_KEY</code> /
-          <code style={{ color: "#fff" }}>VITE_TRANSAK_API_KEY</code>
+          · 代币进入上方显示的钱包地址 / Crypto is sent to the wallet address shown above
           <br />
-          · 域名白名单：<code style={{ color: "#fff" }}>pawlypets.netlify.app</code>
+          · 也可在 Phantom / Solflare App 内使用「买入」后返回本 dApp
+          <br />
+          · Or buy inside Phantom / Solflare, then return to this dApp
+          <br />
+          · 可选配置 Netlify：VITE_MOONPAY_API_KEY / VITE_TRANSAK_API_KEY（有则附带，无也可打开官方页）
         </div>
       </div>
     </div>
