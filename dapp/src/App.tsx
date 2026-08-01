@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 31.07.2026 v7.1.6（入金单按钮弹窗选平台；去 Transak；Jupiter Edge 保留）
+ * PAWLY DApp — 01.08.2026 v7.2.1（Charity 真捐赠 + 主页 Charity 居中）
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
@@ -1253,9 +1253,9 @@ function HomePage() {
   const features = [
     { path: "/staking", icon: "💰", title: "质押 / Staking", desc: "USDC · SOL · USDT · PAWLY", color: "#7c3aed" },
     { path: "/payment", icon: "💳", title: "支付·转账 / Payment·Transfer", desc: "PAWLY · SOL · USDC · USDT", color: "#2196f3" },
+    { path: "/charity", icon: "❤️", title: "慈善捐赠 / Charity", desc: "链上捐赠 · 真转账", color: "#ff5252" },
     { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "Jupiter 实时聚合", color: "#ff9ecd" },
     { path: "/buy", icon: "💵", title: "买入·入金 / Buy·Deposit", desc: "SOL · USDC · USDT", color: "#ffc107" },
-    { path: "/charity", icon: "❤️", title: "慈善 / Charity", desc: "支持收容所与护生", color: "#ff5252" },
   ];
 
   return (
@@ -2623,10 +2623,14 @@ function BuyPage() {
 }
 
 function CharityPage() {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey, sendTransaction } = useWallet();
+  const { pwaData } = useUserData();
   const [token, setToken] = useState("SOL");
+  const [toAddress, setToAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [realBalance, setRealBalance] = useState(0);
+  const [txLoading, setTxLoading] = useState(false);
+  const [lastSig, setLastSig] = useState("");
 
   const shelters = [
     { name: "SPCA Selangor", url: "https://www.spca.org.my/" },
@@ -2634,13 +2638,17 @@ function CharityPage() {
     { name: "SPCA Penang", url: "https://spcapenang.org/" },
   ];
 
-  const { pwaData: charityPwa } = useUserData();
   const charityAddr =
-    (publicKey && publicKey.toString()) || charityPwa?.wallet || "";
+    (publicKey && publicKey.toString()) || pwaData?.wallet || "";
+  const maxPawly = parseFloat(pwaData?.total_pawly) || 0;
 
   useEffect(() => {
     let alive = true;
     (async () => {
+      if (token === "PAWLY") {
+        if (alive) setRealBalance(maxPawly);
+        return;
+      }
       if (!charityAddr) {
         if (alive) setRealBalance(0);
         return;
@@ -2651,24 +2659,71 @@ function CharityPage() {
     return () => {
       alive = false;
     };
-  }, [charityAddr, token]);
+  }, [charityAddr, token, maxPawly]);
 
-  const handleDonate = () => {
-    if (!connected) return alert("请先连接钱包\nPlease connect wallet");
-    if (!amount || parseFloat(amount) <= 0) return alert("请输入捐赠数量\nEnter donation amount");
-    alert(
-      `捐赠预览 / Donation Preview\n\n${amount} ${token}\n\n链上捐赠将在金库地址确定后开放真实签名。\nOn-chain donate after treasury address is set.`
-    );
+  const handleDonate = async () => {
+    if (!connected || !publicKey || !sendTransaction) {
+      return alert("请先连接可签名的钱包\nPlease connect a signing wallet");
+    }
+    if (!toAddress.trim()) {
+      return alert(
+        "请粘贴慈善机构的 Solana 钱包地址\nPlease paste the charity Solana wallet address"
+      );
+    }
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) {
+      return alert("请输入捐赠数量\nEnter donation amount");
+    }
+    if (token === "PAWLY" && !PAWLY_MINT) {
+      return alert(
+        "PAWLY Token CA 尚未创建（TBA）。请先使用 SOL / USDC / USDT 捐赠。\nPAWLY CA is TBA. Donate with SOL / USDC / USDT for now."
+      );
+    }
+    if (amt > realBalance + 1e-12) {
+      return alert("余额不足\nInsufficient balance");
+    }
+    setTxLoading(true);
+    setLastSig("");
+    try {
+      const sig = await sendTokenTransfer({
+        publicKey,
+        sendTransaction,
+        token,
+        toAddress,
+        uiAmount: amt,
+      });
+      setLastSig(sig);
+      alert(
+        `✅ 捐赠成功 / Donation success\n\n${amt} ${token}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
+      );
+      const bal = await fetchTokenBalance(publicKey, token);
+      setRealBalance(bal);
+      setAmount("");
+    } catch (e) {
+      console.error(e);
+      alert(`捐赠失败 / Donation failed\n\n${e?.message || String(e)}`);
+    } finally {
+      setTxLoading(false);
+    }
   };
 
   return (
     <div style={pageWrap}>
-      <PageHeader title="❤️ 慈善 / Charity" subtitle="支持全世界动物收容所与护生组织，从马来西亚开始/Supporting animal shelters & welfare organizations worldwide，started from Malaysia" />
+      <PageHeader
+        title="❤️ 慈善捐赠 / Charity Donate"
+        subtitle="真实链上捐赠 · 粘贴机构钱包 · SOL/USDC/USDT / Live on-chain donate to any Solana address"
+      />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <CaWarningBanner feature="慈善 / Charity" />
 
         <p style={{ color: "#bcc", lineHeight: 1.7, marginTop: 0 }}>
-          PAWLY 计划将部分生态收益用于动物保护。你可先通过下列官方渠道直接支持收容所。/PAWLY plans to use part of ecosystem revenue for animal protection. You can support shelters directly via the official channels below.
+          捐赠本质即转账。填写机构官方公布的 Solana 地址，选择代币与数量，签名后即上链到账。请务必核对地址，错误地址无法追回。
+          <br />
+          A donation is a transfer. Paste the shelter’s official Solana address, choose token & amount, then sign. Double-check the address — funds cannot be recovered if wrong.
+        </p>
+
+        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>
+          参考机构官网（自行查证其钱包）/ Shelter sites (verify wallet yourself)
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
           {shelters.map((s) => (
@@ -2690,13 +2745,38 @@ function CharityPage() {
           ))}
         </div>
 
-        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>链上捐赠预览 / On-chain donate (preview)</p>
+        <label style={{ color: "#99a", fontSize: 13 }}>
+          机构 Solana 钱包地址 / Charity wallet address
+        </label>
+        <input
+          type="text"
+          value={toAddress}
+          onChange={(e) => setToAddress(e.target.value)}
+          placeholder="粘贴机构钱包 / Paste Solana address"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            margin: "8px 0 16px",
+            background: "#12121f",
+            border: "1px solid #333",
+            borderRadius: 12,
+            padding: 14,
+            color: "#fff",
+            fontSize: 14,
+            fontFamily: "monospace",
+          }}
+        />
+
+        <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>捐赠代币 / Token</p>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
           {["SOL", "USDC", "USDT", "PAWLY"].map((t) => (
             <button
               key={t}
               type="button"
-              onClick={() => setToken(t)}
+              onClick={() => {
+                setToken(t);
+                setAmount("");
+              }}
               style={{
                 flex: 1,
                 minWidth: 64,
@@ -2707,13 +2787,23 @@ function CharityPage() {
                 cursor: "pointer",
                 background: token === t ? "#00ff9d" : "#1a1a2e",
                 color: token === t ? "#000" : "#fff",
+                opacity: t === "PAWLY" && !PAWLY_MINT ? 0.75 : 1,
               }}
             >
               {t}
+              {t === "PAWLY" && !PAWLY_MINT ? "·TBA" : ""}
             </button>
           ))}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
+          }}
+        >
           <span style={{ color: "#99a", fontSize: 13 }}>数量 / Amount</span>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ color: "#667", fontSize: 12 }}>
@@ -2730,6 +2820,7 @@ function CharityPage() {
         </div>
         <input
           type="number"
+          min="0"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0.00"
@@ -2745,14 +2836,54 @@ function CharityPage() {
             fontSize: "1.1rem",
           }}
         />
-        <GasEstimateBox presetKey="charity" refreshKey={token} />
-        <button type="button" onClick={handleDonate} style={{ ...neonBtn, width: "100%", marginTop: 8 }}>
-          捐赠预览 / Donate (Preview)
+        <GasEstimateBox presetKey="charity" refreshKey={token + toAddress} />
+        <button
+          type="button"
+          onClick={handleDonate}
+          disabled={txLoading}
+          style={{
+            ...neonBtn,
+            width: "100%",
+            marginTop: 8,
+            opacity: txLoading ? 0.65 : 1,
+          }}
+        >
+          {txLoading
+            ? "链上捐赠中… / Donating…"
+            : "确认捐赠 / Confirm Donate"}
         </button>
-        <p style={{ color: "#667", fontSize: 12, marginTop: 12, textAlign: "center", lineHeight: 1.5 }}>
-          链上捐赠路由将在 PAWLY CA 与金库地址确定后接入。上方为 Solana 基础 Gas 参考。
+        {lastSig && (
+          <p
+            style={{
+              color: "#00ff9d",
+              fontSize: 12,
+              marginTop: 12,
+              wordBreak: "break-all",
+              textAlign: "center",
+            }}
+          >
+            <a
+              href={`https://solscan.io/tx/${lastSig}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#7dd3fc" }}
+            >
+              Solscan: {lastSig.slice(0, 20)}…
+            </a>
+          </p>
+        )}
+        <p
+          style={{
+            color: "#667",
+            fontSize: 12,
+            marginTop: 12,
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          请仅向机构官方公布的地址捐赠。PAWLY 不托管善款。
           <br />
-          On-chain donation route after PAWLY CA & treasury address. Gas above is Solana base fee reference.
+          Donate only to official published addresses. PAWLY never custodies donations.
         </p>
       </div>
     </div>
