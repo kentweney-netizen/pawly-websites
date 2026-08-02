@@ -1,12 +1,12 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 01.08.2026 v7.2.1（Charity 真捐赠 + 主页 Charity 居中）
+ * PAWLY DApp — 02.08.2026 v7.3（Payment/Charity 我的二维码+扫码；主页双语 desc）
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
  *   3. 支付·转账真实链上 + 汇率保留
  */
-import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -1253,8 +1253,8 @@ function HomePage() {
   const features = [
     { path: "/staking", icon: "💰", title: "质押 / Staking", desc: "USDC · SOL · USDT · PAWLY", color: "#7c3aed" },
     { path: "/payment", icon: "💳", title: "支付·转账 / Payment·Transfer", desc: "PAWLY · SOL · USDC · USDT", color: "#2196f3" },
-    { path: "/charity", icon: "❤️", title: "慈善捐赠 / Charity", desc: "链上捐赠 · 真转账", color: "#ff5252" },
-    { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "Jupiter 实时聚合", color: "#ff9ecd" },
+    { path: "/charity", icon: "❤️", title: "慈善捐赠 / Charity", desc: "链上捐赠·真转账 / On-chain donate", color: "#ff5252" },
+    { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "Jupiter 实时聚合 / Live Jupiter route", color: "#ff9ecd" },
     { path: "/buy", icon: "💵", title: "买入·入金 / Buy·Deposit", desc: "SOL · USDC · USDT", color: "#ffc107" },
   ];
 
@@ -1503,6 +1503,386 @@ function StakingPage() {
   );
 }
 
+
+/** 从扫码/粘贴文本提取 Solana 地址 */
+function extractSolanaAddress(raw) {
+  if (!raw) return "";
+  const s = String(raw).trim();
+  const m1 = s.match(/solana:([1-9A-HJ-NP-Za-km-z]{32,44})/i);
+  if (m1) return m1[1];
+  const m2 = s.match(/pawly:([1-9A-HJ-NP-Za-km-z]{32,44})/i);
+  if (m2) return m2[1];
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s)) return s;
+  const m3 = s.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+  if (m3) {
+    try {
+      new PublicKey(m3[0]);
+      return m3[0];
+    } catch (_) {}
+  }
+  return "";
+}
+
+function qrCodeImageUrl(data, size = 240) {
+  return (
+    "https://api.qrserver.com/v1/create-qr-code/?size=" +
+    size +
+    "x" +
+    size +
+    "&margin=8&data=" +
+    encodeURIComponent(data)
+  );
+}
+
+function MyQrModal({ address, onClose }) {
+  if (!address) return null;
+  const img = qrCodeImageUrl(address, 260);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      alert("已复制地址 / Address copied");
+    } catch (_) {
+      alert(address);
+    }
+  };
+  return (
+    <div
+      role="dialog"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.75)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 360,
+          width: "100%",
+          background: "linear-gradient(165deg, #1a1030, #0d0d18)",
+          border: "1px solid rgba(0,255,157,0.35)",
+          borderRadius: 18,
+          padding: 20,
+          color: "#e8fff5",
+          textAlign: "center",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
+          }}
+        >
+          <strong style={{ fontSize: 16 }}>我的二维码 / My QR</strong>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              border: "none",
+              color: "#ccc",
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <p style={{ color: "#889", fontSize: 12, marginTop: 0, lineHeight: 1.45 }}>
+          他人扫码可向你转账（当前已连接钱包）
+          <br />
+          Others scan to pay you · current wallet
+        </p>
+        <img
+          src={img}
+          alt="Receive QR"
+          width={260}
+          height={260}
+          style={{
+            width: 260,
+            height: 260,
+            maxWidth: "100%",
+            borderRadius: 12,
+            background: "#fff",
+            margin: "8px auto",
+            display: "block",
+          }}
+        />
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: 12,
+            wordBreak: "break-all",
+            color: "#b8f5d8",
+            margin: "10px 0",
+          }}
+        >
+          {address}
+        </p>
+        <button type="button" onClick={copy} style={{ ...neonBtn, width: "100%", marginBottom: 8 }}>
+          复制地址 / Copy Address
+        </button>
+        <p style={{ color: "#667", fontSize: 11, margin: 0, lineHeight: 1.45 }}>
+          更换钱包后请重新打开以更新二维码。
+          <br />
+          Re-open after switching wallet to refresh QR.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ScanQrModal({ onDetected, onClose }) {
+  const [manual, setManual] = useState("");
+  const [camErr, setCamErr] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const stopCam = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setScanning(false);
+  };
+
+  const finish = (text) => {
+    const addr = extractSolanaAddress(text);
+    if (!addr) {
+      alert("未识别到有效 Solana 地址\nNo valid Solana address found");
+      return;
+    }
+    try {
+      new PublicKey(addr);
+    } catch (_) {
+      alert("地址无效 / Invalid address");
+      return;
+    }
+    stopCam();
+    onDetected(addr);
+    onClose();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
+
+  const startCam = async () => {
+    setCamErr("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCamErr("此浏览器不支持摄像头 / Camera not supported");
+      return;
+    }
+    if (!("BarcodeDetector" in window)) {
+      setCamErr(
+        "此浏览器不支持实时扫码，请用「相册」或「粘贴地址」。\nNo BarcodeDetector; use gallery or paste."
+      );
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setScanning(true);
+      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      timerRef.current = setInterval(async () => {
+        try {
+          if (!videoRef.current || videoRef.current.readyState < 2) return;
+          const codes = await detector.detect(videoRef.current);
+          if (codes?.[0]?.rawValue) finish(codes[0].rawValue);
+        } catch (_) {}
+      }, 500);
+    } catch (e) {
+      setCamErr(e?.message || String(e));
+    }
+  };
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      if (!("BarcodeDetector" in window)) {
+        alert(
+          "此设备无法识别图片中的二维码，请粘贴地址。\nCannot decode QR image; paste address instead."
+        );
+        return;
+      }
+      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      const bmp = await createImageBitmap(file);
+      const codes = await detector.detect(bmp);
+      if (typeof bmp.close === "function") bmp.close();
+      if (codes?.[0]?.rawValue) finish(codes[0].rawValue);
+      else alert("图片中未找到二维码\nNo QR found in image");
+    } catch (err) {
+      alert(err?.message || String(err));
+    }
+  };
+
+  return (
+    <div
+      role="dialog"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.75)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          stopCam();
+          onClose();
+        }
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 400,
+          width: "100%",
+          background: "linear-gradient(165deg, #1a1030, #0d0d18)",
+          border: "1px solid rgba(0,255,157,0.35)",
+          borderRadius: 18,
+          padding: 20,
+          color: "#e8fff5",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <strong style={{ fontSize: 16 }}>扫码 / Scan QR</strong>
+          <button
+            type="button"
+            onClick={() => {
+              stopCam();
+              onClose();
+            }}
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              border: "none",
+              color: "#ccc",
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          style={{
+            width: "100%",
+            borderRadius: 12,
+            background: "#000",
+            minHeight: scanning ? 200 : 0,
+            display: scanning ? "block" : "none",
+            marginBottom: 10,
+          }}
+        />
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={scanning ? stopCam : startCam}
+            style={{ ...ghostBtn, flex: 1, minWidth: 120 }}
+          >
+            {scanning ? "停止摄像头 / Stop" : "摄像头扫码 / Camera"}
+          </button>
+          <label
+            style={{
+              ...ghostBtn,
+              flex: 1,
+              minWidth: 120,
+              textAlign: "center",
+              cursor: "pointer",
+              boxSizing: "border-box",
+            }}
+          >
+            相册 / Gallery
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={onFile}
+              style={{ display: "none" }}
+            />
+          </label>
+        </div>
+        {camErr ? (
+          <p style={{ color: "#ff8a80", fontSize: 12, marginTop: 0 }}>{camErr}</p>
+        ) : null}
+
+        <p style={{ color: "#99a", fontSize: 13, margin: "8px 0" }}>
+          或粘贴地址 / Or paste address
+        </p>
+        <input
+          type="text"
+          value={manual}
+          onChange={(e) => setManual(e.target.value)}
+          placeholder="Solana address"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            marginBottom: 10,
+            background: "#12121f",
+            border: "1px solid #333",
+            borderRadius: 12,
+            padding: 12,
+            color: "#fff",
+            fontFamily: "monospace",
+            fontSize: 13,
+          }}
+        />
+        <button type="button" onClick={() => finish(manual)} style={{ ...neonBtn, width: "100%" }}>
+          确认填入 / Use Address
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PaymentPage() {
   const { publicKey, connected, sendTransaction } = useWallet();
   const { pwaData } = useUserData();
@@ -1518,6 +1898,8 @@ function PaymentPage() {
   const [fiatCode, setFiatCode] = useState("MYR");
   const [txLoading, setTxLoading] = useState(false);
   const [lastSig, setLastSig] = useState("");
+  const [showMyQr, setShowMyQr] = useState(false);
+  const [showScanQr, setShowScanQr] = useState(false);
 
   const FIATS = [
     { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
@@ -1815,6 +2197,40 @@ function PaymentPage() {
         <button onClick={fetchRates} style={{ ...ghostBtn, width: "100%", boxSizing: "border-box" }}>
           🔄 刷新汇率 / Refresh Rate
         </button>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 12, marginBottom: 4 }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!payWalletAddr) {
+                alert("请先连接钱包
+Please connect wallet first");
+                return;
+              }
+              setShowMyQr(true);
+            }}
+            style={{ ...ghostBtn, flex: 1, boxSizing: "border-box" }}
+          >
+            我的二维码 / My QR
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowScanQr(true)}
+            style={{ ...ghostBtn, flex: 1, boxSizing: "border-box" }}
+          >
+            扫码 / Scan QR
+          </button>
+        </div>
+
+        {showMyQr && (
+          <MyQrModal address={payWalletAddr} onClose={() => setShowMyQr(false)} />
+        )}
+        {showScanQr && (
+          <ScanQrModal
+            onDetected={(addr) => setToAddress(addr)}
+            onClose={() => setShowScanQr(false)}
+          />
+        )}
 
         {lastSig && (
           <p style={{ color: "#00ff9d", fontSize: 12, marginTop: 12, wordBreak: "break-all", textAlign: "center" }}>
@@ -2631,6 +3047,8 @@ function CharityPage() {
   const [realBalance, setRealBalance] = useState(0);
   const [txLoading, setTxLoading] = useState(false);
   const [lastSig, setLastSig] = useState("");
+  const [showMyQr, setShowMyQr] = useState(false);
+  const [showScanQr, setShowScanQr] = useState(false);
 
   const shelters = [
     { name: "SPCA Selangor", url: "https://www.spca.org.my/" },
@@ -2837,6 +3255,41 @@ function CharityPage() {
           }}
         />
         <GasEstimateBox presetKey="charity" refreshKey={token + toAddress} />
+
+        <div style={{ display: "flex", gap: 10, marginTop: 12, marginBottom: 4 }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!charityAddr) {
+                alert("请先连接钱包
+Please connect wallet first");
+                return;
+              }
+              setShowMyQr(true);
+            }}
+            style={{ ...ghostBtn, flex: 1, boxSizing: "border-box" }}
+          >
+            我的二维码 / My QR
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowScanQr(true)}
+            style={{ ...ghostBtn, flex: 1, boxSizing: "border-box" }}
+          >
+            扫码 / Scan QR
+          </button>
+        </div>
+
+        {showMyQr && (
+          <MyQrModal address={charityAddr} onClose={() => setShowMyQr(false)} />
+        )}
+        {showScanQr && (
+          <ScanQrModal
+            onDetected={(addr) => setToAddress(addr)}
+            onClose={() => setShowScanQr(false)}
+          />
+        )}
+
         <button
           type="button"
           onClick={handleDonate}
