@@ -1,6 +1,8 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 02.08.2026 v7.4.1（iOS 先 getUserMedia 弹权限再 html5-qrcode）
+ * PAWLY DApp — 02.08.2026 v7.5 最强版
+ * 全钱包可签 · 扫码 iOS/Android · 地址持久化 · 确认自动拉起多钱包选择
+ * Phantom / Solflare / Trust / Coinbase / Mobile Wallet Adapter
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
@@ -20,7 +22,7 @@ import {
   WalletProvider,
   useWallet,
 } from "@solana/wallet-adapter-react";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+import { WalletModalProvider, useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -1504,6 +1506,38 @@ function StakingPage() {
 }
 
 
+
+const PAY_DRAFT_KEY = "pawly_payment_draft_v1";
+const CHARITY_DRAFT_KEY = "pawly_charity_draft_v1";
+function saveDraft(key, partial) {
+  try {
+    const prev = JSON.parse(sessionStorage.getItem(key) || localStorage.getItem(key) || "{}");
+    const next = { ...prev, ...partial, ts: Date.now() };
+    sessionStorage.setItem(key, JSON.stringify(next));
+    localStorage.setItem(key, JSON.stringify(next));
+  } catch (_) {}
+}
+function loadDraft(key) {
+  try {
+    const s = sessionStorage.getItem(key) || localStorage.getItem(key) || "{}";
+    return JSON.parse(s);
+  } catch (_) {
+    return {};
+  }
+}
+function savePayDraft(partial) {
+  saveDraft(PAY_DRAFT_KEY, partial);
+}
+function loadPayDraft() {
+  return loadDraft(PAY_DRAFT_KEY);
+}
+function saveCharityDraft(partial) {
+  saveDraft(CHARITY_DRAFT_KEY, partial);
+}
+function loadCharityDraft() {
+  return loadDraft(CHARITY_DRAFT_KEY);
+}
+
 /** 从扫码/粘贴文本提取 Solana 地址 */
 function extractSolanaAddress(raw) {
   if (!raw) return "";
@@ -1999,8 +2033,8 @@ function PaymentPage() {
   const { publicKey, connected, sendTransaction } = useWallet();
   const { pwaData } = useUserData();
   const [payToken, setPayToken] = useState("SOL");
-  const [toAddress, setToAddress] = useState("");
-  const [amount, setAmount] = useState("");
+  const [toAddress, setToAddress] = useState(() => loadPayDraft().toAddress || "");
+  const [amount, setAmount] = useState(() => loadPayDraft().amount || "");
   const [realBalance, setRealBalance] = useState(0);
   const [fiatRates, setFiatRates] = useState(null);
   const [solUsd, setSolUsd] = useState(null);
@@ -2012,6 +2046,11 @@ function PaymentPage() {
   const [lastSig, setLastSig] = useState("");
   const [showMyQr, setShowMyQr] = useState(false);
   const [showScanQr, setShowScanQr] = useState(false);
+  const { setVisible: setWalletModalVisible } = useWalletModal();
+
+  useEffect(() => {
+    savePayDraft({ toAddress, amount, payToken });
+  }, [toAddress, amount, payToken]);
 
   const FIATS = [
     { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
@@ -2095,15 +2134,25 @@ function PaymentPage() {
   const fiatEq = fiatRate != null ? usdcEq * fiatRate : null;
   const fiatMeta = FIATS.find((f) => f.code === fiatCode) || FIATS[0];
 
+  const ensureSigningWallet = () => {
+    // 任意已注册适配器（Phantom/Solflare/Trust/Coinbase/MWA）只要 connected + sendTransaction 即可签名
+    if (connected && publicKey && typeof sendTransaction === "function") return true;
+    savePayDraft({ toAddress, amount, payToken });
+    alert(
+      "请选择钱包平台并完成连接（Phantom / Solflare / Trust / Coinbase 等均可）。\n收款地址已保存，连接成功后请再点一次「确认」完成签名。\n\nChoose any wallet platform to connect. Address is saved — tap Confirm again to sign."
+    );
+    try {
+      setWalletModalVisible(true);
+    } catch (_) {}
+    return false;
+  };
+
   const confirm = async () => {
-    if (!connected || !publicKey || !sendTransaction) {
-      alert("请先连接可签名的钱包\nPlease connect a signing wallet first");
-      return;
-    }
     if (!toAddress.trim()) {
       alert("请输入收款钱包地址\nPlease enter recipient wallet address");
       return;
     }
+    if (!ensureSigningWallet()) return;
     if (!amt || amt <= 0) {
       alert("请输入有效金额\nPlease enter a valid amount");
       return;
@@ -2293,6 +2342,18 @@ function PaymentPage() {
           presetKey={payToken === "SOL" ? "transfer_sol" : "transfer_token"}
           refreshKey={amount + payToken}
         />
+        <p
+          style={{
+            color: connected && publicKey && sendTransaction ? "#00c853" : "#ffb74d",
+            fontSize: 12,
+            margin: "8px 0 4px",
+            textAlign: "center",
+          }}
+        >
+          {connected && publicKey && sendTransaction
+            ? "✓ 签名钱包已连接 — 点确认将向当前钱包请求签名 / Signing wallet ready (any platform)"
+            : "⚠ 未连接 — 点确认将打开多钱包选择（地址已保留） / Tap Confirm to open multi-wallet selector"}
+        </p>
         <button
           onClick={confirm}
           disabled={txLoading}
@@ -3153,13 +3214,18 @@ function CharityPage() {
   const { connected, publicKey, sendTransaction } = useWallet();
   const { pwaData } = useUserData();
   const [token, setToken] = useState("SOL");
-  const [toAddress, setToAddress] = useState("");
-  const [amount, setAmount] = useState("");
+  const [toAddress, setToAddress] = useState(() => loadCharityDraft().toAddress || "");
+  const [amount, setAmount] = useState(() => loadCharityDraft().amount || "");
   const [realBalance, setRealBalance] = useState(0);
   const [txLoading, setTxLoading] = useState(false);
   const [lastSig, setLastSig] = useState("");
   const [showMyQr, setShowMyQr] = useState(false);
   const [showScanQr, setShowScanQr] = useState(false);
+  const { setVisible: setWalletModalVisible } = useWalletModal();
+
+  useEffect(() => {
+    saveCharityDraft({ toAddress, amount, token });
+  }, [toAddress, amount, token]);
 
   const shelters = [
     { name: "SPCA Selangor", url: "https://www.spca.org.my/" },
@@ -3191,13 +3257,18 @@ function CharityPage() {
   }, [charityAddr, token, maxPawly]);
 
   const handleDonate = async () => {
-    if (!connected || !publicKey || !sendTransaction) {
-      return alert("请先连接可签名的钱包\nPlease connect a signing wallet");
-    }
     if (!toAddress.trim()) {
       return alert(
         "请粘贴慈善机构的 Solana 钱包地址\nPlease paste the charity Solana wallet address"
       );
+    }
+    if (!connected || !publicKey || typeof sendTransaction !== "function") {
+      saveCharityDraft({ toAddress, amount, token });
+      alert(
+        "请选择钱包平台并连接（Phantom / Solflare / Trust / Coinbase 等均可）。\n捐赠地址已保存，连接后再点「确认捐赠」签名。\n\nChoose any wallet to connect. Address saved — tap Confirm Donate again."
+      );
+      try { setWalletModalVisible(true); } catch (_) {}
+      return;
     }
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) {
