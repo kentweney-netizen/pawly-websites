@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 02.08.2026 v7.4（扫码 html5-qrcode 跨平台 iOS+Android）
+ * PAWLY DApp — 02.08.2026 v7.4.1（iOS 先 getUserMedia 弹权限再 html5-qrcode）
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
@@ -1718,36 +1718,106 @@ function ScanQrModal({ onDetected, onClose }) {
     setCamErr("");
     setLoadingLib(true);
     try {
+      // 1) iOS Safari：必须在用户点击手势里先申请相机，才会弹出系统权限框
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error(
+          "此浏览器不支持相机 API / Camera API not supported"
+        );
+      }
+      let preStream = null;
+      try {
+        preStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        });
+      } catch (permErr) {
+        // 再试一次不带 facingMode（部分 iOS 更稳）
+        try {
+          preStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: true,
+          });
+        } catch (permErr2) {
+          const m = permErr2?.name || permErr?.name || "";
+          const msg = permErr2?.message || permErr?.message || String(permErr2);
+          if (/NotAllowedError|Permission|Denied/i.test(m + msg)) {
+            throw new Error(
+              "相机权限被拒绝。请到 iPhone「设置 → Safari → 相机」允许，或清除本站数据后重试。\nCamera denied. Settings → Safari → Camera → Allow, or clear website data."
+            );
+          }
+          if (/NotFoundError|DevicesNotFound/i.test(m + msg)) {
+            throw new Error(
+              "未找到摄像头，请用相册或粘贴地址。\nNo camera; use Gallery or Paste."
+            );
+          }
+          throw permErr2 || permErr;
+        }
+      }
+      // 2) 立刻释放预申请的轨道，再交给 html5-qrcode 正式占用
+      if (preStream) {
+        preStream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch (_) {}
+        });
+        preStream = null;
+      }
+
+      // 3) 加载库并开始扫描
       const Html5Qrcode = await loadHtml5QrcodeLib();
       await stopCam();
       const scanner = new Html5Qrcode(readerId);
       scannerRef.current = scanner;
       setScanning(true);
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 8, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
-        async (decodedText) => {
-          await finish(decodedText);
-        },
-        () => {}
-      );
+
+      // iOS：优先 environment；失败则枚举摄像头选后置
+      const tryStart = async (config) => {
+        await scanner.start(
+          config,
+          { fps: 8, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
+          async (decodedText) => {
+            await finish(decodedText);
+          },
+          () => {}
+        );
+      };
+
+      try {
+        await tryStart({ facingMode: "environment" });
+      } catch (startErr) {
+        try {
+          const cameras = await Html5Qrcode.getCameras();
+          if (cameras && cameras.length) {
+            // 选最后一个常为后置
+            const camId = cameras[cameras.length - 1].id;
+            await tryStart(camId);
+          } else {
+            await tryStart({ facingMode: "user" });
+          }
+        } catch (startErr2) {
+          throw startErr2 || startErr;
+        }
+      }
     } catch (e) {
       setScanning(false);
       const msg = e?.message || String(e);
-      // iOS 权限拒绝或无摄像头时给出明确指引
-      if (/NotAllowedError|Permission|denied/i.test(msg)) {
+      if (/NotAllowedError|Permission|denied|拒绝/i.test(msg)) {
         setCamErr(
-          "请允许摄像头权限后重试，或改用相册/粘贴地址。\nAllow camera permission, or use Gallery / Paste."
+          "请允许摄像头权限后重试；iOS 请在 Safari 中打开本站（勿用钱包内置浏览器）。\nAllow camera; on iOS open in Safari (not in-wallet browser).\n" +
+            msg
         );
-      } else if (/NotFoundError|no camera|Requested device/i.test(msg)) {
+      } else if (/NotFoundError|no camera|Requested device|未找到/i.test(msg)) {
         setCamErr(
           "未找到摄像头，请用相册或粘贴地址。\nNo camera found; use Gallery or Paste."
         );
       } else {
         setCamErr(
-          "无法启动摄像头：" +
-            msg +
-            "\n可改用「相册」或「粘贴地址」。\nCamera failed — use Gallery or Paste."
+          "无法启动摄像头。iOS 请用 Safari 打开并允许相机；或改用相册/粘贴。\n" +
+            msg
         );
       }
     } finally {
