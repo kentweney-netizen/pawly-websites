@@ -2203,8 +2203,7 @@ function PaymentPage() {
             type="button"
             onClick={() => {
               if (!payWalletAddr) {
-                alert("请先连接钱包
-Please connect wallet first");
+                alert("请先连接钱包\nPlease connect wallet first");
                 return;
               }
               setShowMyQr(true);
@@ -3261,8 +3260,7 @@ function CharityPage() {
             type="button"
             onClick={() => {
               if (!charityAddr) {
-                alert("请先连接钱包
-Please connect wallet first");
+                alert("请先连接钱包\nPlease connect wallet first");
                 return;
               }
               setShowMyQr(true);
