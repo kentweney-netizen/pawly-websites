@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 02.08.2026 v7.3（Payment/Charity 我的二维码+扫码；主页双语 desc）
+ * PAWLY DApp — 02.08.2026 v7.4（扫码 html5-qrcode 跨平台 iOS+Android）
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
@@ -1644,27 +1644,54 @@ function MyQrModal({ address, onClose }) {
   );
 }
 
+function loadHtml5QrcodeLib() {
+  return new Promise((resolve, reject) => {
+    if (typeof window !== "undefined" && window.Html5Qrcode) {
+      resolve(window.Html5Qrcode);
+      return;
+    }
+    const existing = document.querySelector("script[data-pawly-html5-qrcode]");
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.Html5Qrcode));
+      existing.addEventListener("error", () => reject(new Error("html5-qrcode load failed")));
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js";
+    s.async = true;
+    s.dataset.pawlyHtml5Qrcode = "1";
+    s.onload = () => {
+      if (window.Html5Qrcode) resolve(window.Html5Qrcode);
+      else reject(new Error("Html5Qrcode missing after load"));
+    };
+    s.onerror = () => reject(new Error("Failed to load html5-qrcode from CDN"));
+    document.head.appendChild(s);
+  });
+}
+
 function ScanQrModal({ onDetected, onClose }) {
   const [manual, setManual] = useState("");
   const [camErr, setCamErr] = useState("");
   const [scanning, setScanning] = useState(false);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const timerRef = useRef(null);
+  const [loadingLib, setLoadingLib] = useState(false);
+  const scannerRef = useRef(null);
+  const readerId = "pawly-qr-reader";
 
-  const stopCam = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
+  const stopCam = async () => {
+    try {
+      if (scannerRef.current) {
+        const sc = scannerRef.current;
+        scannerRef.current = null;
+        if (sc.isScanning) await sc.stop();
+        try {
+          sc.clear();
+        } catch (_) {}
+      }
+    } catch (_) {}
     setScanning(false);
   };
 
-  const finish = (text) => {
+  const finish = async (text) => {
     const addr = extractSolanaAddress(text);
     if (!addr) {
       alert("未识别到有效 Solana 地址\nNo valid Solana address found");
@@ -1676,74 +1703,78 @@ function ScanQrModal({ onDetected, onClose }) {
       alert("地址无效 / Invalid address");
       return;
     }
-    stopCam();
+    await stopCam();
     onDetected(addr);
     onClose();
   };
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
+      stopCam();
     };
   }, []);
 
   const startCam = async () => {
     setCamErr("");
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCamErr("此浏览器不支持摄像头 / Camera not supported");
-      return;
-    }
-    if (!("BarcodeDetector" in window)) {
-      setCamErr(
-        "此浏览器不支持实时扫码，请用「相册」或「粘贴地址」。\nNo BarcodeDetector; use gallery or paste."
-      );
-      return;
-    }
+    setLoadingLib(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      const Html5Qrcode = await loadHtml5QrcodeLib();
+      await stopCam();
+      const scanner = new Html5Qrcode(readerId);
+      scannerRef.current = scanner;
       setScanning(true);
-      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-      timerRef.current = setInterval(async () => {
-        try {
-          if (!videoRef.current || videoRef.current.readyState < 2) return;
-          const codes = await detector.detect(videoRef.current);
-          if (codes?.[0]?.rawValue) finish(codes[0].rawValue);
-        } catch (_) {}
-      }, 500);
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 8, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
+        async (decodedText) => {
+          await finish(decodedText);
+        },
+        () => {}
+      );
     } catch (e) {
-      setCamErr(e?.message || String(e));
+      setScanning(false);
+      const msg = e?.message || String(e);
+      // iOS 权限拒绝或无摄像头时给出明确指引
+      if (/NotAllowedError|Permission|denied/i.test(msg)) {
+        setCamErr(
+          "请允许摄像头权限后重试，或改用相册/粘贴地址。\nAllow camera permission, or use Gallery / Paste."
+        );
+      } else if (/NotFoundError|no camera|Requested device/i.test(msg)) {
+        setCamErr(
+          "未找到摄像头，请用相册或粘贴地址。\nNo camera found; use Gallery or Paste."
+        );
+      } else {
+        setCamErr(
+          "无法启动摄像头：" +
+            msg +
+            "\n可改用「相册」或「粘贴地址」。\nCamera failed — use Gallery or Paste."
+        );
+      }
+    } finally {
+      setLoadingLib(false);
     }
   };
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setCamErr("");
+    setLoadingLib(true);
     try {
-      if (!("BarcodeDetector" in window)) {
-        alert(
-          "此设备无法识别图片中的二维码，请粘贴地址。\nCannot decode QR image; paste address instead."
-        );
-        return;
-      }
-      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-      const bmp = await createImageBitmap(file);
-      const codes = await detector.detect(bmp);
-      if (typeof bmp.close === "function") bmp.close();
-      if (codes?.[0]?.rawValue) finish(codes[0].rawValue);
-      else alert("图片中未找到二维码\nNo QR found in image");
+      const Html5Qrcode = await loadHtml5QrcodeLib();
+      await stopCam();
+      const scanner = new Html5Qrcode(readerId);
+      scannerRef.current = scanner;
+      const decoded = await scanner.scanFile(file, true);
+      await finish(decoded);
     } catch (err) {
-      alert(err?.message || String(err));
+      setCamErr(
+        "图片识别失败，请换一张清晰二维码或粘贴地址。\n" +
+          (err?.message || String(err))
+      );
+    } finally {
+      setLoadingLib(false);
+      e.target.value = "";
     }
   };
 
@@ -1808,27 +1839,30 @@ function ScanQrModal({ onDetected, onClose }) {
           </button>
         </div>
 
-        <video
-          ref={videoRef}
-          muted
-          playsInline
+        <div
+          id={readerId}
           style={{
             width: "100%",
+            minHeight: scanning ? 240 : 0,
+            marginBottom: scanning ? 10 : 0,
             borderRadius: 12,
-            background: "#000",
-            minHeight: scanning ? 200 : 0,
-            display: scanning ? "block" : "none",
-            marginBottom: 10,
+            overflow: "hidden",
+            background: scanning ? "#000" : "transparent",
           }}
         />
 
         <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
           <button
             type="button"
-            onClick={scanning ? stopCam : startCam}
-            style={{ ...ghostBtn, flex: 1, minWidth: 120 }}
+            disabled={loadingLib}
+            onClick={scanning ? () => stopCam() : startCam}
+            style={{ ...ghostBtn, flex: 1, minWidth: 120, opacity: loadingLib ? 0.6 : 1 }}
           >
-            {scanning ? "停止摄像头 / Stop" : "摄像头扫码 / Camera"}
+            {loadingLib
+              ? "加载中… / Loading…"
+              : scanning
+                ? "停止摄像头 / Stop"
+                : "摄像头扫码 / Camera"}
           </button>
           <label
             style={{
@@ -1838,6 +1872,7 @@ function ScanQrModal({ onDetected, onClose }) {
               textAlign: "center",
               cursor: "pointer",
               boxSizing: "border-box",
+              opacity: loadingLib ? 0.6 : 1,
             }}
           >
             相册 / Gallery
@@ -1847,12 +1882,19 @@ function ScanQrModal({ onDetected, onClose }) {
               capture="environment"
               onChange={onFile}
               style={{ display: "none" }}
+              disabled={loadingLib}
             />
           </label>
         </div>
         {camErr ? (
-          <p style={{ color: "#ff8a80", fontSize: 12, marginTop: 0 }}>{camErr}</p>
-        ) : null}
+          <p style={{ color: "#ff8a80", fontSize: 12, marginTop: 0, lineHeight: 1.45 }}>{camErr}</p>
+        ) : (
+          <p style={{ color: "#667", fontSize: 11, marginTop: 0, lineHeight: 1.45 }}>
+            iOS / Android 均支持。首次请允许摄像头权限。
+            <br />
+            Works on iOS & Android. Allow camera when prompted.
+          </p>
+        )}
 
         <p style={{ color: "#99a", fontSize: 13, margin: "8px 0" }}>
           或粘贴地址 / Or paste address
