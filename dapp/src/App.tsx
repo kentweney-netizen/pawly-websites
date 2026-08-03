@@ -1,8 +1,8 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 02.08.2026 v7.5 最强版
- * 全钱包可签 · 扫码 iOS/Android · 地址持久化 · 确认自动拉起多钱包选择
- * Phantom / Solflare / Trust / Coinbase / Mobile Wallet Adapter
+ * PAWLY DApp — 02.08.2026 v7.5.2（Phantom 模拟友好小优化）
+ * ATA: getAccountInfo；单签；Jupiter v0 sendTransaction
+ * 扫码环境检测保留
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
@@ -177,20 +177,16 @@ async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress,
     const fromAta = await getAssociatedTokenAddress(mint, publicKey);
     const toAta = await getAssociatedTokenAddress(mint, toPubkey);
 
-    // ensure sender ATA has balance path exists
+    // Phantom 模拟友好：先确认发送方有 ATA；收款方无 ATA 则由付款方创建（同笔交易、单签）
     try {
       await getAccount(connection, fromAta);
     } catch {
       throw new Error(`No ${token} token account / 没有 ${token} 代币账户`);
     }
 
-    let needCreate = false;
-    try {
-      await getAccount(connection, toAta);
-    } catch {
-      needCreate = true;
-    }
-    if (needCreate) {
+    // 与 Phantom 支持建议一致：用 getAccountInfo 判断收款 ATA 是否存在
+    const toAtaInfo = await connection.getAccountInfo(toAta);
+    if (!toAtaInfo) {
       tx.add(
         createAssociatedTokenAccountInstruction(
           publicKey,
@@ -1678,6 +1674,95 @@ function MyQrModal({ address, onClose }) {
   );
 }
 
+
+/** 扫码环境检测：用于提示文案（不改变签名逻辑） */
+function detectScanEnv() {
+  if (typeof navigator === "undefined") {
+    return { isIOS: false, isAndroid: false, inWalletBrowser: false, label: "browser" };
+  }
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const inWalletBrowser =
+    /Phantom/i.test(ua) ||
+    /Solflare/i.test(ua) ||
+    /Trust/i.test(ua) ||
+    /Coinbase/i.test(ua) ||
+    /cbwallet/i.test(ua) ||
+    /WebView/i.test(ua);
+  let label = isIOS ? "iOS" : isAndroid ? "Android" : "Desktop";
+  if (inWalletBrowser) {
+    if (/Phantom/i.test(ua)) label += " · Phantom in-app";
+    else if (/Solflare/i.test(ua)) label += " · Solflare in-app";
+    else if (/Trust/i.test(ua)) label += " · Trust in-app";
+    else if (/Coinbase|cbwallet/i.test(ua)) label += " · Coinbase in-app";
+    else label += " · Wallet WebView";
+  }
+  return { isIOS, isAndroid, inWalletBrowser, label };
+}
+
+function cameraFailMessage(kind, detail) {
+  const env = detectScanEnv();
+  const d = detail ? "\n" + detail : "";
+  if (kind === "permission") {
+    if (env.isIOS) {
+      return (
+        "相机权限被拒绝。请到「设置 → Safari（或当前浏览器）→ 相机」允许后重试；或使用相册/粘贴地址。\n" +
+        "Camera denied. Settings → Browser → Camera → Allow; or use Gallery / Paste." +
+        d
+      );
+    }
+    if (env.isAndroid) {
+      return (
+        "相机权限被拒绝。请在系统设置里允许浏览器/钱包的相机权限，或改用相册/粘贴地址。\n" +
+        "Camera denied. Allow camera for this app in Android settings; or use Gallery / Paste." +
+        d
+      );
+    }
+    return (
+      "相机权限被拒绝，请允许后重试，或使用相册/粘贴地址。\nCamera permission denied. Allow access or use Gallery / Paste." +
+      d
+    );
+  }
+  if (kind === "notfound") {
+    return (
+      "未找到可用摄像头。请改用「相册」识别二维码或「粘贴地址」。\n" +
+      "No camera found. Use Gallery or Paste address." +
+      d
+    );
+  }
+  // generic start failure
+  if (env.inWalletBrowser) {
+    return (
+      "当前在钱包内置浏览器中，摄像头常被系统限制（" +
+      env.label +
+      "）。\n请优先使用「相册」或「粘贴地址」；完整摄像头请用系统浏览器（Chrome/Safari）打开 https://pawlypets.netlify.app/dapp 再连接钱包。\n\n" +
+      "In-wallet browser often blocks camera (" +
+      env.label +
+      "). Prefer Gallery or Paste. For live camera, open the dApp in Chrome/Safari, then connect your wallet." +
+      d
+    );
+  }
+  if (env.isIOS) {
+    return (
+      "无法启动摄像头。请用 Safari 打开本站并允许相机，或改用相册/粘贴。\n" +
+      "Cannot start camera. Open in Safari and allow camera, or use Gallery / Paste." +
+      d
+    );
+  }
+  if (env.isAndroid) {
+    return (
+      "无法启动摄像头。请用 Chrome 打开本站并允许相机，或改用相册/粘贴。\n" +
+      "Cannot start camera. Open in Chrome and allow camera, or use Gallery / Paste." +
+      d
+    );
+  }
+  return (
+    "无法启动摄像头，请改用相册识别或粘贴地址。\nCannot start camera. Use Gallery or Paste." +
+    d
+  );
+}
+
 function loadHtml5QrcodeLib() {
   return new Promise((resolve, reject) => {
     if (typeof window !== "undefined" && window.Html5Qrcode) {
@@ -1779,14 +1864,10 @@ function ScanQrModal({ onDetected, onClose }) {
           const m = permErr2?.name || permErr?.name || "";
           const msg = permErr2?.message || permErr?.message || String(permErr2);
           if (/NotAllowedError|Permission|Denied/i.test(m + msg)) {
-            throw new Error(
-              "相机权限被拒绝。请到 iPhone「设置 → Safari → 相机」允许，或清除本站数据后重试。\nCamera denied. Settings → Safari → Camera → Allow, or clear website data."
-            );
+            throw new Error(cameraFailMessage("permission"));
           }
           if (/NotFoundError|DevicesNotFound/i.test(m + msg)) {
-            throw new Error(
-              "未找到摄像头，请用相册或粘贴地址。\nNo camera; use Gallery or Paste."
-            );
+            throw new Error(cameraFailMessage("notfound"));
           }
           throw permErr2 || permErr;
         }
@@ -1840,19 +1921,11 @@ function ScanQrModal({ onDetected, onClose }) {
       setScanning(false);
       const msg = e?.message || String(e);
       if (/NotAllowedError|Permission|denied|拒绝/i.test(msg)) {
-        setCamErr(
-          "请允许摄像头权限后重试；iOS 请在 Safari 中打开本站（勿用钱包内置浏览器）。\nAllow camera; on iOS open in Safari (not in-wallet browser).\n" +
-            msg
-        );
+        setCamErr(cameraFailMessage("permission", msg));
       } else if (/NotFoundError|no camera|Requested device|未找到/i.test(msg)) {
-        setCamErr(
-          "未找到摄像头，请用相册或粘贴地址。\nNo camera found; use Gallery or Paste."
-        );
+        setCamErr(cameraFailMessage("notfound", msg));
       } else {
-        setCamErr(
-          "无法启动摄像头。iOS 请用 Safari 打开并允许相机；或改用相册/粘贴。\n" +
-            msg
-        );
+        setCamErr(cameraFailMessage("generic", msg));
       }
     } finally {
       setLoadingLib(false);
@@ -1994,9 +2067,9 @@ function ScanQrModal({ onDetected, onClose }) {
           <p style={{ color: "#ff8a80", fontSize: 12, marginTop: 0, lineHeight: 1.45 }}>{camErr}</p>
         ) : (
           <p style={{ color: "#667", fontSize: 11, marginTop: 0, lineHeight: 1.45 }}>
-            iOS / Android 均支持。首次请允许摄像头权限。
-            <br />
-            Works on iOS & Android. Allow camera when prompted.
+            {detectScanEnv().inWalletBrowser
+              ? "检测到钱包内浏览器：实时摄像头可能不可用，请优先「相册」或「粘贴地址」。\nIn-wallet browser detected — prefer Gallery or Paste."
+              : "系统浏览器下可点摄像头；首次请允许权限。失败时请用相册/粘贴。\nIn system browser, allow camera when prompted; else use Gallery / Paste."}
           </p>
         )}
 
