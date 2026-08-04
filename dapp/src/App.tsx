@@ -1,8 +1,8 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 02.08.2026 v7.5.2（Phantom 模拟友好小优化）
- * ATA: getAccountInfo；单签；Jupiter v0 sendTransaction
- * 扫码环境检测保留
+ * PAWLY DApp — 03.08.2026 v7.5.2 + 正式域名 www.pawlypets.online
+ * ATA: getAccountInfo；单签；Jupiter v0；扫码环境检测
+ * appIdentity.uri / 外链已切正式域
  * v7 + 本次：
  *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
  *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
@@ -65,7 +65,7 @@ const wallets = [
     addressSelector: createDefaultAddressSelector(),
     appIdentity: {
       name: "PAWLY DApp",
-      uri: "https://pawlypets.netlify.app",
+      uri: "https://www.pawlypets.online",
       icon: "/pawly-token-helps.png",
     },
     authorizationResultCache: createDefaultAuthorizationResultCache(),
@@ -579,7 +579,7 @@ function openOnrampPlatform(platform, walletAddress, crypto) {
     // Ramp Network 官方买币（用户自助）
     const params = new URLSearchParams({
       hostAppName: "PAWLY",
-      hostLogoUrl: "https://pawlypets.netlify.app/pawly-token-helps.png",
+      hostLogoUrl: "https://www.pawlypets.online/pawly-token-helps.png",
       swapAsset: c === "SOL" ? "SOLANA_SOL" : c === "USDC" ? "SOLANA_USDC" : "SOLANA_USDT",
       userAddress: addr,
       defaultAsset: c === "SOL" ? "SOLANA_SOL" : c === "USDC" ? "SOLANA_USDC" : "SOLANA_USDT",
@@ -1373,7 +1373,7 @@ function HomePage() {
         </div>
 
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <a href="https://pawlypets.netlify.app" style={{ ...ghostBtn, display: "inline-block", textDecoration: "none" }}>
+          <a href="https://www.pawlypets.online" style={{ ...ghostBtn, display: "inline-block", textDecoration: "none" }}>
             ← 返回 PAWLY 主站 / Back to PWA
           </a>
         </div>
@@ -1736,7 +1736,7 @@ function cameraFailMessage(kind, detail) {
     return (
       "当前在钱包内置浏览器中，摄像头常被系统限制（" +
       env.label +
-      "）。\n请优先使用「相册」或「粘贴地址」；完整摄像头请用系统浏览器（Chrome/Safari）打开 https://pawlypets.netlify.app/dapp 再连接钱包。\n\n" +
+      "）。\n请优先使用「相册」或「粘贴地址」；完整摄像头请用系统浏览器（Chrome/Safari）打开 https://www.pawlypets.online/dapp 再连接钱包。\n\n" +
       "In-wallet browser often blocks camera (" +
       env.label +
       "). Prefer Gallery or Paste. For live camera, open the dApp in Chrome/Safari, then connect your wallet." +
