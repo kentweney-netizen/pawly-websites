@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 05.08.2026 v7.5.3 + dapp_onchain_events 上链成功写入 Supabase
+ * PAWLY DApp — 05.08.2026 v7.5.4 + assertTxSuccess + status success/failed
  * ATA: getAccountInfo；单签；Jupiter v0；扫码环境检测
  * appIdentity.uri / 外链已切正式域
  * v7 + 本次：
@@ -89,10 +89,66 @@ const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID || "";
 const PAWLY_DAPP_USER_KEY = "pawly_dapp_user_v1";
 
 
-/** dApp 上链成功事件 → Supabase（无需 PWA 注册也可统计独立钱包） */
+/** 确认交易在链上无 err（有签名仍可能 Failed） */
+async function assertTxSuccess(sig, retries = 8) {
+  if (!sig) throw new Error("Missing transaction signature");
+  const connection = getConnection();
+  let lastErr = null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await connection.getSignatureStatuses([sig], {
+        searchTransactionHistory: true,
+      });
+      const st = res?.value?.[0];
+      if (st) {
+        if (st.err) {
+          const msg =
+            typeof st.err === "object" ? JSON.stringify(st.err) : String(st.err);
+          throw new Error("Transaction failed on-chain: " + msg);
+        }
+        // processed / confirmed / finalized 且无 err
+        if (
+          st.confirmationStatus === "confirmed" ||
+          st.confirmationStatus === "finalized" ||
+          st.confirmations === null ||
+          (typeof st.confirmations === "number" && st.confirmations >= 0)
+        ) {
+          return true;
+        }
+      }
+    } catch (e) {
+      if (String(e?.message || e).includes("failed on-chain")) throw e;
+      lastErr = e;
+    }
+    await new Promise((r) => setTimeout(r, 900));
+  }
+  // 最后再查一次 transaction meta
+  try {
+    const tx = await connection.getTransaction(sig, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    if (tx?.meta?.err) {
+      throw new Error(
+        "Transaction failed on-chain: " + JSON.stringify(tx.meta.err)
+      );
+    }
+    if (tx) return true;
+  } catch (e) {
+    if (String(e?.message || e).includes("failed on-chain")) throw e;
+    lastErr = e;
+  }
+  throw new Error(
+    "Could not confirm transaction success / 无法确认链上成功: " +
+      (lastErr?.message || String(lastErr || ""))
+  );
+}
+
+/** dApp 上链事件 → Supabase（默认只应写入 status=success；发奖务必 filter success） */
 async function logDappOnchainEvent(payload) {
   try {
     if (!payload?.tx_sig || !payload?.wallet) return;
+    const status = payload.status || "success";
     const { error } = await supabase.from("dapp_onchain_events").insert({
       wallet: String(payload.wallet),
       event_type: payload.event_type || "unknown",
@@ -101,6 +157,7 @@ async function logDappOnchainEvent(payload) {
       counterparty: payload.counterparty ?? null,
       tx_sig: String(payload.tx_sig),
       source: "dapp",
+      status,
     });
     if (error) console.warn("logDappOnchainEvent", error.message || error);
   } catch (e) {
@@ -2272,6 +2329,7 @@ function PaymentPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
+      await assertTxSuccess(sig);
       await logDappOnchainEvent({
         wallet: publicKey.toString(),
         event_type: "payment",
@@ -2279,6 +2337,7 @@ function PaymentPage() {
         amount: amt,
         counterparty: toAddress.trim(),
         tx_sig: sig,
+        status: "success",
       });
       alert(
         `✅ 链上成功 / On-chain success\n\n${amt} ${payToken}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
@@ -2851,6 +2910,7 @@ function SwapPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
+      await assertTxSuccess(sig);
       await logDappOnchainEvent({
         wallet: publicKey.toString(),
         event_type: "swap",
@@ -2858,6 +2918,7 @@ function SwapPage() {
         amount: amt,
         counterparty: null,
         tx_sig: sig,
+        status: "success",
       });
       alert(
         `✅ 兑换成功 / Swap success\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n路由 / Route: ${bestQuote.source}\n\nTx: ${sig}\nhttps://solscan.io/tx/${sig}`
@@ -3403,6 +3464,7 @@ function CharityPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
+      await assertTxSuccess(sig);
       await logDappOnchainEvent({
         wallet: publicKey.toString(),
         event_type: "donate",
@@ -3410,6 +3472,7 @@ function CharityPage() {
         amount: amt,
         counterparty: toAddress.trim(),
         tx_sig: sig,
+        status: "success",
       });
       alert(
         `✅ 捐赠成功 / Donation success\n\n${amt} ${token}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
