@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 03.08.2026 v7.5.2 + 正式域名 www.pawlypets.online
+ * PAWLY DApp — 05.08.2026 v7.5.3 + dapp_onchain_events 上链成功写入 Supabase
  * ATA: getAccountInfo；单签；Jupiter v0；扫码环境检测
  * appIdentity.uri / 外链已切正式域
  * v7 + 本次：
@@ -87,6 +87,27 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID || "";
 const PAWLY_DAPP_USER_KEY = "pawly_dapp_user_v1";
+
+
+/** dApp 上链成功事件 → Supabase（无需 PWA 注册也可统计独立钱包） */
+async function logDappOnchainEvent(payload) {
+  try {
+    if (!payload?.tx_sig || !payload?.wallet) return;
+    const { error } = await supabase.from("dapp_onchain_events").insert({
+      wallet: String(payload.wallet),
+      event_type: payload.event_type || "unknown",
+      token: payload.token ?? null,
+      amount: payload.amount != null ? Number(payload.amount) : null,
+      counterparty: payload.counterparty ?? null,
+      tx_sig: String(payload.tx_sig),
+      source: "dapp",
+    });
+    if (error) console.warn("logDappOnchainEvent", error.message || error);
+  } catch (e) {
+    console.warn("logDappOnchainEvent failed", e);
+  }
+}
+
 
 /* ========== Token / CA 配置（上线后只改这里） ========== */
 const PAWLY_MINT = null; // TODO: 创建后填入 PAWLY Token CA
@@ -2251,6 +2272,14 @@ function PaymentPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
+      await logDappOnchainEvent({
+        wallet: publicKey.toString(),
+        event_type: "payment",
+        token: payToken,
+        amount: amt,
+        counterparty: toAddress.trim(),
+        tx_sig: sig,
+      });
       alert(
         `✅ 链上成功 / On-chain success\n\n${amt} ${payToken}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
       );
@@ -2822,6 +2851,14 @@ function SwapPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
+      await logDappOnchainEvent({
+        wallet: publicKey.toString(),
+        event_type: "swap",
+        token: `${fromToken}->${toToken}`,
+        amount: amt,
+        counterparty: null,
+        tx_sig: sig,
+      });
       alert(
         `✅ 兑换成功 / Swap success\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n路由 / Route: ${bestQuote.source}\n\nTx: ${sig}\nhttps://solscan.io/tx/${sig}`
       );
@@ -3366,6 +3403,14 @@ function CharityPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
+      await logDappOnchainEvent({
+        wallet: publicKey.toString(),
+        event_type: "donate",
+        token,
+        amount: amt,
+        counterparty: toAddress.trim(),
+        tx_sig: sig,
+      });
       alert(
         `✅ 捐赠成功 / Donation success\n\n${amt} ${token}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
       );
