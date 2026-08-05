@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 05.08.2026 v7.5.4 + assertTxSuccess + status success/failed
+ * PAWLY DApp — 05.08.2026 v7.5.5 + pending log + Edge RPC sync success/failed
  * ATA: getAccountInfo；单签；Jupiter v0；扫码环境检测
  * appIdentity.uri / 外链已切正式域
  * v7 + 本次：
@@ -144,7 +144,7 @@ async function assertTxSuccess(sig, retries = 8) {
   );
 }
 
-/** dApp 上链事件 → Supabase（默认只应写入 status=success；发奖务必 filter success） */
+/** dApp 上链事件 → Supabase（先 pending；Edge 用 RPC 同步 success/failed；统计只认 success） */
 async function logDappOnchainEvent(payload) {
   try {
     if (!payload?.tx_sig || !payload?.wallet) return;
@@ -2329,7 +2329,7 @@ function PaymentPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
-      await assertTxSuccess(sig);
+      // 先记 pending，由 Edge/RPC 同步为 success|failed（以链为准）
       await logDappOnchainEvent({
         wallet: publicKey.toString(),
         event_type: "payment",
@@ -2337,8 +2337,9 @@ function PaymentPage() {
         amount: amt,
         counterparty: toAddress.trim(),
         tx_sig: sig,
-        status: "success",
+        status: "pending",
       });
+      await assertTxSuccess(sig);
       alert(
         `✅ 链上成功 / On-chain success\n\n${amt} ${payToken}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
       );
@@ -2910,7 +2911,6 @@ function SwapPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
-      await assertTxSuccess(sig);
       await logDappOnchainEvent({
         wallet: publicKey.toString(),
         event_type: "swap",
@@ -2918,8 +2918,9 @@ function SwapPage() {
         amount: amt,
         counterparty: null,
         tx_sig: sig,
-        status: "success",
+        status: "pending",
       });
+      await assertTxSuccess(sig);
       alert(
         `✅ 兑换成功 / Swap success\n\n${amt} ${fromToken} → ≈ ${quote} ${toToken}\n路由 / Route: ${bestQuote.source}\n\nTx: ${sig}\nhttps://solscan.io/tx/${sig}`
       );
@@ -3464,7 +3465,6 @@ function CharityPage() {
         uiAmount: amt,
       });
       setLastSig(sig);
-      await assertTxSuccess(sig);
       await logDappOnchainEvent({
         wallet: publicKey.toString(),
         event_type: "donate",
@@ -3472,8 +3472,9 @@ function CharityPage() {
         amount: amt,
         counterparty: toAddress.trim(),
         tx_sig: sig,
-        status: "success",
+        status: "pending",
       });
+      await assertTxSuccess(sig);
       alert(
         `✅ 捐赠成功 / Donation success\n\n${amt} ${token}\n→ ${toAddress.slice(0, 8)}…${toAddress.slice(-6)}\n\nTx: ${sig}\n\nhttps://solscan.io/tx/${sig}`
       );
