@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 05.08.2026 v7.5.5 + pending log + Edge RPC sync success/failed
+ * PAWLY DApp — 06.08.2026 v7.5.6 + Trust VersionedTransaction transfer + pending/Edge sync
  * ATA: getAccountInfo；单签；Jupiter v0；扫码环境检测
  * appIdentity.uri / 外链已切正式域
  * v7 + 本次：
@@ -41,6 +41,7 @@ import {
   Connection,
   PublicKey,
   Transaction,
+  TransactionMessage,
   SystemProgram,
   VersionedTransaction,
   LAMPORTS_PER_SOL as WEB3_LAMPORTS,
@@ -238,10 +239,10 @@ async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress,
   if (raw == null || raw <= 0) throw new Error("Invalid amount / 数量无效");
 
   const connection = getConnection();
-  const tx = new Transaction();
+  const ixs = [];
 
   if (token === "SOL") {
-    tx.add(
+    ixs.push(
       SystemProgram.transfer({
         fromPubkey: publicKey,
         toPubkey,
@@ -265,7 +266,7 @@ async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress,
     // 与 Phantom 支持建议一致：用 getAccountInfo 判断收款 ATA 是否存在
     const toAtaInfo = await connection.getAccountInfo(toAta);
     if (!toAtaInfo) {
-      tx.add(
+      ixs.push(
         createAssociatedTokenAccountInstruction(
           publicKey,
           toAta,
@@ -276,7 +277,7 @@ async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress,
         )
       );
     }
-    tx.add(
+    ixs.push(
       createTransferInstruction(
         fromAta,
         toAta,
@@ -288,11 +289,35 @@ async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress,
     );
   }
 
+  // Trust Wallet 等：统一用 VersionedTransaction（与 Swap 相同路径），避免 serializeMessage is not a function
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = blockhash;
-  tx.feePayer = publicKey;
+  const messageV0 = new TransactionMessage({
+    payerKey: publicKey,
+    recentBlockhash: blockhash,
+    instructions: ixs,
+  }).compileToV0Message();
+  const vtx = new VersionedTransaction(messageV0);
 
-  const sig = await sendTransaction(tx, connection, { skipPreflight: false });
+  let sig;
+  try {
+    sig = await sendTransaction(vtx, connection, { skipPreflight: false });
+  } catch (e) {
+    // 少数钱包仍只认 legacy：回退旧 Transaction
+    const msg = String(e?.message || e);
+    if (
+      msg.includes("serializeMessage") ||
+      msg.includes("VersionedTransaction") ||
+      msg.includes("Unexpected")
+    ) {
+      const legacy = new Transaction();
+      legacy.recentBlockhash = blockhash;
+      legacy.feePayer = publicKey;
+      for (const ix of ixs) legacy.add(ix);
+      sig = await sendTransaction(legacy, connection, { skipPreflight: false });
+    } else {
+      throw e;
+    }
+  }
   await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
   return sig;
 }
