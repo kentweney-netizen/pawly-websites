@@ -13,196 +13,72 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       line-height: 1.7;
       min-height: 100vh;
-      padding: 40px 16px 60px;
+      padding: 36px 16px 50px;
     }
-    .container { max-width: 820px; margin: 0 auto; }
+    .container { max-width: 560px; margin: 0 auto; }
     h1 {
       color: #00ff9d;
-      font-size: 1.9rem;
+      font-size: 1.75rem;
       text-align: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .subtitle {
       text-align: center;
       color: #aaa;
-      font-size: 0.95rem;
-      margin-bottom: 28px;
+      font-size: 0.92rem;
+      margin-bottom: 22px;
     }
     .notice {
       background: rgba(255, 193, 7, 0.12);
       border: 1px solid rgba(255, 193, 7, 0.45);
       border-radius: 14px;
       padding: 14px 16px;
-      margin-bottom: 24px;
+      margin-bottom: 28px;
       font-size: 0.9rem;
       color: #f5e6a8;
       line-height: 1.65;
     }
-    .notice .en { color: #d4c48a; display: block; margin-top: 8px; font-size: 0.88rem; }
-    .card {
+    .notice .en {
+      color: #d4c48a;
+      display: block;
+      margin-top: 8px;
+      font-size: 0.86rem;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .open-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
       background: #1a0033;
       border: 2px solid #00ff9d;
-      border-radius: 18px;
-      padding: 28px 24px;
-      margin-bottom: 24px;
-    }
-    .card h2 {
       color: #00ff9d;
-      font-size: 1.35rem;
-      margin-bottom: 4px;
+      border-radius: 16px;
+      padding: 16px 18px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      font-family: inherit;
     }
-    .card .en-title {
+    .open-btn:hover, .open-btn:focus {
+      background: rgba(0, 255, 157, 0.12);
+      outline: none;
+    }
+    .open-btn:active { transform: scale(0.99); }
+    .open-btn .en {
+      display: block;
       color: #888;
-      font-size: 0.9rem;
-      margin-bottom: 18px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      margin-top: 4px;
     }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 18px;
-      margin-bottom: 20px;
-    }
-    .info-box {
-      background: rgba(255,255,255,0.05);
-      border-radius: 14px;
-      padding: 18px;
-    }
-    .info-box .label {
-      color: #00ff9d;
-      font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 0.95rem;
-    }
-    .info-box .value {
-      font-size: 1.4rem;
-      font-weight: bold;
-      color: #fff;
-    }
-    .info-box ul {
-      margin: 0;
-      padding-left: 18px;
-      line-height: 1.85;
-      color: #ddd;
-      font-size: 0.92rem;
-    }
-    .section-label {
-      color: #00ff9d;
-      font-weight: 600;
-      margin: 10px 0 12px;
-      font-size: 0.98rem;
-    }
-    .alloc-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 14px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      font-size: 0.95rem;
-    }
-    .alloc-row:last-child { border-bottom: none; }
-    .alloc-row .left { flex: 1; color: #ddd; }
-    .alloc-row .left strong { color: #fff; display: block; margin-bottom: 6px; }
-    .alloc-row .left .zh { color: #ccc; font-size: 0.9rem; line-height: 1.55; margin-bottom: 4px; }
-    .alloc-row .left .en { color: #888; font-size: 0.86rem; line-height: 1.55; }
-    .alloc-row .pct {
-      color: #00ff9d;
-      font-weight: 700;
-      font-size: 1.08rem;
-      white-space: nowrap;
-      padding-top: 2px;
-    }
-    .stage-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 12px 0 8px;
-      font-size: 0.88rem;
-    }
-    .stage-table th, .stage-table td {
-      border: 1px solid rgba(0,255,157,0.25);
-      padding: 10px 8px;
-      text-align: left;
-      vertical-align: top;
-    }
-    .stage-table th {
-      background: rgba(0,255,157,0.12);
-      color: #00ff9d;
-      font-weight: 600;
-    }
-    .stage-table td { color: #ccc; }
-    .stage-table .en-cell { color: #888; font-size: 0.82rem; display: block; margin-top: 4px; }
-    .roadmap-item {
-      display: flex;
-      gap: 14px;
-      margin-bottom: 22px;
-      padding-bottom: 18px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-    .roadmap-item:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-      padding-bottom: 0;
-    }
-    .roadmap-q {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      background: rgba(0,255,157,0.12);
-      border: 1px solid rgba(0,255,157,0.4);
-      color: #00ff9d;
-      font-family: ui-monospace, monospace;
-      flex-shrink: 0;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.95rem;
-    }
-    .roadmap-item .body { flex: 1; }
-    .roadmap-item .body strong { color: #fff; font-size: 1.02rem; }
-    .roadmap-item .body .zh {
-      color: #ccc;
-      font-size: 0.92rem;
-      margin-top: 8px;
-      line-height: 1.65;
-    }
-    .roadmap-item .body .en {
-      color: #888;
-      font-size: 0.88rem;
-      margin-top: 8px;
-      line-height: 1.65;
-    }
-    .team-card {
-      background: rgba(255,255,255,0.05);
-      border-radius: 14px;
-      padding: 18px;
-    }
-    .team-card .role {
-      color: #00ff9d;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .team-card .desc { color: #ddd; font-size: 0.92rem; }
-    .team-card .desc .en { color: #888; display: block; margin-top: 6px; font-size: 0.86rem; }
-    .faq-item { margin-bottom: 22px; }
-    .faq-q {
-      color: #00ff9d;
-      font-weight: 600;
-      margin-bottom: 8px;
-      line-height: 1.45;
-    }
-    .faq-a { color: #ccc; font-size: 0.95rem; line-height: 1.65; }
-    .faq-a .en { color: #888; display: block; margin-top: 8px; font-size: 0.88rem; }
-    .link-list a {
-      color: #00ff9d;
-      text-decoration: none;
-      display: inline-block;
-      margin: 6px 12px 6px 0;
-    }
-    .link-list a:hover { text-decoration: underline; }
     .back-btn {
       display: inline-block;
-      margin-top: 20px;
+      margin-top: 28px;
       color: #00ff9d;
       text-decoration: none;
       border: 1px solid #00ff9d;
@@ -212,410 +88,533 @@
     }
     .center { text-align: center; }
     .footer {
-      margin-top: 40px;
+      margin-top: 28px;
       text-align: center;
       color: #555;
       font-size: 0.85rem;
     }
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+    }
+    .modal.open { display: flex; }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+    }
+    .modal-panel {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 640px;
+      max-height: 88vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: #12001f;
+      border: 2px solid #00ff9d;
+      border-radius: 20px 20px 0 0;
+      padding: 20px 18px 32px;
+      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+    }
+    @media (min-width: 640px) {
+      .modal { align-items: center; padding: 24px; }
+      .modal-panel { border-radius: 18px; max-height: 85vh; }
+    }
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      position: sticky;
+      top: 0;
+      background: #12001f;
+      padding-bottom: 10px;
+      z-index: 2;
+    }
+    .modal-header h2 {
+      color: #00ff9d;
+      font-size: 1.25rem;
+      line-height: 1.35;
+    }
+    .modal-header .en-title {
+      color: #888;
+      font-size: 0.85rem;
+      margin-top: 2px;
+    }
+    .close-btn {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid #00ff9d;
+      background: transparent;
+      color: #00ff9d;
+      font-size: 1.35rem;
+      line-height: 1;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .close-btn:hover { background: rgba(0, 255, 157, 0.12); }
+    .info-box {
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .info-box .label {
+      color: #00ff9d;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.92rem;
+    }
+    .info-box .value {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #fff;
+    }
+    .info-box ul {
+      margin: 0;
+      padding-left: 18px;
+      line-height: 1.8;
+      color: #ddd;
+      font-size: 0.9rem;
+    }
+    .section-label {
+      color: #00ff9d;
+      font-weight: 600;
+      margin: 14px 0 10px;
+      font-size: 0.95rem;
+    }
+    .alloc-row {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .alloc-row:last-child { border-bottom: none; }
+    .alloc-row .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .alloc-row strong { color: #fff; font-size: 0.95rem; }
+    .alloc-row .pct {
+      color: #00ff9d;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .alloc-row .zh { color: #ccc; font-size: 0.88rem; line-height: 1.55; margin-bottom: 4px; }
+    .alloc-row .en { color: #888; font-size: 0.84rem; line-height: 1.55; }
+    .stage-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 8px;
+      font-size: 0.82rem;
+    }
+    .stage-table th, .stage-table td {
+      border: 1px solid rgba(0,255,157,0.25);
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .stage-table th {
+      background: rgba(0,255,157,0.12);
+      color: #00ff9d;
+      font-weight: 600;
+    }
+    .stage-table td { color: #ccc; }
+    .stage-table .en-cell {
+      color: #888;
+      font-size: 0.78rem;
+      display: block;
+      margin-top: 3px;
+    }
+    .p-zh { color: #ccc; font-size: 0.9rem; margin-bottom: 6px; line-height: 1.6; }
+    .p-en { color: #888; font-size: 0.86rem; margin-bottom: 12px; line-height: 1.6; }
+    .roadmap-block {
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .roadmap-block:last-child { border-bottom: none; }
+    .roadmap-block .q {
+      color: #00ff9d;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      margin-bottom: 6px;
+    }
+    .roadmap-block strong { color: #fff; }
     .pill {
       display: inline-block;
       background: rgba(0,255,157,0.12);
       color: #00ff9d;
       border-radius: 999px;
-      padding: 2px 10px;
-      font-size: 0.78rem;
-      margin-left: 6px;
-      vertical-align: middle;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      margin-left: 4px;
       font-weight: 600;
     }
+    .team-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .team-card .role { color: #00ff9d; font-weight: 600; margin-bottom: 6px; }
+    .team-card .zh { color: #ddd; font-size: 0.9rem; }
+    .team-card .en { color: #888; font-size: 0.84rem; margin-top: 4px; }
+    .faq-item { margin-bottom: 16px; }
+    .faq-q { color: #00ff9d; font-weight: 600; margin-bottom: 6px; font-size: 0.95rem; line-height: 1.4; }
+    .faq-a .zh { color: #ccc; font-size: 0.9rem; line-height: 1.6; }
+    .faq-a .en { color: #888; font-size: 0.84rem; margin-top: 6px; line-height: 1.55; }
+    .link-list a {
+      color: #00ff9d;
+      text-decoration: none;
+      display: block;
+      margin: 8px 0;
+      font-size: 0.95rem;
+    }
+    .link-list a:hover { text-decoration: underline; }
     .note {
-      margin-top: 14px;
-      padding: 12px 14px;
+      margin-top: 12px;
+      padding: 12px;
       background: rgba(255,255,255,0.04);
       border-radius: 12px;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       color: #aaa;
-      line-height: 1.6;
+      line-height: 1.55;
     }
-    .note .en { color: #777; display: block; margin-top: 6px; font-size: 0.84rem; }
+    .note .en { color: #777; display: block; margin-top: 6px; font-size: 0.82rem; }
+    body.modal-open { overflow: hidden; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>更多项目信息</h1>
-    <p class="subtitle">More Project Info · Official Tokenomics, Unlock Schedule &amp; Roadmap</p>
+    <p class="subtitle">More Project Info</p>
 
     <div class="notice">
       ⚠️ <strong>官方声明：</strong>PAWLY Token 合约地址（CA）尚未发布。任何 Pump.fun 或其它平台上的同名代币均<strong>非官方</strong>。正式 CA 只会在 <strong>www.pawlypets.online</strong> 与官方 X <strong>@pawlypetslover</strong> 公布。请勿购买假盘。
       <span class="en">⚠️ <strong>Official notice:</strong> PAWLY Token CA is not live yet. Any same-name token on Pump.fun or elsewhere is <strong>unofficial</strong>. Official CA will be published only on www.pawlypets.online and official X @pawlypetslover. Do not buy fakes.</span>
     </div>
 
-    <!-- Tokenomics -->
-    <div class="card">
-      <h2>PAWLY Tokenomics</h2>
-      <p class="en-title">代币经济模型 / Token Economic Model</p>
+    <div class="btn-grid">
+      <button type="button" class="open-btn" data-modal="tokenomics">
+        PAWLY Tokenomics
+        <span class="en">代币经济模型 / Token Economic Model</span>
+      </button>
+      <button type="button" class="open-btn" data-modal="unlock">
+        Unlock Schedule
+        <span class="en">释放时间表 / Token Unlock Schedule</span>
+      </button>
+      <button type="button" class="open-btn" data-modal="roadmap">
+        PAWLY Roadmap
+        <span class="en">发展路线图 / Development Roadmap</span>
+      </button>
+      <button type="button" class="open-btn" data-modal="team">
+        PAWLY Team
+        <span class="en">团队 / Our Team</span>
+      </button>
+      <button type="button" class="open-btn" data-modal="faq">
+        PAWLY FAQ
+        <span class="en">常见问题 / Frequently Asked Questions</span>
+      </button>
+      <button type="button" class="open-btn" data-modal="videos">
+        宣传视频 / Promo Videos
+        <span class="en">官方宣传视频 / Official promo clips</span>
+      </button>
+      <button type="button" class="open-btn" data-modal="links">
+        官方链接 / Official Links
+        <span class="en">关注我们 / Follow us</span>
+      </button>
+    </div>
 
-      <div class="grid-2">
-        <div class="info-box">
-          <div class="label">Total Supply / 总供应量</div>
-          <div class="value">50,000,000 PAWLY</div>
-          <div style="margin-top:10px;color:#999;font-size:0.86rem;line-height:1.5;">
-            固定总量，无额外增发计划。<br>
-            Fixed supply. No planned extra mint.
-          </div>
+    <div class="center">
+      <a href="index.html" class="back-btn">← 返回主页 / Back to Home</a>
+    </div>
+    <div class="footer">© 2026 PAWLY PETS · www.pawlypets.online</div>
+  </div>
+
+  <div class="modal" id="modal-tokenomics" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>PAWLY Tokenomics</h2>
+          <div class="en-title">代币经济模型 / Token Economic Model</div>
         </div>
-        <div class="info-box">
-          <div class="label">Utility / 实用场景</div>
-          <ul>
-            <li>宠物支付 Pet Payment（SOL / USDC / USDT / PAWLY）</li>
-            <li>转账 · 扫码 Transfer · QR Pay</li>
-            <li>兑换 Swap（Jupiter 聚合）</li>
-            <li>慈善捐赠 Charity Donate</li>
-            <li>质押收益 Staking APY（Q4 起）</li>
-          </ul>
+        <button type="button" class="close-btn" data-close aria-label="Close">×</button>
+      </div>
+      <div class="info-box">
+        <div class="label">Total Supply / 总供应量</div>
+        <div class="value">50,000,000 PAWLY</div>
+        <div style="margin-top:8px;color:#999;font-size:0.84rem;line-height:1.5;">
+          固定总量，无额外增发计划。<br>Fixed supply. No planned extra mint.
         </div>
       </div>
-
+      <div class="info-box">
+        <div class="label">Utility / 实用场景</div>
+        <ul>
+          <li>宠物支付 Pet Payment（SOL / USDC / USDT / PAWLY）</li>
+          <li>转账 · 扫码 Transfer · QR Pay</li>
+          <li>兑换 Swap（Jupiter 聚合）</li>
+          <li>慈善捐赠 Charity Donate</li>
+          <li>质押收益 Staking APY（Q4 起）</li>
+        </ul>
+      </div>
       <div class="section-label">Token Allocation / 代币分配（合计 100%）</div>
-
       <div class="alloc-row">
-        <div class="left">
-          <strong>Liquidity Pool / 流动性池 — 30,000,000 PAWLY</strong>
-          <div class="zh">用于官方交易对与市场深度，支撑用户在市场上买入后进行支付、转账、兑换与捐赠。LP 锁仓 2 年，分 4 期释放，降低一次性砸盘风险。</div>
-          <div class="en">For official pairs and market depth so users can buy PAWLY for payment, transfer, swap and charity. LP locked 2 years in 4 stages to reduce dump risk.</div>
+        <div class="top">
+          <strong>Liquidity Pool / 流动性池 — 30,000,000</strong>
+          <span class="pct">60%</span>
         </div>
-        <div class="pct">60%</div>
+        <div class="zh">用于官方交易对与市场深度，支撑用户买入后支付、转账、兑换与捐赠。LP 锁仓 2 年，分 4 期释放。</div>
+        <div class="en">Official pairs and market depth for payment, transfer, swap and charity. LP locked 2 years in 4 stages.</div>
       </div>
-
       <div class="alloc-row">
-        <div class="left">
-          <strong>Staking APY &amp; Airdrop / 质押收益与空投 — 15,000,000 PAWLY</strong>
-          <div class="zh">仅用于质押奖励与空投。Stage 4 之后起算，分 3 年、共 6 期释放，避免奖励集中解锁冲击价格。后期发奖依据链上成功交易与官方规则。</div>
-          <div class="en">For staking rewards and airdrops only. Starts after Stage 4, unlocked over 3 years in 6 stages. Future rewards follow on-chain success records and official rules.</div>
+        <div class="top">
+          <strong>Staking APY &amp; Airdrop / 质押与空投 — 15,000,000</strong>
+          <span class="pct">30%</span>
         </div>
-        <div class="pct">30%</div>
+        <div class="zh">仅用于质押奖励与空投。Stage 4 后起算，3 年 6 期释放，避免集中解锁。</div>
+        <div class="en">Rewards and airdrops only. Starts after Stage 4 over 3 years in 6 stages.</div>
       </div>
-
       <div class="alloc-row">
-        <div class="left">
-          <strong>Dev &amp; Team / 开发与团队 — 2,500,000 PAWLY</strong>
-          <div class="zh">长期锁定，仅用于运维与团队，不向市场抛售。与营销钱包分离，降低单地址控盘观感。</div>
-          <div class="en">Long-term locked. Operations and team only — not for market sale. Separate from marketing wallet.</div>
+        <div class="top">
+          <strong>Dev &amp; Team / 开发与团队 — 2,500,000</strong>
+          <span class="pct">5%</span>
         </div>
-        <div class="pct">5%</div>
+        <div class="zh">长期锁定，仅运维与团队，不向市场抛售；与营销钱包分离。</div>
+        <div class="en">Long-term locked. Operations and team only — not for market sale.</div>
       </div>
-
       <div class="alloc-row">
-        <div class="left">
-          <strong>Marketing / 市场推广 — 2,500,000 PAWLY</strong>
-          <div class="zh">Stage 2 之后按运营计划用于 KOL、社区增长与宣传合作。独立钱包，不与团队 5% 混用。</div>
-          <div class="en">After Stage 2, used for KOL, growth and campaigns. Separate wallet from the team allocation.</div>
+        <div class="top">
+          <strong>Marketing / 市场推广 — 2,500,000</strong>
+          <span class="pct">5%</span>
         </div>
-        <div class="pct">5%</div>
+        <div class="zh">Stage 2 后用于 KOL、增长与宣传；独立钱包。</div>
+        <div class="en">After Stage 2 for KOL and growth. Separate wallet from team.</div>
       </div>
     </div>
+  </div>
 
-    <!-- Unlock Schedule -->
-    <div class="card">
-      <h2>Unlock Schedule</h2>
-      <p class="en-title">释放时间表 / Token Unlock Schedule</p>
-
-      <p style="color:#ccc;font-size:0.92rem;margin-bottom:8px;">
-        <strong style="color:#fff;">流动性池（60%）</strong> — 自 Token + LP 正式上线日起算：锁仓 2 年，分 4 期，每期 6 个月，每期释放总供应量的 <strong>15%</strong>（即 7,500,000 PAWLY）。
-      </p>
-      <p style="color:#888;font-size:0.88rem;margin-bottom:14px;">
-        <strong>Liquidity Pool (60%)</strong> — From official Token + LP launch: locked 2 years, 4 stages, 6 months each, <strong>15%</strong> of total supply per stage (7,500,000 PAWLY each).
-      </p>
-
+  <div class="modal" id="modal-unlock" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>Unlock Schedule</h2>
+          <div class="en-title">释放时间表 / Token Unlock Schedule</div>
+        </div>
+        <button type="button" class="close-btn" data-close aria-label="Close">×</button>
+      </div>
+      <p class="p-zh"><strong style="color:#fff;">流动性池（60%）</strong> — 自 Token + LP 上线日起：锁仓 2 年，4 期，每期 6 个月，每期释放总供应 <strong>15%</strong>（7,500,000 PAWLY）。</p>
+      <p class="p-en"><strong>Liquidity Pool (60%)</strong> — From Token + LP launch: locked 2 years, 4 stages, 6 months each, <strong>15%</strong> of total supply per stage (7,500,000 PAWLY).</p>
       <table class="stage-table">
         <thead>
-          <tr>
-            <th>阶段 Stage</th>
-            <th>时间 Time</th>
-            <th>释放 Unlock</th>
-            <th>累计 Cumulative</th>
-          </tr>
+          <tr><th>阶段 Stage</th><th>时间 Time</th><th>释放 Unlock</th><th>累计</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td>LP Stage 1</td>
-            <td>上线后 0–6 个月<br><span class="en-cell">Months 0–6 after launch</span></td>
-            <td>15% · 7,500,000</td>
-            <td>15%</td>
-          </tr>
-          <tr>
-            <td>LP Stage 2</td>
-            <td>第 7–12 个月<br><span class="en-cell">Months 7–12</span></td>
-            <td>15% · 7,500,000</td>
-            <td>30%</td>
-          </tr>
-          <tr>
-            <td>LP Stage 3</td>
-            <td>第 13–18 个月<br><span class="en-cell">Months 13–18</span></td>
-            <td>15% · 7,500,000</td>
-            <td>45%</td>
-          </tr>
-          <tr>
-            <td>LP Stage 4</td>
-            <td>第 19–24 个月<br><span class="en-cell">Months 19–24</span></td>
-            <td>15% · 7,500,000</td>
-            <td>60%（LP 完成）</td>
-          </tr>
+          <tr><td>LP Stage 1</td><td>0–6 个月<span class="en-cell">Months 0–6</span></td><td>15% · 7.5M</td><td>15%</td></tr>
+          <tr><td>LP Stage 2</td><td>7–12 个月<span class="en-cell">Months 7–12</span></td><td>15% · 7.5M</td><td>30%</td></tr>
+          <tr><td>LP Stage 3</td><td>13–18 个月<span class="en-cell">Months 13–18</span></td><td>15% · 7.5M</td><td>45%</td></tr>
+          <tr><td>LP Stage 4</td><td>19–24 个月<span class="en-cell">Months 19–24</span></td><td>15% · 7.5M</td><td>60%</td></tr>
         </tbody>
       </table>
-
-      <p style="color:#ccc;font-size:0.92rem;margin:18px 0 8px;">
-        <strong style="color:#fff;">质押收益与空投（30%）</strong> — 于 <strong>Stage 4 之后</strong>起算：再分 3 年、共 6 期，每期 6 个月，每期释放总供应量的 <strong>5%</strong>（即 2,500,000 PAWLY），仅用于 APY 与空投。
-      </p>
-      <p style="color:#888;font-size:0.88rem;margin-bottom:14px;">
-        <strong>Staking APY &amp; Airdrop (30%)</strong> — Starts <strong>after Stage 4</strong>: 3 more years, 6 stages, 6 months each, <strong>5%</strong> of total supply per stage (2,500,000 PAWLY). Rewards &amp; airdrops only.
-      </p>
-
+      <p class="p-zh" style="margin-top:16px;"><strong style="color:#fff;">质押收益与空投（30%）</strong> — <strong>Stage 4 之后</strong>起算：再 3 年、6 期，每期 6 个月，每期释放总供应 <strong>5%</strong>（2,500,000），仅 APY 与空投。</p>
+      <p class="p-en"><strong>Staking APY &amp; Airdrop (30%)</strong> — Starts <strong>after Stage 4</strong>: 3 years, 6 stages, 6 months each, <strong>5%</strong> of total supply per stage (2,500,000). Rewards only.</p>
       <table class="stage-table">
         <thead>
-          <tr>
-            <th>阶段 Stage</th>
-            <th>时间 Time</th>
-            <th>释放 Unlock</th>
-            <th>累计（本池）</th>
-          </tr>
+          <tr><th>阶段 Stage</th><th>时间 Time</th><th>释放 Unlock</th><th>累计</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td>Reward 1</td>
-            <td>Stage 4 后第 1–6 月<br><span class="en-cell">Months 1–6 after Stage 4</span></td>
-            <td>5% · 2,500,000</td>
-            <td>5% / 30%</td>
-          </tr>
-          <tr>
-            <td>Reward 2</td>
-            <td>第 7–12 月<br><span class="en-cell">Months 7–12</span></td>
-            <td>5% · 2,500,000</td>
-            <td>10% / 30%</td>
-          </tr>
-          <tr>
-            <td>Reward 3</td>
-            <td>第 13–18 月<br><span class="en-cell">Months 13–18</span></td>
-            <td>5% · 2,500,000</td>
-            <td>15% / 30%</td>
-          </tr>
-          <tr>
-            <td>Reward 4</td>
-            <td>第 19–24 月<br><span class="en-cell">Months 19–24</span></td>
-            <td>5% · 2,500,000</td>
-            <td>20% / 30%</td>
-          </tr>
-          <tr>
-            <td>Reward 5</td>
-            <td>第 25–30 月<br><span class="en-cell">Months 25–30</span></td>
-            <td>5% · 2,500,000</td>
-            <td>25% / 30%</td>
-          </tr>
-          <tr>
-            <td>Reward 6</td>
-            <td>第 31–36 月<br><span class="en-cell">Months 31–36</span></td>
-            <td>5% · 2,500,000</td>
-            <td>30% / 30%（完成）</td>
-          </tr>
+          <tr><td>Reward 1</td><td>Stage4 后 1–6 月<span class="en-cell">Months 1–6 after Stage 4</span></td><td>5% · 2.5M</td><td>5%/30%</td></tr>
+          <tr><td>Reward 2</td><td>7–12 月<span class="en-cell">Months 7–12</span></td><td>5% · 2.5M</td><td>10%/30%</td></tr>
+          <tr><td>Reward 3</td><td>13–18 月<span class="en-cell">Months 13–18</span></td><td>5% · 2.5M</td><td>15%/30%</td></tr>
+          <tr><td>Reward 4</td><td>19–24 月<span class="en-cell">Months 19–24</span></td><td>5% · 2.5M</td><td>20%/30%</td></tr>
+          <tr><td>Reward 5</td><td>25–30 月<span class="en-cell">Months 25–30</span></td><td>5% · 2.5M</td><td>25%/30%</td></tr>
+          <tr><td>Reward 6</td><td>31–36 月<span class="en-cell">Months 31–36</span></td><td>5% · 2.5M</td><td>30%/30%</td></tr>
         </tbody>
       </table>
-
-      <p style="color:#ccc;font-size:0.92rem;margin:18px 0 6px;">
-        <strong style="color:#fff;">市场推广（5%）</strong> — Stage 2 完成后，可按运营计划启用（KOL / 宣传）。<br>
-        <span style="color:#888;font-size:0.88rem;"><strong>Marketing (5%)</strong> — Available after Stage 2 for KOL and growth plans.</span>
-      </p>
-      <p style="color:#ccc;font-size:0.92rem;margin:12px 0 0;">
-        <strong style="color:#fff;">开发与团队（5%）</strong> — 长期锁定，不进入上述市场分期释放。<br>
-        <span style="color:#888;font-size:0.88rem;"><strong>Dev &amp; Team (5%)</strong> — Long-term locked; not part of the market unlock schedule above.</span>
-      </p>
-
+      <p class="p-zh" style="margin-top:14px;"><strong style="color:#fff;">市场推广（5%）</strong> — Stage 2 后可按计划用于 KOL / 宣传。</p>
+      <p class="p-en"><strong>Marketing (5%)</strong> — After Stage 2 for KOL and growth.</p>
+      <p class="p-zh"><strong style="color:#fff;">开发与团队（5%）</strong> — 长期锁定，不进入市场分期释放。</p>
+      <p class="p-en"><strong>Dev &amp; Team (5%)</strong> — Long-term locked; not in the market unlock schedule.</p>
       <div class="note">
-        具体起算日以官方 Token / LP 上线公告为准；锁仓合约与地址将在上线时公示。<br>
-        <span class="en">Exact start date follows the official Token/LP launch announcement. Lock contracts and addresses will be published at launch.</span>
+        起算日以官方 Token / LP 上线公告为准；锁仓合约与地址将在上线时公示。
+        <span class="en">Start date follows official Token/LP launch. Lock contracts and addresses published at launch.</span>
       </div>
     </div>
+  </div>
 
-    <!-- Roadmap -->
-    <div class="card">
-      <h2>PAWLY Roadmap</h2>
-      <p class="en-title">发展路线图 / Development Roadmap</p>
-
-      <div class="roadmap-item">
-        <div class="roadmap-q">Q1</div>
-        <div class="body">
-          <strong>PWA + dApp 上线 <span class="pill">Live</span></strong>
-          <div class="zh">
-            主站 PWA（www.pawlypets.online）与专业版 dApp 已上线。支持邮箱登录、钱包连接、成员数据与官网 APK 分发。正式域名与基础品牌入口完成。
-          </div>
-          <div class="en">
-            Main PWA (www.pawlypets.online) and professional dApp are live. Email login, wallet connect, member data and official APK distribution. Production domain and core product entry are ready.
-          </div>
+  <div class="modal" id="modal-roadmap" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>PAWLY Roadmap</h2>
+          <div class="en-title">发展路线图 / Development Roadmap</div>
         </div>
+        <button type="button" class="close-btn" data-close aria-label="Close">×</button>
       </div>
-
-      <div class="roadmap-item">
-        <div class="roadmap-q">Q2</div>
-        <div class="body">
-          <strong>Payment · Transfer · Swap · Charity <span class="pill">Live</span></strong>
-          <div class="zh">
-            链上支付、转账、兑换与慈善捐赠已打通。兼容 Phantom、Solflare、Trust、Coinbase、Bitget、Jupiter 等多钱包；支持扫码收款/付款。成功交易写入统计，供后期奖励依据（无需仅依赖 PWA 注册）。
-          </div>
-          <div class="en">
-            On-chain payment, transfer, swap and charity are live across major wallets (Phantom, Solflare, Trust, Coinbase, Bitget, Jupiter, etc.), including QR pay. Successful txs are recorded for future rewards — not limited to PWA sign-ups.
-          </div>
-        </div>
+      <div class="roadmap-block">
+        <div class="q">Q1 <span class="pill">Live</span></div>
+        <strong>PWA + dApp 上线</strong>
+        <p class="p-zh">主站 PWA（www.pawlypets.online）与专业版 dApp 已上线。邮箱登录、钱包连接、成员数据与官网 APK 分发就绪。</p>
+        <p class="p-en">Main PWA and professional dApp are live. Email login, wallet connect, member data and official APK distribution.</p>
       </div>
-
-      <div class="roadmap-item">
-        <div class="roadmap-q">Q3</div>
-        <div class="body">
-          <strong>PAWLY Token + Liquidity Pool + LP Lock</strong>
-          <div class="zh">
-            发布官方 Token CA；建立主要流动性池并执行 LP 锁仓。按 Unlock Schedule：2 年、4 期、每期 6 个月、每期释放总供应 15%。正式 CA 仅通过官网与官方 X 公布。用户可在市场上买入 PAWLY 用于支付、兑换与捐赠。
-          </div>
-          <div class="en">
-            Publish official Token CA; launch main LP with lock. Unlock: 2 years, 4 stages, 6 months each, 15% of supply per stage. CA only via official site and X. Users can buy PAWLY for payment, swap and charity.
-          </div>
-        </div>
+      <div class="roadmap-block">
+        <div class="q">Q2 <span class="pill">Live</span></div>
+        <strong>Payment · Transfer · Swap · Charity</strong>
+        <p class="p-zh">链上支付、转账、兑换与慈善已打通。兼容 Phantom、Solflare、Trust、Coinbase、Bitget、Jupiter 等；支持扫码。成功交易写入统计，供后期奖励（不限 PWA 注册）。</p>
+        <p class="p-en">On-chain payment, transfer, swap and charity live on major wallets with QR pay. Successful txs recorded for future rewards.</p>
       </div>
-
-      <div class="roadmap-item">
-        <div class="roadmap-q">Q4</div>
-        <div class="body">
-          <strong>PAWLY Token Staking Pool</strong>
-          <div class="zh">
-            上线 PAWLY 本币质押池。质押收益来自 30% 奖励分配；奖励代币按 Stage 4 之后的 3 年、6 期计划释放（每期 5% 总供应）。早期用户与链上活跃地址的空投/资格规则将另行公告。
-          </div>
-          <div class="en">
-            Launch native PAWLY staking. Rewards from the 30% allocation; emissions follow the 3-year, 6-stage plan after Stage 4 (5% of supply each stage). Airdrop/eligibility rules for early and on-chain users will be announced separately.
-          </div>
-        </div>
+      <div class="roadmap-block">
+        <div class="q">Q3</div>
+        <strong>PAWLY Token + LP + LP Lock</strong>
+        <p class="p-zh">发布官方 CA；建立流动性池并锁仓。2 年 4 期，每期 6 个月，每期释放总供应 15%。CA 仅官网与官方 X 公布。</p>
+        <p class="p-en">Official CA, main LP and lock. 2 years / 4 stages / 15% of supply each. CA only via official site and X.</p>
       </div>
-
-      <div class="roadmap-item">
-        <div class="roadmap-q">Q5</div>
-        <div class="body">
-          <strong>USDT / USDC / SOL Staking Pools</strong>
-          <div class="zh">
-            在 Stage 4 及 PAWLY 质押稳定运行之后，逐步开放 USDT、USDC、SOL 等质押池，丰富收益选择，并与宠物支付与慈善生态协同。具体 APY、锁仓条件以当时公告与合约为准。
-          </div>
-          <div class="en">
-            After Stage 4 and stable PAWLY staking, open USDT, USDC and SOL staking pools to broaden yield options alongside pet payment and charity. APY and lock terms follow announcements and contracts at launch.
-          </div>
-        </div>
+      <div class="roadmap-block">
+        <div class="q">Q4</div>
+        <strong>PAWLY Token Staking Pool</strong>
+        <p class="p-zh">上线本币质押。收益来自 30% 分配；Stage 4 后 3 年 6 期释放（每期 5% 总供应）。空投规则另行公告。</p>
+        <p class="p-en">Native PAWLY staking. Rewards from 30% allocation; 3-year unlock after Stage 4. Airdrop rules announced separately.</p>
       </div>
-
+      <div class="roadmap-block">
+        <div class="q">Q5</div>
+        <strong>USDT / USDC / SOL Staking</strong>
+        <p class="p-zh">Stage 4 与 PAWLY 质押稳定后，开放稳定币与 SOL 质押池。APY 与锁仓条件以届时公告为准。</p>
+        <p class="p-en">After Stage 4 and stable PAWLY staking, open USDT/USDC/SOL pools. Terms per announcement.</p>
+      </div>
       <div class="note">
-        Q1–Q2 已完成；Q3–Q5 时间以产品与合约就绪为准，官方会提前在网站与 X 通知。<br>
-        <span class="en">Q1–Q2 are complete. Q3–Q5 timing depends on product and contract readiness; notice will be given on the site and X.</span>
+        Q1–Q2 已完成；Q3–Q5 以产品与合约就绪为准，将提前在网站与 X 通知。
+        <span class="en">Q1–Q2 complete. Q3–Q5 timing depends on readiness; notice on site and X.</span>
       </div>
     </div>
+  </div>
 
-    <!-- Team -->
-    <div class="card">
-      <h2>PAWLY Team</h2>
-      <p class="en-title">团队 / Our Team</p>
-      <div class="grid-2">
-        <div class="team-card">
-          <div class="role">Founder &amp; Vision / 创始人与愿景</div>
-          <div class="desc">
-            宠物生态长期主义者，专注把加密应用落到支付、捐赠与社区激励。
-            <span class="en">Pet-ecosystem long-termist focused on practical crypto for payment, charity and community incentives.</span>
-          </div>
+  <div class="modal" id="modal-team" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>PAWLY Team</h2>
+          <div class="en-title">团队 / Our Team</div>
         </div>
-        <div class="team-card">
-          <div class="role">Tech Lead / 技术负责人</div>
-          <div class="desc">
-            Solana + Supabase 全栈，负责 dApp 架构、钱包兼容与链上事件统计。
-            <span class="en">Full-stack Solana + Supabase; dApp architecture, wallet compatibility and on-chain event tracking.</span>
-          </div>
-        </div>
-        <div class="team-card">
-          <div class="role">Marketing &amp; Community / 市场与社区</div>
-          <div class="desc">
-            数字营销、KOL 合作与宠物爱好者社区运营。
-            <span class="en">Digital marketing, KOL partnerships and pet-community operations.</span>
-          </div>
-        </div>
-        <div class="team-card">
-          <div class="role">Pet Welfare Advisor / 宠物福利顾问</div>
-          <div class="desc">
-            动物保护与慈善方向顾问，协助捐赠场景与公益叙事。
-            <span class="en">Animal welfare advisor supporting charity use-cases and impact narrative.</span>
-          </div>
-        </div>
+        <button type="button" class="close-btn" data-close aria-label="Close">×</button>
+      </div>
+      <div class="team-card">
+        <div class="role">Founder &amp; Vision / 创始人与愿景</div>
+        <div class="zh">宠物生态长期主义者，专注支付、捐赠与社区激励类实用加密应用。</div>
+        <div class="en">Pet-ecosystem long-termist focused on practical crypto for payment, charity and incentives.</div>
+      </div>
+      <div class="team-card">
+        <div class="role">Tech Lead / 技术负责人</div>
+        <div class="zh">Solana + Supabase 全栈；dApp 架构、钱包兼容与链上事件统计。</div>
+        <div class="en">Full-stack Solana + Supabase; dApp architecture, wallets and on-chain event tracking.</div>
+      </div>
+      <div class="team-card">
+        <div class="role">Marketing &amp; Community / 市场与社区</div>
+        <div class="zh">数字营销、KOL 合作与宠物爱好者社区运营。</div>
+        <div class="en">Digital marketing, KOL partnerships and pet-community operations.</div>
+      </div>
+      <div class="team-card">
+        <div class="role">Pet Welfare Advisor / 宠物福利顾问</div>
+        <div class="zh">动物保护与慈善方向顾问，协助捐赠场景与公益叙事。</div>
+        <div class="en">Animal welfare advisor supporting charity use-cases and impact narrative.</div>
       </div>
     </div>
+  </div>
 
-    <!-- FAQ -->
-    <div class="card">
-      <h2>PAWLY FAQ</h2>
-      <p class="en-title">常见问题 / Frequently Asked Questions</p>
-
+  <div class="modal" id="modal-faq" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>PAWLY FAQ</h2>
+          <div class="en-title">常见问题 / Frequently Asked Questions</div>
+        </div>
+        <button type="button" class="close-btn" data-close aria-label="Close">×</button>
+      </div>
       <div class="faq-item">
-        <div class="faq-q">Q1: PAWLY Token 什么时候上线？ / When does the token launch?</div>
+        <div class="faq-q">Q1: Token 什么时候上线？ / When does the token launch?</div>
         <div class="faq-a">
-          按路线图在 <strong>Q3</strong>：官方 Token、流动性池与 LP 锁仓一并推进。正式合约地址（CA）只会在官网与官方 X 公布，请勿相信其它平台同名币。
-          <span class="en">Scheduled in <strong>Q3</strong>: official token, LP and LP lock. CA only on the official website and X — ignore same-name tokens elsewhere.</span>
+          <div class="zh">按路线图在 <strong>Q3</strong>：官方 Token、流动性池与 LP 锁仓。正式 CA 只在官网与官方 X 公布。</div>
+          <div class="en">Scheduled in <strong>Q3</strong>. Official CA only on the website and X.</div>
         </div>
       </div>
-
       <div class="faq-item">
-        <div class="faq-q">Q2: 现在 dApp 能做什么？ / What works on the dApp today?</div>
+        <div class="faq-q">Q2: 现在 dApp 能做什么？ / What works today?</div>
         <div class="faq-a">
-          <strong>Payment、Transfer、Swap、Charity</strong> 已可在多钱包使用，并支持扫码。链上成功交易会进入统计，作为后期空投/奖励参考之一（不要求必须先注册 PWA）。
-          <span class="en"><strong>Payment, transfer, swap and charity</strong> work on major wallets, including QR. Successful on-chain txs are recorded for future reward reference (PWA registration not required).</span>
+          <div class="zh"><strong>Payment、Transfer、Swap、Charity</strong> 已可在多钱包使用，支持扫码。成功交易会记入后期奖励参考。</div>
+          <div class="en"><strong>Payment, transfer, swap and charity</strong> are live on major wallets with QR. Successful txs are recorded for rewards.</div>
         </div>
       </div>
-
       <div class="faq-item">
-        <div class="faq-q">Q3: Staking 什么时候开启？ / When does staking start?</div>
+        <div class="faq-q">Q3: Staking 什么时候开？ / When is staking?</div>
         <div class="faq-a">
-          <strong>Q4</strong> 先上线 PAWLY Token 质押；<strong>Q5</strong> 在 Stage 4 之后再开放 USDT / USDC / SOL 质押池。30% 奖励配额在 Stage 4 后分 3 年、每 6 个月释放 5% 总供应。
-          <span class="en"><strong>Q4</strong> PAWLY staking first; <strong>Q5</strong> USDT/USDC/SOL pools after Stage 4. The 30% reward allocation unlocks over 3 years after Stage 4 (5% of supply every 6 months).</span>
+          <div class="zh"><strong>Q4</strong> PAWLY 质押；<strong>Q5</strong> Stage 4 后 USDT/USDC/SOL 池。30% 奖励 Stage 4 后 3 年分期释放。</div>
+          <div class="en"><strong>Q4</strong> PAWLY staking; <strong>Q5</strong> stablecoin/SOL pools after Stage 4. 30% unlocks over 3 years after Stage 4.</div>
         </div>
       </div>
-
       <div class="faq-item">
-        <div class="faq-q">Q4: 早期积分 Points 怎么办？ / What about early points?</div>
+        <div class="faq-q">Q4: 早期积分怎么办？ / What about points?</div>
         <div class="faq-a">
-          签到送分已结束。后续空投与激励将结合快照与<strong>链上真实成功交易</strong>规则公布，避免只刷注册、不上链的情况。
-          <span class="en">Check-in point rewards have ended. Future airdrops will use snapshot plus <strong>verified on-chain success</strong> rules so rewards are not limited to sign-ups without usage.</span>
+          <div class="zh">签到送分已结束。后续空投结合快照与链上真实成功交易规则公布。</div>
+          <div class="en">Check-in rewards ended. Future airdrops use snapshot plus verified on-chain success.</div>
         </div>
       </div>
-
       <div class="faq-item">
-        <div class="faq-q">Q5: 资金与合约安全吗？ / Is it safe?</div>
+        <div class="faq-q">Q5: 安全吗？ / Is it safe?</div>
         <div class="faq-a">
-          用户资产在非托管钱包中由自己掌控。Token 与质押相关合约将在上线前审计并公示。请只通过 <strong>www.pawlypets.online</strong> 进入，不要点击来路不明的链接。
-          <span class="en">Assets stay in non-custodial wallets. Token and staking contracts will be audited before launch. Use only www.pawlypets.online — avoid unknown links.</span>
+          <div class="zh">非托管钱包。Token/质押合约上线前审计公示。请只通过 www.pawlypets.online 进入。</div>
+          <div class="en">Non-custodial wallets. Contracts audited before launch. Use only the official domain.</div>
         </div>
       </div>
-
       <div class="faq-item">
-        <div class="faq-q">Q6: Pump.fun 上的 PAWLY 是官方的吗？ / Is Pump.fun PAWLY official?</div>
+        <div class="faq-q">Q6: Pump.fun 上的 PAWLY 是官方的吗？</div>
         <div class="faq-a">
-          <strong>不是。</strong>官方 CA 发布前，任何同名代币都是非官方，请勿购买。以官网与 @pawlypetslover 公告为准。
-          <span class="en"><strong>No.</strong> Until the official CA is published, same-name tokens are unofficial. Trust only the website and @pawlypetslover.</span>
+          <div class="zh"><strong>不是。</strong>官方 CA 发布前，同名币均为非官方，请勿购买。</div>
+          <div class="en"><strong>No.</strong> Same-name tokens are unofficial until the official CA is published.</div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Promo Videos -->
-    <div class="card">
-      <h2>🎥 宣传视频 / Promo Videos</h2>
-      <p class="en-title" style="margin-bottom:16px;">官方宣传视频 / Official promo clips</p>
+  <div class="modal" id="modal-videos" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>宣传视频 / Promo Videos</h2>
+          <div class="en-title">官方宣传视频 / Official promo clips</div>
+        </div>
+        <button type="button" class="close-btn" data-close aria-label="Close">×</button>
+      </div>
       <div class="link-list">
-        <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank" rel="noopener">视频1：PAWLY 宣传片 / Video 1 — Promo</a><br>
-        <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank" rel="noopener">视频2：宠物日常 / Video 2 — Pet moments</a><br>
+        <a href="https://x.com/pawlypetslover/status/2061655313489838494" target="_blank" rel="noopener">视频1：PAWLY 宣传片 / Video 1 — Promo</a>
+        <a href="https://x.com/pawlypetslover/status/2061643634978783290" target="_blank" rel="noopener">视频2：宠物日常 / Video 2 — Pet moments</a>
         <a href="https://x.com/pawlypetslover/status/2061642324191678649" target="_blank" rel="noopener">视频3：社区与愿景 / Video 3 — Community &amp; vision</a>
       </div>
     </div>
+  </div>
 
-    <!-- Official Links -->
-    <div class="card">
-      <h2>📱 官方链接 / Official Links</h2>
-      <p class="en-title" style="margin-bottom:16px;">关注我们 / Follow us</p>
+  <div class="modal" id="modal-links" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>官方链接 / Official Links</h2>
+          <div class="en-title">关注我们 / Follow us</div>
+        </div>
+        <button type="button" class="close-btn" data-close aria-label="Close">×</button>
+      </div>
       <div class="link-list">
         <a href="https://www.pawlypets.online" target="_blank" rel="noopener">Website</a>
         <a href="https://www.pawlypets.online/dapp" target="_blank" rel="noopener">dApp</a>
@@ -625,13 +624,40 @@
         <a href="https://t.me/pawlythepetslovers" target="_blank" rel="noopener">Telegram</a>
       </div>
     </div>
-
-    <div class="center">
-      <a href="index.html" class="back-btn">← 返回主页 / Back to Home</a>
-    </div>
-    <div class="footer">
-      © 2026 PAWLY PETS. All rights reserved. · www.pawlypets.online
-    </div>
   </div>
+
+  <script>
+    (function () {
+      function openModal(id) {
+        var el = document.getElementById('modal-' + id);
+        if (!el) return;
+        el.classList.add('open');
+        document.body.classList.add('modal-open');
+      }
+      function closeModal(el) {
+        if (!el) return;
+        el.classList.remove('open');
+        if (!document.querySelector('.modal.open')) {
+          document.body.classList.remove('modal-open');
+        }
+      }
+      document.querySelectorAll('.open-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openModal(btn.getAttribute('data-modal'));
+        });
+      });
+      document.querySelectorAll('[data-close]').forEach(function (node) {
+        node.addEventListener('click', function () {
+          closeModal(node.closest('.modal'));
+        });
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          document.querySelectorAll('.modal.open').forEach(closeModal);
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
+
