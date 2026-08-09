@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.08.2026 v7.5.9 Gallery QR decode + multi-wallet + guest balances
+ * PAWLY DApp — 09.08.2026 v7.6.3 Buy+CashOut pages · more on/off-ramp platforms
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -8,6 +8,9 @@
  *  4) Versioned then legacy
  *  5) Guest wallet (no PWA register): still show on-chain SOL/USDC/USDT + address
  *  6) Gallery/screenshot QR: no capture= on album; multi-decoder fallback
+ *  7) Fiat input → auto USDC settle
+ *  8) Practical QR pay payload
+ *  9) Non-custodial fiat settle: local order → redirect MoonPay Sell / Transak SELL / Ramp OFFRAMP
  * ATA getAccountInfo; Jupiter v0; appIdentity www.pawlypets.online
  */
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
@@ -820,8 +823,22 @@ function openOnrampPlatform(platform, walletAddress, crypto) {
       type: "buy",
     });
     url = `https://exchange.mercuryo.io/?${params.toString()}`;
+  } else if (platform === "alchemy") {
+    const params = new URLSearchParams({
+      crypto: c === "SOL" ? "SOL" : c,
+      network: "SOL",
+      address: addr,
+    });
+    url = "https://ramp.alchemypay.org/?" + params.toString();
+  } else if (platform === "luno") {
+    url = "https://www.luno.com/wallet/buy";
+  } else if (platform === "changenow") {
+    const params = new URLSearchParams({
+      from: "usd",
+      to: c === "SOL" ? "sol" : c.toLowerCase(),
+    });
+    url = "https://changenow.io/?" + params.toString();
   } else if (platform === "wallet") {
-    // 引导用户使用已安装钱包 App 内的买入（无第三方网页）
     url = "";
     alert(
       "请在已安装的钱包 App（如 Phantom / Solflare）内使用「买入 / Buy」功能购买 " +
@@ -831,12 +848,134 @@ function openOnrampPlatform(platform, walletAddress, crypto) {
     );
     return null;
   } else {
-    throw new Error("Unknown platform");
+    throw new Error("Unknown on-ramp platform");
   }
 
   const w = window.open(url, "_blank", "noopener,noreferrer");
   if (!w && url) window.location.href = url;
   return url;
+}
+
+
+/**
+ * 不托管法币结算 / Off-ramp（用户钱包加密 → 持牌方法币）
+ * PAWLY 只生成订单号并跳转；资金不经过 PAWLY。
+ */
+function createSettleOrderId() {
+  return (
+    "PS" +
+    Date.now().toString(36).toUpperCase() +
+    Math.random().toString(36).slice(2, 6).toUpperCase()
+  );
+}
+
+function saveSettleOrder(order) {
+  try {
+    const key = "pawly_settle_orders";
+    const list = JSON.parse(localStorage.getItem(key) || "[]");
+    list.unshift(order);
+    localStorage.setItem(key, JSON.stringify(list.slice(0, 30)));
+  } catch (_) {}
+}
+
+function openOfframpPlatform(platform, walletAddress, crypto, amount, fiatCode) {
+  if (!walletAddress) throw new Error("请先连接钱包 / Connect wallet first");
+  const addr = String(walletAddress).trim();
+  const c = (crypto || "USDC").toUpperCase();
+  if (!["USDC", "USDT", "SOL"].includes(c)) {
+    throw new Error("结算币仅支持 USDC / USDT / SOL");
+  }
+  const amt = amount && Number(amount) > 0 ? String(amount) : "";
+  const fiat = (fiatCode || "MYR").toUpperCase();
+  const orderId = createSettleOrderId();
+
+  saveSettleOrder({
+    id: orderId,
+    platform,
+    wallet: addr,
+    crypto: c,
+    amount: amt || null,
+    fiat,
+    status: "redirected",
+    createdAt: new Date().toISOString(),
+  });
+
+  let url = "";
+
+  if (platform === "moonpay_sell") {
+    const params = new URLSearchParams({
+      baseCurrencyCode: c.toLowerCase() === "sol" ? "sol" : c.toLowerCase(),
+      refundWalletAddress: addr,
+      externalCustomerId: orderId,
+    });
+    if (amt) params.set("baseCurrencyAmount", amt);
+    if (fiat) params.set("quoteCurrencyCode", fiat.toLowerCase());
+    if (typeof MOONPAY_API_KEY === "string" && MOONPAY_API_KEY) {
+      params.set("apiKey", MOONPAY_API_KEY);
+    }
+    url = "https://sell.moonpay.com?" + params.toString();
+  } else if (platform === "transak_sell") {
+    const params = new URLSearchParams({
+      productsAvailed: "SELL",
+      cryptoCurrencyCode: c === "SOL" ? "SOL" : c,
+      network: "solana",
+      walletAddress: addr,
+      partnerOrderId: orderId,
+      disableWalletAddressForm: "true",
+    });
+    if (amt) params.set("cryptoAmount", amt);
+    if (fiat) params.set("fiatCurrency", fiat);
+    if (typeof TRANSAK_API_KEY === "string" && TRANSAK_API_KEY) {
+      params.set("apiKey", TRANSAK_API_KEY);
+    }
+    url = "https://global.transak.com?" + params.toString();
+  } else if (platform === "ramp_sell") {
+    const params = new URLSearchParams({
+      swapAsset:
+        c === "SOL" ? "SOLANA_SOL" : c === "USDC" ? "SOLANA_USDC" : "SOLANA_USDT",
+      userAddress: addr,
+      enabledFlows: "OFFRAMP",
+      defaultFlow: "OFFRAMP",
+      hostAppName: "PAWLY",
+      hostLogoUrl: "https://www.pawlypets.online/pawly-token-helps.png",
+    });
+    if (amt) params.set("swapAmount", amt);
+    if (fiat) params.set("fiatCurrency", fiat);
+    url = "https://app.ramp.network/?" + params.toString();
+  } else if (platform === "alchemy_sell") {
+    const params = new URLSearchParams({
+      crypto: c === "SOL" ? "SOL" : c,
+      network: "SOL",
+      address: addr,
+      type: "sell",
+    });
+    if (amt) params.set("amount", amt);
+    url = "https://ramp.alchemypay.org/?" + params.toString();
+  } else if (platform === "luno_sell") {
+    url = "https://www.luno.com/wallet/sell";
+  } else if (platform === "changenow_sell") {
+    const params = new URLSearchParams({
+      from: c === "SOL" ? "sol" : c.toLowerCase(),
+      to: (fiat || "myr").toLowerCase(),
+    });
+    if (amt) params.set("amount", amt);
+    url = "https://changenow.io/?" + params.toString();
+  }
+  } else if (platform === "wallet_sell") {
+    alert(
+      "请在钱包 App 内使用「卖出 / Sell / Cash out」将 " +
+        c +
+        " 换成法币。\nUse Sell inside your wallet app.\n\n订单号 / Order: " +
+        orderId
+    );
+    return orderId;
+  } else {
+    throw new Error("Unknown off-ramp platform");
+  }
+
+  const w = window.open(url, "_blank", "noopener,noreferrer");
+  if (!w && url) window.location.href = url;
+  return orderId;
 }
 
 /** 带超时的 fetch，避免一直 Loading */
@@ -993,6 +1132,37 @@ async function fetchFiatRatesUsd() {
   } catch (_) {}
   return null;
 }
+
+/** PAWLY 多法币计价列表（TNG 风格显示；链上仍结算 USDC/USDT/SOL） */
+const PAWLY_FIATS = [
+  { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
+  { code: "SGD", name: "新加坡 / Singapore", symbol: "S$" },
+  { code: "CNY", name: "中国 / China", symbol: "¥" },
+  { code: "JPY", name: "日本 / Japan", symbol: "¥" },
+  { code: "KRW", name: "韩国 / Korea", symbol: "₩" },
+  { code: "IDR", name: "印尼 / Indonesia", symbol: "Rp" },
+  { code: "THB", name: "泰国 / Thailand", symbol: "฿" },
+  { code: "HKD", name: "香港 / Hong Kong", symbol: "HK$" },
+  { code: "MOP", name: "澳门 / Macau", symbol: "MOP$" },
+  { code: "TWD", name: "台湾 / Taiwan", symbol: "NT$" },
+];
+
+/** 法币金额 → 需支付的加密数量（USD≈USDC） */
+function fiatToCryptoAmount(fiatAmt, fiatCode, rates, payToken, solUsd) {
+  const fa = Number(fiatAmt);
+  if (!Number.isFinite(fa) || fa <= 0) return null;
+  const rate = rates?.[fiatCode];
+  if (rate == null || !(rate > 0)) return null;
+  const usd = fa / rate; // 1 USD = rate units of fiat
+  if (payToken === "USDC" || payToken === "USDT") return usd;
+  if (payToken === "SOL") {
+    if (!solUsd || !(solUsd > 0)) return null;
+    return usd / solUsd;
+  }
+  if (payToken === "PAWLY") return usd * (typeof PAWLY_PER_USDC === "number" ? PAWLY_PER_USDC : 5);
+  return usd;
+}
+
 
 /** 各操作预估计算单元 / 签名费（Solana 基础费用，真实区间） */
 const GAS_PRESETS = {
@@ -1497,6 +1667,7 @@ function HomePage() {
     { path: "/charity", icon: "❤️", title: "慈善捐赠 / Charity", desc: "链上捐赠·真转账 / On-chain donate", color: "#ff5252" },
     { path: "/swap", icon: "🔄", title: "交易 / Swap", desc: "Jupiter 实时聚合 / Live Jupiter route", color: "#ff9ecd" },
     { path: "/buy", icon: "💵", title: "买入·入金 / Buy·Deposit", desc: "SOL · USDC · USDT", color: "#ffc107" },
+    { path: "/cashout", icon: "🏦", title: "卖出·出金 / Sell·Cash out", desc: "USDC · USDT · SOL → 法币", color: "#42a5f5" },
   ];
 
   return (
@@ -1797,6 +1968,13 @@ function extractSolanaAddress(raw) {
   if (m1) return m1[1];
   const m2 = s.match(/pawly:([1-9A-HJ-NP-Za-km-z]{32,44})/i);
   if (m2) return m2[1];
+  try {
+    if (/^pawly:\/\//i.test(s)) {
+      const u = new URL(s.replace(/^pawly:/i, "https://pawly.local"));
+      const to = u.searchParams.get("to") || u.searchParams.get("address");
+      if (to && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(to)) return to;
+    }
+  } catch (_) {}
   if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s)) return s;
   const m3 = s.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
   if (m3) {
@@ -1806,6 +1984,63 @@ function extractSolanaAddress(raw) {
     } catch (_) {}
   }
   return "";
+}
+
+/** 可落地付款码解析：地址 + 币种 + 数量/法币 */
+function parsePawlyPayPayload(raw) {
+  const out = {
+    address: "",
+    token: "",
+    amount: "",
+    fiat: "",
+    fiatAmount: "",
+    raw: String(raw || "").trim(),
+  };
+  if (!out.raw) return out;
+  try {
+    if (out.raw.startsWith("{")) {
+      const j = JSON.parse(out.raw);
+      out.address = extractSolanaAddress(j.to || j.address || j.wallet || "");
+      out.token = String(j.token || j.asset || "").toUpperCase();
+      if (j.amount != null) out.amount = String(j.amount);
+      if (j.fiat) out.fiat = String(j.fiat).toUpperCase();
+      if (j.fiatAmount != null) out.fiatAmount = String(j.fiatAmount);
+      if (out.address) return out;
+    }
+  } catch (_) {}
+  try {
+    let s = out.raw;
+    if (/^pawly:\/\//i.test(s)) s = s.replace(/^pawly:/i, "https://pawly.local");
+    if (/^solana:/i.test(out.raw) || /^https?:\/\//i.test(s) || s.includes("://")) {
+      const u = new URL(/^solana:/i.test(out.raw) ? out.raw.replace(/^solana:/i, "https://solana.local/") : s);
+      const toParam = u.searchParams.get("to") || u.searchParams.get("address") || u.searchParams.get("recipient");
+      if (toParam) out.address = extractSolanaAddress(toParam);
+      else {
+        const pathAddr = (u.pathname || "").replace(/^\//, "");
+        out.address = extractSolanaAddress(pathAddr || out.raw);
+      }
+      out.token = String(u.searchParams.get("token") || u.searchParams.get("spl-token") || "").toUpperCase();
+      if (u.searchParams.get("amount")) out.amount = u.searchParams.get("amount");
+      if (u.searchParams.get("fiat")) out.fiat = u.searchParams.get("fiat").toUpperCase();
+      if (u.searchParams.get("fiatAmount")) out.fiatAmount = u.searchParams.get("fiatAmount");
+      if (out.address) return out;
+    }
+  } catch (_) {}
+  out.address = extractSolanaAddress(out.raw);
+  return out;
+}
+
+function buildPawlyPayPayload({ address, token, amount, fiat, fiatAmount }) {
+  if (!address) return "";
+  const q = new URLSearchParams();
+  q.set("to", address);
+  if (token) q.set("token", token);
+  if (amount) q.set("amount", String(amount));
+  if (fiat && fiatAmount) {
+    q.set("fiat", fiat);
+    q.set("fiatAmount", String(fiatAmount));
+  }
+  return "pawly://pay?" + q.toString();
 }
 
 function qrCodeImageUrl(data, size = 240) {
@@ -1820,16 +2055,29 @@ function qrCodeImageUrl(data, size = 240) {
 }
 
 function MyQrModal({ address, onClose }) {
+  const [fiatCode, setFiatCode] = useState("MYR");
+  const [fiatAmount, setFiatAmount] = useState("");
+  const [token, setToken] = useState("USDC");
   if (!address) return null;
-  const img = qrCodeImageUrl(address, 260);
+
+  const payload = buildPawlyPayPayload({
+    address,
+    token,
+    fiat: fiatAmount ? fiatCode : "",
+    fiatAmount: fiatAmount || "",
+  });
+  const img = qrCodeImageUrl(payload || address, 260);
+
   const copy = async () => {
+    const text = payload || address;
     try {
-      await navigator.clipboard.writeText(address);
-      alert("已复制地址 / Address copied");
+      await navigator.clipboard.writeText(text);
+      alert("已复制付款码 / Pay code copied");
     } catch (_) {
-      alert(address);
+      alert(text);
     }
   };
+
   return (
     <div
       role="dialog"
@@ -1849,7 +2097,7 @@ function MyQrModal({ address, onClose }) {
     >
       <div
         style={{
-          maxWidth: 360,
+          maxWidth: 400,
           width: "100%",
           background: "linear-gradient(165deg, #1a1030, #0d0d18)",
           border: "1px solid rgba(0,255,157,0.35)",
@@ -1868,7 +2116,7 @@ function MyQrModal({ address, onClose }) {
             marginBottom: 8,
           }}
         >
-          <strong style={{ fontSize: 16 }}>我的二维码 / My QR</strong>
+          <strong style={{ fontSize: 16 }}>收款码 / Receive QR</strong>
           <button
             type="button"
             onClick={onClose}
@@ -1885,11 +2133,66 @@ function MyQrModal({ address, onClose }) {
             ✕
           </button>
         </div>
-        <p style={{ color: "#889", fontSize: 12, marginTop: 0, lineHeight: 1.45 }}>
-          他人扫码可向你转账（当前已连接钱包）
+        <p style={{ color: "#889", fontSize: 12, marginTop: 0, lineHeight: 1.45, textAlign: "left" }}>
+          填写应收法币 → 生成可付码。对方扫码后自动带入地址与金额，确认后链上转账（USDC/USDT/SOL）。
           <br />
-          Others scan to pay you · current wallet
+          Set fiat due → scannable code. Scan auto-fills → confirm → real on-chain transfer.
         </p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          <select
+            value={fiatCode}
+            onChange={(e) => setFiatCode(e.target.value)}
+            style={{
+              flex: 1,
+              minWidth: 90,
+              background: "#12121f",
+              border: "1px solid #333",
+              borderRadius: 10,
+              padding: 8,
+              color: "#fff",
+            }}
+          >
+            {(typeof PAWLY_FIATS !== "undefined" ? PAWLY_FIATS : [{ code: "MYR" }, { code: "SGD" }, { code: "JPY" }]).map((f) => (
+              <option key={f.code} value={f.code}>
+                {f.code}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="0"
+            value={fiatAmount}
+            onChange={(e) => setFiatAmount(e.target.value)}
+            placeholder="应收法币 / Fiat due"
+            style={{
+              flex: 1,
+              minWidth: 100,
+              background: "#12121f",
+              border: "1px solid #333",
+              borderRadius: 10,
+              padding: 8,
+              color: "#fff",
+            }}
+          />
+          <select
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            style={{
+              minWidth: 88,
+              background: "#12121f",
+              border: "1px solid #333",
+              borderRadius: 10,
+              padding: 8,
+              color: "#fff",
+            }}
+          >
+            {["USDC", "USDT", "SOL"].map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
+        </div>
         <img
           src={img}
           alt="Receive QR"
@@ -1908,26 +2211,28 @@ function MyQrModal({ address, onClose }) {
         <p
           style={{
             fontFamily: "monospace",
-            fontSize: 12,
+            fontSize: 11,
             wordBreak: "break-all",
             color: "#b8f5d8",
             margin: "10px 0",
+            textAlign: "left",
           }}
         >
-          {address}
+          {payload}
         </p>
         <button type="button" onClick={copy} style={{ ...neonBtn, width: "100%", marginBottom: 8 }}>
-          复制地址 / Copy Address
+          复制付款码 / Copy Pay Code
         </button>
-        <p style={{ color: "#667", fontSize: 11, margin: 0, lineHeight: 1.45 }}>
-          更换钱包后请重新打开以更新二维码。
+        <p style={{ color: "#667", fontSize: 11, margin: 0, lineHeight: 1.45, textAlign: "left" }}>
+          对方若只有 SOL，可先 Swap 成 USDC 再扫码支付。不填法币则为纯地址码。
           <br />
-          Re-open after switching wallet to refresh QR.
+          Payer can Swap to USDC first. Empty fiat = address-only code.
         </p>
       </div>
     </div>
   );
 }
+
 
 
 /** 扫码环境检测：用于提示文案（不改变签名逻辑） */
@@ -2212,9 +2517,10 @@ function ScanQrModal({ onDetected, onClose }) {
   };
 
   const finish = async (text) => {
-    const addr = extractSolanaAddress(text);
+    const parsed = parsePawlyPayPayload(text);
+    const addr = parsed.address || extractSolanaAddress(text);
     if (!addr) {
-      alert("未识别到有效 Solana 地址\nNo valid Solana address found");
+      alert("未识别到有效 Solana 地址或付款码\nNo valid Solana address / pay code");
       return;
     }
     try {
@@ -2224,7 +2530,20 @@ function ScanQrModal({ onDetected, onClose }) {
       return;
     }
     await stopCam();
-    onDetected(addr);
+    if (typeof onDetected === "function") {
+      try {
+        onDetected({
+          address: addr,
+          token: parsed.token,
+          amount: parsed.amount,
+          fiat: parsed.fiat,
+          fiatAmount: parsed.fiatAmount,
+          raw: text,
+        });
+      } catch (_) {
+        onDetected(addr);
+      }
+    }
     onClose();
   };
 
@@ -2507,7 +2826,7 @@ function ScanQrModal({ onDetected, onClose }) {
 function PaymentPage() {
   const { publicKey, connected, sendTransaction, wallet } = useWallet();
   const { pwaData } = useUserData();
-  const [payToken, setPayToken] = useState("SOL");
+  const [payToken, setPayToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadPayDraft().toAddress || "");
   const [amount, setAmount] = useState(() => loadPayDraft().amount || "");
   const [realBalance, setRealBalance] = useState(0);
@@ -2517,28 +2836,20 @@ function PaymentPage() {
   const [rateLoading, setRateLoading] = useState(true);
   const [showRates, setShowRates] = useState(false);
   const [fiatCode, setFiatCode] = useState("MYR");
+  const [fiatAmount, setFiatAmount] = useState("");
   const [txLoading, setTxLoading] = useState(false);
   const [lastSig, setLastSig] = useState("");
   const [showMyQr, setShowMyQr] = useState(false);
   const [showScanQr, setShowScanQr] = useState(false);
+  const [showSettle, setShowSettle] = useState(false);
+  const [lastSettleOrder, setLastSettleOrder] = useState("");
   const { setVisible: setWalletModalVisible } = useWalletModal();
 
   useEffect(() => {
     savePayDraft({ toAddress, amount, payToken });
   }, [toAddress, amount, payToken]);
 
-  const FIATS = [
-    { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
-    { code: "SGD", name: "新加坡 / Singapore", symbol: "S$" },
-    { code: "CNY", name: "中国 / China", symbol: "¥" },
-    { code: "JPY", name: "日本 / Japan", symbol: "¥" },
-    { code: "KRW", name: "韩国 / Korea", symbol: "₩" },
-    { code: "IDR", name: "印尼 / Indonesia", symbol: "Rp" },
-    { code: "THB", name: "泰国 / Thailand", symbol: "฿" },
-    { code: "HKD", name: "香港 / Hong Kong", symbol: "HK$" },
-    { code: "MOP", name: "澳门 / Macau", symbol: "MOP$" },
-    { code: "TWD", name: "台湾 / Taiwan", symbol: "NT$" },
-  ];
+  const FIATS = PAWLY_FIATS;
 
   const maxPawly = parseFloat(pwaData?.total_pawly) || 0;
   const payWalletAddr =
@@ -2562,6 +2873,14 @@ function PaymentPage() {
       alive = false;
     };
   }, [payWalletAddr, payToken, maxPawly]);
+
+  // 法币金额 → 自动换算链上支付数量（TNG 风格）
+  useEffect(() => {
+    const cryptoAmt = fiatToCryptoAmount(fiatAmount, fiatCode, fiatRates, payToken, solUsd);
+    if (cryptoAmt == null) return;
+    const decimals = payToken === "SOL" ? 6 : 4;
+    setAmount(Number(cryptoAmt.toFixed(decimals)).toString());
+  }, [fiatAmount, fiatCode, fiatRates, payToken, solUsd]);
 
   const fetchRates = async () => {
     setRateLoading(true);
@@ -2685,7 +3004,7 @@ function PaymentPage() {
     <div style={pageWrap}>
       <PageHeader
         title="💳 支付·转账 / Payment·Transfer"
-        subtitle="真实链上转账 SOL · USDC · USDT · 多国汇率 / Live on-chain transfer + multi-currency rates"
+        subtitle="法币计价 · 稳定币结算 · 扫码直付 / Fiat price · stablecoin settle · scan to pay"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
         <CaWarningBanner feature="支付·转账 / Payment·Transfer" />
@@ -2740,6 +3059,87 @@ function PaymentPage() {
           }}
         />
 
+        <div
+          style={{
+            background: "rgba(0,255,157,0.06)",
+            border: "1px solid rgba(0,255,157,0.25)",
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
+            法币计价（TNG 风格）/ Fiat price · settle in crypto
+          </div>
+          <p style={{ color: "#889", fontSize: 11, margin: "0 0 10px", lineHeight: 1.45 }}>
+            输入对方要的法币金额（如 2 MYR），系统按今日汇率算出应付 USDC/USDT（或 SOL）。实际链上转的是加密资产。
+            <br />
+            Enter fiat the counterparty asks (e.g. 2 MYR) → auto crypto amount. On-chain settlement stays USDC/USDT/SOL.
+          </p>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            <select
+              value={fiatCode}
+              onChange={(e) => setFiatCode(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 120,
+                background: "#12121f",
+                border: "1px solid #333",
+                borderRadius: 10,
+                padding: 10,
+                color: "#fff",
+              }}
+            >
+              {FIATS.map((f) => (
+                <option key={f.code} value={f.code}>
+                  {f.symbol} {f.code} — {f.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="0"
+              value={fiatAmount}
+              onChange={(e) => setFiatAmount(e.target.value)}
+              placeholder={`金额 / Amount (${fiatCode})`}
+              style={{
+                flex: 1,
+                minWidth: 120,
+                background: "#12121f",
+                border: "1px solid #333",
+                borderRadius: 10,
+                padding: 10,
+                color: "#fff",
+                fontSize: "1.05rem",
+              }}
+            />
+          </div>
+          <div style={{ color: "#b8f5d8", fontSize: 12, lineHeight: 1.5 }}>
+            {fiatRates?.[fiatCode]
+              ? `今日 / Today: 1 USD ≈ ${Number(fiatRates[fiatCode]).toFixed(4)} ${fiatCode}`
+              : rateLoading
+                ? "汇率加载中… / Loading rates…"
+                : "请点「刷新汇率」/ Refresh rates"}
+            {fiatAmount && fiatRates?.[fiatCode] ? (
+              <>
+                <br />
+                {fiatAmount} {fiatCode} ≈{" "}
+                <strong style={{ color: "#00ff9d" }}>
+                  {(Number(fiatAmount) / Number(fiatRates[fiatCode])).toFixed(4)} USDC
+                </strong>
+                {" "}（将写入下方支付数量 / fills amount below）
+              </>
+            ) : null}
+          </div>
+          {(payToken === "SOL" || payToken === "PAWLY") && (
+            <p style={{ color: "#fbbf24", fontSize: 11, margin: "8px 0 0", lineHeight: 1.45 }}>
+              提示：商户常用 USDC/USDT。若余额只有 SOL/PAWLY，可先到「交易/Swap」换成 USDC 再付。
+              <br />
+              Tip: prefer USDC/USDT. If you only hold SOL/PAWLY, Swap first.
+            </p>
+          )}
+        </div>
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <label style={{ color: "#99a", fontSize: 13 }}>支付数量 / Amount ({payToken})</label>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2748,7 +3148,10 @@ function PaymentPage() {
             </span>
             <button
               type="button"
-              onClick={() => setAmount(String(realBalance || 0))}
+              onClick={() => {
+                setFiatAmount("");
+                setAmount(String(realBalance || 0));
+              }}
               style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
             >
               MAX
@@ -2759,7 +3162,10 @@ function PaymentPage() {
           type="number"
           min="0"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            setFiatAmount("");
+            setAmount(e.target.value);
+          }}
           placeholder="0.00"
           style={{
             width: "100%",
@@ -2809,6 +3215,52 @@ function PaymentPage() {
                   : "—"}
             </span>
           </div>
+        </div>
+
+        <div
+          style={{
+            background: "rgba(33,150,243,0.08)",
+            border: "1px solid rgba(33,150,243,0.35)",
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ color: "#90caf9", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+            法币结算（不托管）/ Fiat settle · non-custodial
+          </div>
+          <p style={{ color: "#889", fontSize: 11, margin: "0 0 10px", lineHeight: 1.45 }}>
+            将钱包内 USDC/USDT/SOL 通过持牌通道换成银行/电子钱包法币。PAWLY 只下单并跳转，资金不经过 PAWLY。
+            <br />
+            Sell crypto via licensed off-ramp. PAWLY only creates an order id and redirects — no custody.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (!payWalletAddr) {
+                alert("请先连接钱包
+Connect wallet first");
+                try {
+                  setWalletModalVisible(true);
+                } catch (_) {}
+                return;
+              }
+              setShowSettle(true);
+            }}
+            style={{
+              ...neonBtn,
+              width: "100%",
+              boxSizing: "border-box",
+              background: "linear-gradient(90deg,#1565c0,#42a5f5)",
+            }}
+          >
+            法币结算 / Settle to Fiat
+          </button>
+          {lastSettleOrder ? (
+            <p style={{ color: "#90caf9", fontSize: 11, margin: "8px 0 0" }}>
+              最近订单 / Last order: {lastSettleOrder}
+            </p>
+          ) : null}
         </div>
 
         <button
@@ -2886,7 +3338,21 @@ function PaymentPage() {
         )}
         {showScanQr && (
           <ScanQrModal
-            onDetected={(addr) => setToAddress(addr)}
+            onDetected={(payload) => {
+              const p = typeof payload === "string" ? { address: payload } : payload || {};
+              if (p.address) setToAddress(p.address);
+              if (p.token && ["SOL", "USDC", "USDT", "PAWLY"].includes(p.token)) {
+                if (typeof setPayToken === "function") setPayToken(p.token);
+                else if (typeof setToken === "function") setToken(p.token);
+              }
+              if (p.fiat && typeof setFiatCode === "function") setFiatCode(p.fiat);
+              if (p.fiatAmount && typeof setFiatAmount === "function") {
+                setFiatAmount(String(p.fiatAmount));
+              } else if (p.amount && typeof setAmount === "function") {
+                if (typeof setFiatAmount === "function") setFiatAmount("");
+                setAmount(String(p.amount));
+              }
+            }}
             onClose={() => setShowScanQr(false)}
           />
         )}
@@ -2924,7 +3390,110 @@ function PaymentPage() {
         </p>
       </div>
 
-      {showRates && (
+      
+        {showSettle && (
+          <div
+            role="dialog"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.75)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowSettle(false);
+            }}
+          >
+            <div
+              style={{
+                maxWidth: 400,
+                width: "100%",
+                background: "linear-gradient(165deg,#0d1b2a,#0d0d18)",
+                border: "1px solid rgba(66,165,245,0.4)",
+                borderRadius: 18,
+                padding: 20,
+                color: "#e3f2fd",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <strong style={{ fontSize: 16 }}>选择结算通道 / Off-ramp</strong>
+                <button type="button" onClick={() => setShowSettle(false)} style={{ ...ghostBtn, padding: "4px 10px" }}>
+                  ✕
+                </button>
+              </div>
+              <p style={{ color: "#90a4ae", fontSize: 12, lineHeight: 1.5, marginTop: 0 }}>
+                将打开第三方页面。你在对方完成卖出/出金；PAWLY 不持有资金。
+                <br />
+                Opens third-party page. You complete sell there; PAWLY never holds funds.
+              </p>
+              <p style={{ color: "#bbb", fontSize: 12, marginBottom: 10 }}>
+                预计 / From: <strong>{amount || "—"} {payToken}</strong>
+                {fiatAmount ? (
+                  <>
+                    {" "}
+                    · 法币参考 / Fiat ref: {fiatAmount} {fiatCode}
+                  </>
+                ) : null}
+              </p>
+              {[
+                { id: "moonpay_sell", label: "MoonPay Sell", sub: "Card / bank payout (where available)" },
+                { id: "transak_sell", label: "Transak Sell", sub: "SELL · Solana USDC/USDT/SOL" },
+                { id: "ramp_sell", label: "Ramp Off-ramp", sub: "OFFRAMP flow" },
+                { id: "alchemy_sell", label: "Alchemy Pay", sub: "Sell / ramp" },
+                { id: "luno_sell", label: "Luno", sub: "MY/SEA exchange" },
+                { id: "changenow_sell", label: "ChangeNOW", sub: "Crypto → fiat gateway" },
+                { id: "wallet_sell", label: "Wallet App Sell", sub: "Phantom / Solflare 内卖出" },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const settleToken = ["USDC", "USDT", "SOL"].includes(payToken)
+                        ? payToken
+                        : "USDC";
+                      if (payToken === "PAWLY") {
+                        alert(
+                          "请先 Swap PAWLY→USDC，再用法币结算。\nSwap PAWLY to USDC first, then settle."
+                        );
+                        return;
+                      }
+                      const oid = openOfframpPlatform(
+                        p.id,
+                        payWalletAddr,
+                        settleToken,
+                        amount,
+                        fiatCode
+                      );
+                      if (oid) setLastSettleOrder(oid);
+                      setShowSettle(false);
+                    } catch (err) {
+                      alert(err?.message || String(err));
+                    }
+                  }}
+                  style={{
+                    ...ghostBtn,
+                    width: "100%",
+                    boxSizing: "border-box",
+                    marginBottom: 8,
+                    textAlign: "left",
+                    padding: "12px 14px",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: "#e3f2fd" }}>{p.label}</div>
+                  <div style={{ fontSize: 11, color: "#789" }}>{p.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+{showRates && (
         <div
           role="dialog"
           style={{
@@ -3435,6 +4004,9 @@ function BuyPage() {
     { id: "moonpay", label: "MoonPay", sub: "Card / local methods" },
     { id: "ramp", label: "Ramp Network", sub: "Card / bank" },
     { id: "mercuryo", label: "Mercuryo", sub: "Card / Apple Pay*" },
+    { id: "alchemy", label: "Alchemy Pay", sub: "Global on-ramp" },
+    { id: "luno", label: "Luno", sub: "MY/SEA exchange · 自行提币" },
+    { id: "changenow", label: "ChangeNOW", sub: "Swap / buy gateway" },
     { id: "wallet", label: "Wallet App Buy", sub: "Phantom / Solflare 内买入" },
   ];
 
@@ -3711,7 +4283,7 @@ function BuyPage() {
 function CharityPage() {
   const { connected, publicKey, sendTransaction, wallet } = useWallet();
   const { pwaData } = useUserData();
-  const [token, setToken] = useState("SOL");
+  const [token, setToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadCharityDraft().toAddress || "");
   const [amount, setAmount] = useState(() => loadCharityDraft().amount || "");
   const [realBalance, setRealBalance] = useState(0);
@@ -3719,11 +4291,44 @@ function CharityPage() {
   const [lastSig, setLastSig] = useState("");
   const [showMyQr, setShowMyQr] = useState(false);
   const [showScanQr, setShowScanQr] = useState(false);
+  const [fiatRates, setFiatRates] = useState(null);
+  const [solUsd, setSolUsd] = useState(null);
+  const [rateLoading, setRateLoading] = useState(true);
+  const [fiatCode, setFiatCode] = useState("MYR");
+  const [fiatAmount, setFiatAmount] = useState("");
   const { setVisible: setWalletModalVisible } = useWalletModal();
+  const FIATS = PAWLY_FIATS;
 
   useEffect(() => {
     saveCharityDraft({ toAddress, amount, token });
   }, [toAddress, amount, token]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setRateLoading(true);
+      try {
+        const results = await Promise.allSettled([fetchFiatRatesUsd(), fetchSolUsdPrice()]);
+        if (!alive) return;
+        const fiat = results[0].status === "fulfilled" ? results[0].value : null;
+        const sol = results[1].status === "fulfilled" ? results[1].value : null;
+        if (fiat?.rates) setFiatRates(fiat.rates);
+        if (sol?.usd) setSolUsd(sol.usd);
+      } finally {
+        if (alive) setRateLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const cryptoAmt = fiatToCryptoAmount(fiatAmount, fiatCode, fiatRates, token, solUsd);
+    if (cryptoAmt == null) return;
+    const decimals = token === "SOL" ? 6 : 4;
+    setAmount(Number(cryptoAmt.toFixed(decimals)).toString());
+  }, [fiatAmount, fiatCode, fiatRates, token, solUsd]);
 
   const shelters = [
     { name: "SPCA Selangor", url: "https://www.spca.org.my/" },
@@ -3907,20 +4512,90 @@ function CharityPage() {
 
         <div
           style={{
+            background: "rgba(255,82,82,0.08)",
+            border: "1px solid rgba(255,82,82,0.3)",
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ color: "#ff8a80", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
+            法币计价捐赠 / Fiat-priced donate
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            <select
+              value={fiatCode}
+              onChange={(e) => setFiatCode(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 110,
+                background: "#12121f",
+                border: "1px solid #333",
+                borderRadius: 10,
+                padding: 10,
+                color: "#fff",
+              }}
+            >
+              {FIATS.map((f) => (
+                <option key={f.code} value={f.code}>
+                  {f.symbol} {f.code}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="0"
+              value={fiatAmount}
+              onChange={(e) => setFiatAmount(e.target.value)}
+              placeholder={`法币金额 / Fiat (${fiatCode})`}
+              style={{
+                flex: 1,
+                minWidth: 110,
+                background: "#12121f",
+                border: "1px solid #333",
+                borderRadius: 10,
+                padding: 10,
+                color: "#fff",
+              }}
+            />
+          </div>
+          <div style={{ color: "#ccc", fontSize: 12, lineHeight: 1.45 }}>
+            {fiatRates?.[fiatCode]
+              ? `1 USD ≈ ${Number(fiatRates[fiatCode]).toFixed(4)} ${fiatCode}`
+              : rateLoading
+                ? "Loading rates…"
+                : "Rates unavailable"}
+            {fiatAmount && fiatRates?.[fiatCode] ? (
+              <>
+                <br />
+                {fiatAmount} {fiatCode} ≈{" "}
+                <strong style={{ color: "#00ff9d" }}>
+                  {(Number(fiatAmount) / Number(fiatRates[fiatCode])).toFixed(4)} USDC
+                </strong>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             marginBottom: 8,
           }}
         >
-          <span style={{ color: "#99a", fontSize: 13 }}>数量 / Amount</span>
+          <span style={{ color: "#99a", fontSize: 13 }}>数量 / Amount ({token})</span>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ color: "#667", fontSize: 12 }}>
               余额 / Bal: {fmtBal(realBalance)} {token}
             </span>
             <button
               type="button"
-              onClick={() => setAmount(String(realBalance || 0))}
+              onClick={() => {
+                setFiatAmount("");
+                setAmount(String(realBalance || 0));
+              }}
               style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
             >
               MAX
@@ -3931,7 +4606,10 @@ function CharityPage() {
           type="number"
           min="0"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            setFiatAmount("");
+            setAmount(e.target.value);
+          }}
           placeholder="0.00"
           style={{
             width: "100%",
@@ -3942,7 +4620,7 @@ function CharityPage() {
             borderRadius: 12,
             padding: 14,
             color: "#fff",
-            fontSize: "1.1rem",
+            fontSize: "1.15rem",
           }}
         />
         <GasEstimateBox presetKey="charity" refreshKey={token + toAddress} />
@@ -3975,7 +4653,21 @@ function CharityPage() {
         )}
         {showScanQr && (
           <ScanQrModal
-            onDetected={(addr) => setToAddress(addr)}
+            onDetected={(payload) => {
+              const p = typeof payload === "string" ? { address: payload } : payload || {};
+              if (p.address) setToAddress(p.address);
+              if (p.token && ["SOL", "USDC", "USDT", "PAWLY"].includes(p.token)) {
+                if (typeof setPayToken === "function") setPayToken(p.token);
+                else if (typeof setToken === "function") setToken(p.token);
+              }
+              if (p.fiat && typeof setFiatCode === "function") setFiatCode(p.fiat);
+              if (p.fiatAmount && typeof setFiatAmount === "function") {
+                setFiatAmount(String(p.fiatAmount));
+              } else if (p.amount && typeof setAmount === "function") {
+                if (typeof setFiatAmount === "function") setFiatAmount("");
+                setAmount(String(p.amount));
+              }
+            }}
             onClose={() => setShowScanQr(false)}
           />
         )}
@@ -4038,11 +4730,278 @@ function AppRoutes() {
     <>
       <SyncFromUrl />
       <Routes>
+
+function CashOutPage() {
+  const { publicKey, connected } = useWallet();
+  const { pwaData } = useUserData();
+  const [crypto, setCrypto] = useState("USDC");
+  const [amount, setAmount] = useState("");
+  const [fiatCode, setFiatCode] = useState("MYR");
+  const [showPlatforms, setShowPlatforms] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [lastOrder, setLastOrder] = useState("");
+  const addr =
+    (publicKey && publicKey.toString()) || pwaData?.wallet || "";
+
+  const platforms = [
+    { id: "moonpay_sell", label: "MoonPay Sell", sub: "Sell to card/bank (where available)" },
+    { id: "transak_sell", label: "Transak Sell", sub: "SELL · Solana" },
+    { id: "ramp_sell", label: "Ramp Off-ramp", sub: "OFFRAMP flow" },
+    { id: "alchemy_sell", label: "Alchemy Pay", sub: "Sell / ramp" },
+    { id: "luno_sell", label: "Luno", sub: "MY/SEA · sell on exchange" },
+    { id: "changenow_sell", label: "ChangeNOW", sub: "Crypto → fiat gateway" },
+    { id: "wallet_sell", label: "Wallet App Sell", sub: "Phantom / Solflare 内卖出" },
+  ];
+
+  const pick = (id) => {
+    if (!addr) {
+      alert("请先连接钱包\nPlease connect wallet first");
+      return;
+    }
+    try {
+      const oid = openOfframpPlatform(id, addr, crypto, amount, fiatCode);
+      if (oid) setLastOrder(String(oid));
+      setShowPlatforms(false);
+    } catch (e) {
+      alert(e?.message || String(e));
+    }
+  };
+
+  return (
+    <div style={pageWrap}>
+      <PageHeader
+        title="🏦 卖出·出金 / Sell·Cash out"
+        subtitle="USDC · USDT · SOL → 法币 · 不托管跳转 / Non-custodial off-ramp"
+      />
+      <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <p style={{ color: "#bcc", lineHeight: 1.55, fontSize: 14 }}>
+          将钱包内稳定币/SOL 通过第三方通道换成法币。PAWLY 只跳转，不托管资金。
+          <br />
+          Sell crypto via third-party channels. PAWLY only redirects — no custody.
+        </p>
+        <div style={{ color: "#889", marginBottom: 6, marginTop: 16 }}>出金币种 / Crypto</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          {["USDC", "USDT", "SOL"].map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCrypto(c)}
+              style={{
+                flex: 1,
+                minWidth: 72,
+                padding: 12,
+                borderRadius: 12,
+                border: "none",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: crypto === c ? "#42a5f5" : "#1a1a2e",
+                color: crypto === c ? "#000" : "#fff",
+              }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <div style={{ color: "#889", marginBottom: 6 }}>数量（可选）/ Amount</div>
+            <input
+              type="number"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                background: "#12121f",
+                border: "1px solid #333",
+                borderRadius: 12,
+                padding: 12,
+                color: "#fff",
+              }}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <div style={{ color: "#889", marginBottom: 6 }}>目标法币 / Fiat</div>
+            <select
+              value={fiatCode}
+              onChange={(e) => setFiatCode(e.target.value)}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                background: "#12121f",
+                border: "1px solid #333",
+                borderRadius: 12,
+                padding: 12,
+                color: "#fff",
+              }}
+            >
+              {["MYR", "SGD", "USD", "CNY", "JPY", "THB", "IDR", "HKD", "TWD", "KRW"].map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div style={{ background: "#12121f", borderRadius: 12, padding: 12, marginBottom: 14 }}>
+          <div style={{ color: "#889", marginBottom: 6 }}>钱包 / Wallet</div>
+          <div style={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all", color: "#b8f5d8" }}>
+            {addr || (connected ? "…" : "未连接 / Not connected")}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowPlatforms(true)}
+          style={{
+            ...neonBtn,
+            width: "100%",
+            boxSizing: "border-box",
+            marginBottom: 10,
+            background: "linear-gradient(90deg,#1565c0,#42a5f5)",
+          }}
+        >
+          出金 / Cash out
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowNotes(true)}
+          style={{ ...ghostBtn, width: "100%", boxSizing: "border-box", marginBottom: 8 }}
+        >
+          📋 出金说明 / Off-ramp Notes
+        </button>
+        {lastOrder ? (
+          <p style={{ color: "#90caf9", fontSize: 12, textAlign: "center" }}>
+            最近订单 / Last order: {lastOrder}
+          </p>
+        ) : null}
+        {showPlatforms && (
+          <div
+            role="dialog"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.75)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowPlatforms(false);
+            }}
+          >
+            <div
+              style={{
+                maxWidth: 400,
+                width: "100%",
+                background: "linear-gradient(165deg,#0d1b2a,#0d0d18)",
+                border: "1px solid rgba(66,165,245,0.4)",
+                borderRadius: 18,
+                padding: 20,
+                color: "#e3f2fd",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <strong style={{ fontSize: 16 }}>选择出金通道 / Choose channel</strong>
+                <button type="button" onClick={() => setShowPlatforms(false)} style={{ ...ghostBtn, padding: "4px 10px" }}>
+                  ✕
+                </button>
+              </div>
+              <p style={{ color: "#789", fontSize: 12, marginTop: 0 }}>
+                卖出 {crypto}
+                {amount ? ` · ${amount}` : ""} · 目标 {fiatCode}
+              </p>
+              {platforms.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => pick(p.id)}
+                  style={{
+                    ...ghostBtn,
+                    width: "100%",
+                    boxSizing: "border-box",
+                    marginBottom: 8,
+                    textAlign: "left",
+                    padding: "12px 14px",
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>{p.label}</div>
+                  <div style={{ fontSize: 11, color: "#789" }}>{p.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {showNotes && (
+          <div
+            role="dialog"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0,0,0,0.75)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowNotes(false);
+            }}
+          >
+            <div
+              style={{
+                maxWidth: 400,
+                width: "100%",
+                background: "#12121f",
+                border: "1px solid #333",
+                borderRadius: 16,
+                padding: 20,
+                color: "#ddd",
+                fontSize: 13,
+                lineHeight: 1.55,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <strong>📋 出金说明 / Off-ramp Notes</strong>
+                <button type="button" onClick={() => setShowNotes(false)} style={{ ...ghostBtn, padding: "4px 10px" }}>
+                  ✕
+                </button>
+              </div>
+              <p style={{ margin: "0 0 8px" }}>
+                · 点「出金」后选择通道，在第三方页面完成卖出/提现。
+                <br />
+                · Tap Cash out, complete sell on the third-party site.
+              </p>
+              <p style={{ margin: "0 0 8px" }}>
+                · PAWLY 不托管资金；KYC/限额以对方为准。
+                <br />
+                · PAWLY does not custody funds.
+              </p>
+              <p style={{ margin: 0 }}>
+                · Luno / ChangeNOW 请确认 Solana 网络与提现地址。
+                <br />
+                · Confirm Solana network on exchanges.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
         <Route path="/" element={<HomePage />} />
         <Route path="/staking" element={<StakingPage />} />
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/swap" element={<SwapPage />} />
         <Route path="/buy" element={<BuyPage />} />
+        <Route path="/cashout" element={<CashOutPage />} />
         <Route path="/charity" element={<CharityPage />} />
       </Routes>
     </>
