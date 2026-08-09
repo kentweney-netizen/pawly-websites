@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.08.2026 v7.6.3 Buy+CashOut · more platforms · syntax-fixed
+ * PAWLY DApp — 09.08.2026 v7.6.3b no-TNG copy · settle btn+modal · cashout MAX balance
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1134,7 +1134,7 @@ async function fetchFiatRatesUsd() {
   return null;
 }
 
-/** PAWLY 多法币计价列表（TNG 风格显示；链上仍结算 USDC/USDT/SOL） */
+/** PAWLY 多法币计价列表（链上仍结算 USDC/USDT/SOL） */
 const PAWLY_FIATS = [
   { code: "MYR", name: "马来西亚 / Malaysia", symbol: "RM" },
   { code: "SGD", name: "新加坡 / Singapore", symbol: "S$" },
@@ -2875,7 +2875,7 @@ function PaymentPage() {
     };
   }, [payWalletAddr, payToken, maxPawly]);
 
-  // 法币金额 → 自动换算链上支付数量（TNG 风格）
+  // 法币金额 → 自动换算链上支付数量
   useEffect(() => {
     const cryptoAmt = fiatToCryptoAmount(fiatAmount, fiatCode, fiatRates, payToken, solUsd);
     if (cryptoAmt == null) return;
@@ -3070,12 +3070,12 @@ function PaymentPage() {
           }}
         >
           <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
-            法币计价（TNG 风格）/ Fiat price · settle in crypto
+            法币计价 / Fiat pricing · settle in crypto
           </div>
           <p style={{ color: "#889", fontSize: 11, margin: "0 0 10px", lineHeight: 1.45 }}>
-            输入对方要的法币金额（如 2 MYR），系统按今日汇率算出应付 USDC/USDT（或 SOL）。实际链上转的是加密资产。
+            输入对方要的法币金额，系统按今日汇率算出应付 USDC/USDT（或 SOL）。实际链上转的是加密资产。
             <br />
-            Enter fiat the counterparty asks (e.g. 2 MYR) → auto crypto amount. On-chain settlement stays USDC/USDT/SOL.
+            Enter the fiat amount requested → auto crypto amount. On-chain settlement stays USDC/USDT/SOL.
           </p>
           <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             <select
@@ -3218,50 +3218,34 @@ function PaymentPage() {
           </div>
         </div>
 
-        <div
+                <button
+          type="button"
+          onClick={() => {
+            if (!payWalletAddr) {
+              alert("请先连接钱包\nConnect wallet first");
+              try {
+                setWalletModalVisible(true);
+              } catch (_) {}
+              return;
+            }
+            setShowSettle(true);
+          }}
           style={{
-            background: "rgba(33,150,243,0.08)",
-            border: "1px solid rgba(33,150,243,0.35)",
-            borderRadius: 14,
-            padding: 14,
+            ...ghostBtn,
+            width: "100%",
+            boxSizing: "border-box",
             marginBottom: 12,
+            padding: "12px 16px",
           }}
         >
-          <div style={{ color: "#90caf9", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
-            法币结算（不托管）/ Fiat settle · non-custodial
-          </div>
-          <p style={{ color: "#889", fontSize: 11, margin: "0 0 10px", lineHeight: 1.45 }}>
-            将钱包内 USDC/USDT/SOL 通过持牌通道换成银行/电子钱包法币。PAWLY 只下单并跳转，资金不经过 PAWLY。
-            <br />
-            Sell crypto via licensed off-ramp. PAWLY only creates an order id and redirects — no custody.
+          法币结算（不托管）/ Fiat settle
+        </button>
+        {lastSettleOrder ? (
+          <p style={{ color: "#90caf9", fontSize: 11, margin: "-4px 0 12px", textAlign: "center" }}>
+            最近订单 / Last order: {lastSettleOrder}
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (!payWalletAddr) {
-                alert("请先连接钱包\nConnect wallet first");
-                try {
-                  setWalletModalVisible(true);
-                } catch (_) {}
-                return;
-              }
-              setShowSettle(true);
-            }}
-            style={{
-              ...neonBtn,
-              width: "100%",
-              boxSizing: "border-box",
-              background: "linear-gradient(90deg,#1565c0,#42a5f5)",
-            }}
-          >
-            法币结算 / Settle to Fiat
-          </button>
-          {lastSettleOrder ? (
-            <p style={{ color: "#90caf9", fontSize: 11, margin: "8px 0 0" }}>
-              最近订单 / Last order: {lastSettleOrder}
-            </p>
-          ) : null}
-        </div>
+        ) : null}
+
 
         <button
           type="button"
@@ -3427,9 +3411,9 @@ function PaymentPage() {
                 </button>
               </div>
               <p style={{ color: "#90a4ae", fontSize: 12, lineHeight: 1.5, marginTop: 0 }}>
-                将打开第三方页面。你在对方完成卖出/出金；PAWLY 不持有资金。
+                将钱包内 USDC/USDT/SOL 通过第三方通道换成银行/电子钱包法币。将打开第三方页面；你在对方完成卖出/出金。PAWLY 只下单并跳转，资金不经过 PAWLY。
                 <br />
-                Opens third-party page. You complete sell there; PAWLY never holds funds.
+                Sell crypto via a third-party channel. A third-party page will open; you complete the sell there. PAWLY only creates an order and redirects — no custody.
               </p>
               <p style={{ color: "#bbb", fontSize: 12, marginBottom: 10 }}>
                 预计 / From: <strong>{amount || "—"} {payToken}</strong>
@@ -4735,8 +4719,32 @@ function CashOutPage() {
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [lastOrder, setLastOrder] = useState("");
+  const [realBalance, setRealBalance] = useState(0);
+  const [balLoading, setBalLoading] = useState(false);
   const addr =
     (publicKey && publicKey.toString()) || pwaData?.wallet || "";
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!addr) {
+        if (alive) setRealBalance(0);
+        return;
+      }
+      setBalLoading(true);
+      try {
+        const bal = await fetchTokenBalance(addr, crypto);
+        if (alive) setRealBalance(Number(bal) || 0);
+      } catch (_) {
+        if (alive) setRealBalance(0);
+      } finally {
+        if (alive) setBalLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [addr, crypto]);
 
   const platforms = [
     { id: "moonpay_sell", label: "MoonPay Sell", sub: "Sell to card/bank (where available)" },
@@ -4839,6 +4847,36 @@ function CashOutPage() {
               ))}
             </select>
           </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <span style={{ color: "#889", fontSize: 13 }}>
+            钱包余额 / Wallet bal:{" "}
+            <strong style={{ color: "#b8f5d8" }}>
+              {balLoading ? "…" : (Number(realBalance) || 0).toFixed(6)} {crypto}
+            </strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setAmount(String(realBalance || 0))}
+            disabled={!addr || balLoading || !(realBalance > 0)}
+            style={{
+              ...ghostBtn,
+              padding: "6px 14px",
+              fontSize: 12,
+              opacity: !addr || balLoading || !(realBalance > 0) ? 0.5 : 1,
+            }}
+          >
+            MAX
+          </button>
         </div>
         <div style={{ background: "#12121f", borderRadius: 12, padding: 12, marginBottom: 14 }}>
           <div style={{ color: "#889", marginBottom: 6 }}>钱包 / Wallet</div>
