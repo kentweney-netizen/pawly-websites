@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.08.2026 v7.6.3 Buy+CashOut pages · more on/off-ramp platforms
+ * PAWLY DApp — 09.08.2026 v7.6.3 Buy+CashOut · more platforms · syntax-fixed
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -839,6 +839,8 @@ function openOnrampPlatform(platform, walletAddress, crypto) {
     });
     url = "https://changenow.io/?" + params.toString();
   } else if (platform === "wallet") {
+
+    // 引导用户使用已安装钱包 App 内的买入（无第三方网页）
     url = "";
     alert(
       "请在已安装的钱包 App（如 Phantom / Solflare）内使用「买入 / Buy」功能购买 " +
@@ -960,7 +962,6 @@ function openOfframpPlatform(platform, walletAddress, crypto, amount, fiatCode) 
     });
     if (amt) params.set("amount", amt);
     url = "https://changenow.io/?" + params.toString();
-  }
   } else if (platform === "wallet_sell") {
     alert(
       "请在钱包 App 内使用「卖出 / Sell / Cash out」将 " +
@@ -3238,8 +3239,7 @@ function PaymentPage() {
             type="button"
             onClick={() => {
               if (!payWalletAddr) {
-                alert("请先连接钱包
-Connect wallet first");
+                alert("请先连接钱包\nConnect wallet first");
                 try {
                   setWalletModalVisible(true);
                 } catch (_) {}
@@ -4725,11 +4725,6 @@ function CharityPage() {
   );
 }
 
-function AppRoutes() {
-  return (
-    <>
-      <SyncFromUrl />
-      <Routes>
 
 function CashOutPage() {
   const { publicKey, connected } = useWallet();
@@ -4996,6 +4991,11 @@ function CashOutPage() {
   );
 }
 
+function AppRoutes() {
+  return (
+    <>
+      <SyncFromUrl />
+      <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/staking" element={<StakingPage />} />
         <Route path="/payment" element={<PaymentPage />} />
