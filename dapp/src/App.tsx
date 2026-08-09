@@ -1,12 +1,14 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 06.08.2026 v7.5.6 + Trust VersionedTransaction transfer + pending/Edge sync
- * ATA: getAccountInfo；单签；Jupiter v0；扫码环境检测
- * appIdentity.uri / 外链已切正式域
- * v7 + 本次：
- *   1. Swap 双路由：Jupiter（主）+ Raydium（备），实时市价
- *   2. 买入·入金：单按钮弹窗选平台（SOL/USDC/USDT）
- *   3. 支付·转账真实链上 + 汇率保留
+ * PAWLY DApp — 09.08.2026 v7.5.9 Gallery QR decode + multi-wallet + guest balances
+ * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
+ *  1) local simulateTransaction(sigVerify:false)
+ *  2) prefer adapter.signAndSendTransaction
+ *  3) fallback sendTransaction (+ optional skipPreflight retry)
+ *  4) Versioned then legacy
+ *  5) Guest wallet (no PWA register): still show on-chain SOL/USDC/USDT + address
+ *  6) Gallery/screenshot QR: no capture= on album; multi-decoder fallback
+ * ATA getAccountInfo; Jupiter v0; appIdentity www.pawlypets.online
  */
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import {
@@ -226,8 +228,113 @@ function getConnection() {
   return new Connection(HELIUS_RPC_GLOBAL, "confirmed");
 }
 
+
+/**
+ * Multi-wallet unified sign+send (reduce red simulation / risk false positives)
+ * Phantom, Solflare, Trust, Coinbase, Bitget, Jupiter, MWA, Wallet-Standard adapters
+ */
+async function walletSignAndSend({
+  connection,
+  transaction,
+  sendTransaction,
+  wallet,
+  allowSkipPreflightFallback = true,
+}) {
+  if (!transaction) throw new Error("No transaction");
+  if (!connection) throw new Error("No connection");
+
+  // 1) Local simulation without signature verify — surface build errors before wallet UI
+  try {
+    const isV0 =
+      (typeof transaction.version === "number") ||
+      (transaction.message != null && typeof transaction.serialize === "function" && !transaction.instructions);
+    if (transaction instanceof VersionedTransaction || isV0) {
+      const sim = await connection.simulateTransaction(transaction, {
+        sigVerify: false,
+        replaceRecentBlockhash: true,
+      });
+      if (sim?.value?.err) {
+        throw new Error("Simulation failed / 模拟失败: " + JSON.stringify(sim.value.err));
+      }
+    } else {
+      const sim = await connection.simulateTransaction(transaction);
+      if (sim?.value?.err) {
+        throw new Error("Simulation failed / 模拟失败: " + JSON.stringify(sim.value.err));
+      }
+    }
+  } catch (e) {
+    const m = String(e?.message || e);
+    if (m.includes("Simulation failed") || m.includes("模拟失败")) throw e;
+    // RPC restricted in some in-app browsers — continue to wallet path
+    console.warn("[PAWLY] pre-sim soft fail:", m);
+  }
+
+  const pickSig = (res) => {
+    if (!res) return "";
+    if (typeof res === "string") return res;
+    if (res.signature) return res.signature;
+    if (res.txid) return res.txid;
+    return String(res);
+  };
+
+  // 2) Prefer signAndSendTransaction when adapter supports it (all major wallets that implement it)
+  const adapter = wallet?.adapter || wallet;
+  if (adapter && typeof adapter.signAndSendTransaction === "function") {
+    try {
+      const res = await adapter.signAndSendTransaction(transaction);
+      const sig = pickSig(res);
+      if (sig && sig !== "[object Object]") return sig;
+    } catch (e) {
+      console.warn("[PAWLY] signAndSendTransaction fallback:", e?.message || e);
+    }
+  }
+
+  // Also try window provider signAndSendTransaction (Phantom/Bitget/Jupiter injected)
+  try {
+    const prov =
+      (typeof window !== "undefined" &&
+        (window.phantom?.solana ||
+          window.solflare ||
+          window.coinbaseSolana ||
+          window.solana)) ||
+      null;
+    if (prov && typeof prov.signAndSendTransaction === "function" && adapter?.publicKey) {
+      // only if connected provider matches
+      try {
+        const res = await prov.signAndSendTransaction(transaction);
+        const sig = pickSig(res);
+        if (sig && sig !== "[object Object]") return sig;
+      } catch (_) {}
+    }
+  } catch (_) {}
+
+  if (typeof sendTransaction !== "function") {
+    throw new Error("Wallet cannot sign / 钱包无法签名");
+  }
+
+  const trySend = (skipPreflight) =>
+    sendTransaction(transaction, connection, {
+      skipPreflight: !!skipPreflight,
+      preflightCommitment: "confirmed",
+      maxRetries: 3,
+    });
+
+  try {
+    return await trySend(false);
+  } catch (e1) {
+    if (!allowSkipPreflightFallback) throw e1;
+    try {
+      return await trySend(true);
+    } catch (e2) {
+      throw new Error(
+        (e1?.message || String(e1)) + " | retry: " + (e2?.message || String(e2))
+      );
+    }
+  }
+}
+
 /** 真实 SOL / SPL 转账（需已连接可签名钱包） */
-async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress, uiAmount }) {
+async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, toAddress, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   let toPubkey;
   try {
@@ -300,20 +407,30 @@ async function sendTokenTransfer({ publicKey, sendTransaction, token, toAddress,
 
   let sig;
   try {
-    sig = await sendTransaction(vtx, connection, { skipPreflight: false });
+    sig = await walletSignAndSend({
+      connection,
+      transaction: vtx,
+      sendTransaction,
+      wallet,
+    });
   } catch (e) {
-    // 少数钱包仍只认 legacy：回退旧 Transaction
     const msg = String(e?.message || e);
     if (
       msg.includes("serializeMessage") ||
       msg.includes("VersionedTransaction") ||
-      msg.includes("Unexpected")
+      msg.includes("Unexpected") ||
+      msg.includes("not a function")
     ) {
       const legacy = new Transaction();
       legacy.recentBlockhash = blockhash;
       legacy.feePayer = publicKey;
       for (const ix of ixs) legacy.add(ix);
-      sig = await sendTransaction(legacy, connection, { skipPreflight: false });
+      sig = await walletSignAndSend({
+        connection,
+        transaction: legacy,
+        sendTransaction,
+        wallet,
+      });
     } else {
       throw e;
     }
@@ -471,7 +588,7 @@ async function getBestSwapQuote(fromToken, toToken, uiAmount) {
 }
 
 /** Jupiter 执行兑换 */
-async function executeJupiterSwap({ publicKey, sendTransaction, quoteResponse }) {
+async function executeJupiterSwap({ publicKey, sendTransaction, wallet, quoteResponse }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
 
   let swapTransaction = null;
@@ -550,7 +667,12 @@ async function executeJupiterSwap({ publicKey, sendTransaction, quoteResponse })
   const raw = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
   const vtx = VersionedTransaction.deserialize(raw);
   const connection = getConnection();
-  const sig = await sendTransaction(vtx, connection, { skipPreflight: false });
+  const sig = await walletSignAndSend({
+    connection,
+    transaction: vtx,
+    sendTransaction,
+    wallet,
+  });
   const latest = await connection.getLatestBlockhash("confirmed");
   await connection.confirmTransaction(
     { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
@@ -560,7 +682,7 @@ async function executeJupiterSwap({ publicKey, sendTransaction, quoteResponse })
 }
 
 /** Raydium 执行兑换（可能多笔交易） */
-async function executeRaydiumSwap({ publicKey, sendTransaction, computeData }) {
+async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, computeData }) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
@@ -594,10 +716,10 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, computeData }) {
       let sig;
       try {
         const vtx = VersionedTransaction.deserialize(raw);
-        sig = await sendTransaction(vtx, connection, { skipPreflight: false });
+        sig = await walletSignAndSend({ connection, transaction: vtx, sendTransaction, wallet });
       } catch (_) {
         const tx = Transaction.from(raw);
-        sig = await sendTransaction(tx, connection, { skipPreflight: false });
+        sig = await walletSignAndSend({ connection, transaction: tx, sendTransaction, wallet });
       }
       const latest = await connection.getLatestBlockhash("confirmed");
       await connection.confirmTransaction(
@@ -617,7 +739,7 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, computeData }) {
  * 执行兑换：始终优先 Jupiter 真实交易（避免 Raydium 空 tx）
  * 若当前 best 不是 Jupiter，会重新拉 Jupiter 报价再执行
  */
-async function executeSwapRoute({ publicKey, sendTransaction, best, fromToken, toToken, uiAmount }) {
+async function executeSwapRoute({ publicKey, sendTransaction, wallet, best, fromToken, toToken, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   if (!best) throw new Error("No quote");
 
@@ -634,6 +756,7 @@ async function executeSwapRoute({ publicKey, sendTransaction, best, fromToken, t
     return await executeJupiterSwap({
       publicKey,
       sendTransaction,
+      wallet,
       quoteResponse: jup,
     });
   } catch (e1) {
@@ -643,6 +766,7 @@ async function executeSwapRoute({ publicKey, sendTransaction, best, fromToken, t
       return await executeJupiterSwap({
         publicKey,
         sendTransaction,
+        wallet,
         quoteResponse: q2.raw,
       });
     } catch (e2) {
@@ -1191,7 +1315,16 @@ function UserDataProvider({ children }) {
         .eq("wallet_address", addr)
         .single();
       if (error || !data) {
-        console.log("未找到钱包对应的用户数据");
+        // 未注册 PWA：仍写入钱包地址，便于显示链上余额（积分/签到为 0）
+        console.log("未找到钱包对应的用户数据 — guest on-chain mode");
+        applyUser({
+          email: "",
+          wallet: addr,
+          streak: "0",
+          total_pawly: "0",
+          points: "0",
+          guest: true,
+        });
         return;
       }
       const next = {
@@ -1200,6 +1333,7 @@ function UserDataProvider({ children }) {
         streak: String(data.checkin_streak || 0),
         total_pawly: String(data.total_earnd || 0),
         points: String(data.pawly_points || 0),
+        guest: false,
       };
       applyUser(next);
     } catch (err) {
@@ -1338,7 +1472,13 @@ function HomePage() {
 
   useEffect(() => {
     if (wallet.publicKey) {
+      // 立刻写入地址，不等待 Supabase，避免未注册用户空白
+      const addr = wallet.publicKey.toString();
+      if (!pwaData.wallet || pwaData.wallet !== addr) {
+        // keep existing email/points if same wallet registered; refreshUserData will overwrite from DB
+      }
       refreshUserData(wallet.publicKey);
+      loadChainBalances();
     }
   }, [wallet.publicKey]);
 
@@ -1391,21 +1531,27 @@ function HomePage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
             <div>
               <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: "1.05rem" }}>我的数据 / My Data</div>
-              <div style={{ color: "#778", fontSize: "0.8rem", marginTop: 2 }}>PWA 同步 · 链上余额 / PWA sync · on-chain balances</div>
+              <div style={{ color: "#778", fontSize: "0.8rem", marginTop: 2 }}>链上余额优先 · PWA 可选 / On-chain first · PWA optional</div>
             </div>
             <button onClick={onRefresh} style={ghostBtn}>🔄 刷新</button>
           </div>
 
-          {verified || pwaData.wallet ? (
+          {(wallet.publicKey || verified || pwaData.wallet) ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-              {pwaData.wallet && (
-                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
-                  <div style={{ color: "#778", fontSize: 12 }}>钱包 / Wallet</div>
-                  <div style={{ fontFamily: "monospace", fontSize: 13, marginTop: 4, wordBreak: "break-all" }}>
-                    {pwaData.wallet.slice(0, 4)}…{pwaData.wallet.slice(-4)}
-                  </div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
+                <div style={{ color: "#778", fontSize: 12 }}>钱包 / Wallet</div>
+                <div style={{ fontFamily: "monospace", fontSize: 13, marginTop: 4, wordBreak: "break-all" }}>
+                  {(() => {
+                    const w = (wallet.publicKey && wallet.publicKey.toString()) || pwaData.wallet || "";
+                    return w ? `${w.slice(0, 4)}…${w.slice(-4)}` : "—";
+                  })()}
                 </div>
-              )}
+                {pwaData.guest || (!pwaData.email && wallet.publicKey) ? (
+                  <div style={{ color: "#fbbf24", fontSize: 11, marginTop: 6 }}>
+                    未注册 PWA · 仅链上余额 / Guest · on-chain only
+                  </div>
+                ) : null}
+              </div>
               <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
                 <div style={{ color: "#778", fontSize: 12 }}>USDC / USDT</div>
                 <div style={{ fontSize: "1.05rem", fontWeight: 700, marginTop: 4, color: "#00ff9d" }}>
@@ -1422,15 +1568,21 @@ function HomePage() {
                 </div>
               </div>
               <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
-                <div style={{ color: "#778", fontSize: 12 }}>Total PAWLY</div>
-                <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: 4, color: "#00ff9d" }}>{pwaData.total_pawly}</div>
+                <div style={{ color: "#778", fontSize: 12 }}>PAWLY / Points</div>
+                <div style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: 4, color: "#00ff9d" }}>
+                  {pwaData.total_pawly || "0"} PAWLY
+                </div>
+                <div style={{ fontSize: 12, color: "#889", marginTop: 4 }}>
+                  Points: {pwaData.points || "0"}
+                  {pwaData.guest || (!pwaData.email && wallet.publicKey) ? " · 需 PWA 注册才有签到积分" : ""}
+                </div>
               </div>
             </div>
           ) : (
             <p style={{ color: "#889", margin: 0, fontSize: "0.9rem", lineHeight: 1.6 }}>
-              连接钱包或从 PWA 跳转后，这里会显示你的签到与积分数据。
+              请先连接钱包。无需 PWA 注册也可查看 SOL / USDC / USDT 链上余额。
               <br />
-              <span style={{ color: "#667" }}>Connect wallet or open from PWA to load your data.</span>
+              <span style={{ color: "#667" }}>Connect any wallet to load on-chain balances. PWA registration is optional.</span>
             </p>
           )}
         </div>
@@ -1891,6 +2043,152 @@ function loadHtml5QrcodeLib() {
   });
 }
 
+
+/** 从图片文件解码二维码（截图/相册）——多路径回退，不依赖实时摄像头 */
+async function loadJsQRLib() {
+  return new Promise((resolve, reject) => {
+    if (typeof window !== "undefined" && window.jsQR) {
+      resolve(window.jsQR);
+      return;
+    }
+    const existing = document.querySelector("script[data-pawly-jsqr]");
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.jsQR));
+      existing.addEventListener("error", () => reject(new Error("jsQR load failed")));
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+    s.async = true;
+    s.dataset.pawlyJsqr = "1";
+    s.onload = () => {
+      if (window.jsQR) resolve(window.jsQR);
+      else reject(new Error("jsQR missing"));
+    };
+    s.onerror = () => reject(new Error("Failed to load jsQR"));
+    document.head.appendChild(s);
+  });
+}
+
+function fileToImageBitmap(file) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (typeof createImageBitmap === "function") {
+        const bmp = await createImageBitmap(file);
+        resolve(bmp);
+        return;
+      }
+    } catch (_) {}
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Cannot read image"));
+    };
+    img.src = url;
+  });
+}
+
+async function decodeQrWithCanvas(file) {
+  const img = await fileToImageBitmap(file);
+  const w = img.width || img.naturalWidth || 0;
+  const h = img.height || img.naturalHeight || 0;
+  if (!w || !h) throw new Error("Empty image");
+
+  // 截图里二维码可能偏小：多尺度尝试
+  const scales = [1, 1.5, 2, 0.75, 0.5];
+  const jsQR = await loadJsQRLib();
+
+  for (const scale of scales) {
+    const cw = Math.max(32, Math.round(w * scale));
+    const ch = Math.max(32, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) continue;
+    ctx.drawImage(img, 0, 0, cw, ch);
+    const imageData = ctx.getImageData(0, 0, cw, ch);
+    const result = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "attemptBoth",
+    });
+    if (result?.data) return result.data;
+  }
+  throw new Error("jsQR no QR found");
+}
+
+async function decodeQrWithBarcodeDetector(file) {
+  if (typeof window === "undefined" || typeof window.BarcodeDetector !== "function") {
+    throw new Error("BarcodeDetector not supported");
+  }
+  const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+  const bmp = await fileToImageBitmap(file);
+  const codes = await detector.detect(bmp);
+  if (codes && codes.length && codes[0].rawValue) return codes[0].rawValue;
+  throw new Error("BarcodeDetector no QR");
+}
+
+async function decodeQrFromImageFile(file) {
+  if (!file) throw new Error("No file");
+  const errors = [];
+
+  // 1) Chrome/Android 原生 BarcodeDetector（对截图较稳）
+  try {
+    return await decodeQrWithBarcodeDetector(file);
+  } catch (e) {
+    errors.push("BD:" + (e?.message || e));
+  }
+
+  // 2) html5-qrcode scanFile（showImage=false，避免部分 WebView 白屏）
+  try {
+    const Html5Qrcode = await loadHtml5QrcodeLib();
+    const tempId = "pawly-qr-file-" + Date.now();
+    let host = document.getElementById(tempId);
+    if (!host) {
+      host = document.createElement("div");
+      host.id = tempId;
+      host.style.cssText = "position:fixed;left:-9999px;width:1px;height:1px;overflow:hidden;";
+      document.body.appendChild(host);
+    }
+    const scanner = new Html5Qrcode(tempId);
+    try {
+      const text = await scanner.scanFile(file, false);
+      try {
+        await scanner.clear();
+      } catch (_) {}
+      try {
+        host.remove();
+      } catch (_) {}
+      if (text) return text;
+    } catch (e) {
+      try {
+        await scanner.clear();
+      } catch (_) {}
+      try {
+        host.remove();
+      } catch (_) {}
+      throw e;
+    }
+  } catch (e) {
+    errors.push("H5:" + (e?.message || e));
+  }
+
+  // 3) jsQR + canvas 多尺度（截图兜底）
+  try {
+    return await decodeQrWithCanvas(file);
+  } catch (e) {
+    errors.push("JS:" + (e?.message || e));
+  }
+
+  throw new Error(
+    "无法从图片识别二维码 / Cannot decode QR from image\n" + errors.slice(0, 3).join(" | ")
+  );
+}
+
 function ScanQrModal({ onDetected, onClose }) {
   const [manual, setManual] = useState("");
   const [camErr, setCamErr] = useState("");
@@ -2041,20 +2339,21 @@ function ScanQrModal({ onDetected, onClose }) {
     setCamErr("");
     setLoadingLib(true);
     try {
-      const Html5Qrcode = await loadHtml5QrcodeLib();
       await stopCam();
-      const scanner = new Html5Qrcode(readerId);
-      scannerRef.current = scanner;
-      const decoded = await scanner.scanFile(file, true);
+      // 截图 / 相册：多解码器回退（BarcodeDetector → html5-qrcode → jsQR）
+      const decoded = await decodeQrFromImageFile(file);
       await finish(decoded);
     } catch (err) {
       setCamErr(
-        "图片识别失败，请换一张清晰二维码或粘贴地址。\n" +
+        "相册/截图识别失败。请选清晰、完整的二维码图，或改用粘贴地址。\n" +
+          "Gallery/screenshot decode failed. Use a clear full QR or paste address.\n" +
           (err?.message || String(err))
       );
     } finally {
       setLoadingLib(false);
-      e.target.value = "";
+      try {
+        e.target.value = "";
+      } catch (_) {}
     }
   };
 
@@ -2155,11 +2454,11 @@ function ScanQrModal({ onDetected, onClose }) {
               opacity: loadingLib ? 0.6 : 1,
             }}
           >
-            相册 / Gallery
+            相册/截图 / Gallery
+            {/* 不要加 capture：capture 会强制打开相机，导致无法选相册截图 */}
             <input
               type="file"
-              accept="image/*"
-              capture="environment"
+              accept="image/*,image/png,image/jpeg,image/jpg,image/webp,image/heic"
               onChange={onFile}
               style={{ display: "none" }}
               disabled={loadingLib}
@@ -2206,7 +2505,7 @@ function ScanQrModal({ onDetected, onClose }) {
 }
 
 function PaymentPage() {
-  const { publicKey, connected, sendTransaction } = useWallet();
+  const { publicKey, connected, sendTransaction, wallet } = useWallet();
   const { pwaData } = useUserData();
   const [payToken, setPayToken] = useState("SOL");
   const [toAddress, setToAddress] = useState(() => loadPayDraft().toAddress || "");
@@ -2349,6 +2648,7 @@ function PaymentPage() {
       const sig = await sendTokenTransfer({
         publicKey,
         sendTransaction,
+        wallet,
         token: payToken,
         toAddress,
         uiAmount: amt,
@@ -2749,7 +3049,7 @@ function PaymentPage() {
 }
 
 function SwapPage() {
-  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connected, publicKey, sendTransaction, wallet } = useWallet();
   const [fromToken, setFromToken] = useState("SOL");
   const [toToken, setToToken] = useState("USDC");
   const [amount, setAmount] = useState("");
@@ -2930,6 +3230,7 @@ function SwapPage() {
       const sig = await executeSwapRoute({
         publicKey,
         sendTransaction,
+        wallet,
         best: bestQuote,
         fromToken,
         toToken,
@@ -3408,7 +3709,7 @@ function BuyPage() {
 }
 
 function CharityPage() {
-  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connected, publicKey, sendTransaction, wallet } = useWallet();
   const { pwaData } = useUserData();
   const [token, setToken] = useState("SOL");
   const [toAddress, setToAddress] = useState(() => loadCharityDraft().toAddress || "");
@@ -3485,6 +3786,7 @@ function CharityPage() {
       const sig = await sendTokenTransfer({
         publicKey,
         sendTransaction,
+        wallet,
         token,
         toAddress,
         uiAmount: amt,
