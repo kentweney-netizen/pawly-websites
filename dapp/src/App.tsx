@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.08.2026 v7.6.3b no-TNG copy · settle btn+modal · cashout MAX balance
+ * PAWLY DApp — 10.08.2026 v7.6.4 Gas tip only (no hardcoded SOL fee number)
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1323,35 +1323,12 @@ function CaWarningBanner({ feature }) {
   return <ImportantNotice feature={feature} />;
 }
 
-/** Gas 估算展示盒 */
+/**
+ * Gas 提示盒：不写死具体 SOL 数字（网络费/优先费/租金会变）
+ * 仅双语说明 + 建议预留；实际费用以钱包确认页为准
+ */
 function GasEstimateBox({ presetKey, refreshKey }) {
-  const [gas, setGas] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    estimateSolanaGas(presetKey)
-      .then((g) => {
-        if (alive) setGas(g);
-      })
-      .catch(() => {
-        if (alive)
-          setGas({
-            preset: GAS_PRESETS[presetKey]?.label || presetKey,
-            totalSol: formatSol(BASE_FEE_LAMPORTS),
-            totalLamports: BASE_FEE_LAMPORTS,
-            note: "基础签名费 / Base fee only",
-          });
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [presetKey, refreshKey]);
-
+  const label = (GAS_PRESETS[presetKey] && GAS_PRESETS[presetKey].label) || presetKey || "";
   return (
     <div
       style={{
@@ -1364,23 +1341,23 @@ function GasEstimateBox({ presetKey, refreshKey }) {
         fontSize: 13,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ color: "#00ff9d", fontWeight: 700 }}>⛽ 预估 Gas / Est. Gas</span>
-        <span style={{ color: "#889", fontSize: 11 }}>{gas?.preset || "…"}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ color: "#00ff9d", fontWeight: 700 }}>⛽ 费用说明 / Fee notes</span>
+        <span style={{ color: "#889", fontSize: 11 }}>{label}</span>
       </div>
-      {loading ? (
-        <div style={{ color: "#889" }}>计算中… / Calculating…</div>
-      ) : (
-        <>
-          <div style={{ color: "#e8fff5", fontWeight: 700, fontSize: "1.05rem" }}>
-            ≈ {gas?.totalSol} SOL
-            <span style={{ color: "#667", fontWeight: 400, fontSize: 12, marginLeft: 8 }}>
-              ({gas?.totalLamports?.toLocaleString()} lamports)
-            </span>
-          </div>
-          <div style={{ color: "#667", fontSize: 11, marginTop: 4, lineHeight: 1.4 }}>{gas?.note}</div>
-        </>
-      )}
+      <div style={{ color: "#c8e6d9", fontSize: 12, lineHeight: 1.55 }}>
+        · 网络手续费与优先费随拥堵变化，以钱包确认页显示为准。
+        <br />
+        · Network & priority fees vary; trust the amount shown in your wallet.
+        <br />
+        · 转 USDC/USDT 时若对方首次收款，可能需额外 SOL 用于新建代币账户（租金）。
+        <br />
+        · First-time token receive may need extra SOL for account rent (ATA).
+        <br />
+        · 建议钱包保留足够 SOL 作为手续费；余额过低时 Transfer / Swap 易失败。
+        <br />
+        · Keep enough SOL for fees; low SOL often causes Transfer/Swap failure.
+      </div>
     </div>
   );
 }
