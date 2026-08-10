@@ -2,6 +2,27 @@
   command = "cd dapp && npm install --legacy-peer-deps && npm run build"
   publish = "."
 
+# —— 域名统一（解决 GSC 里 http / 非 www）——
+# 若主域已在 Netlify Domain 设成强制 HTTPS + 主站 www，下面可只留 apex→www
+[[redirects]]
+  from = "http://pawlypets.online/*"
+  to = "https://www.pawlypets.online/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "http://www.pawlypets.online/*"
+  to = "https://www.pawlypets.online/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://pawlypets.online/*"
+  to = "https://www.pawlypets.online/:splat"
+  status = 301
+  force = true
+
+# —— dApp SPA（必须 200，不要 301）——
 [[redirects]]
   from = "/dapp/assets/*"
   to = "/dapp/dist/assets/:splat"
