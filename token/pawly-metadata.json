@@ -1,0 +1,17 @@
+{
+  "name": "PAWLY",
+  "symbol": "PAWLY",
+  "description": "PAWLY PETS official token. Site: https://www.pawlypets.online — Only trust CA from official site and @pawlypetslover.",
+  "image": "https://www.pawlypets.online/token/pawly-logo.png",
+  "external_url": "https://www.pawlypets.online",
+  "seller_fee_basis_points": 0,
+  "properties": {
+    "files": [
+      {
+        "uri": "https://www.pawlypets.online/token/pawly-logo.png",
+        "type": "image/png"
+      }
+    ],
+    "category": "image"
+  }
+}
