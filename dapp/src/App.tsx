@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 10.08.2026 v7.6.4 Gas tip only (no hardcoded SOL fee number)
+ * PAWLY DApp — 11.08.2026 v7.6.5 Official PAWLY CA 88cCF4cD… integrated
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -173,9 +173,10 @@ async function logDappOnchainEvent(payload) {
 
 
 /* ========== Token / CA 配置（上线后只改这里） ========== */
-const PAWLY_MINT = null; // TODO: 创建后填入 PAWLY Token CA
-const PAWLY_DECIMALS = 9;
-const PAWLY_PER_USDC = 5; // 临时比例，池子上线后改用链上报价
+/** Official PAWLY CA — 11.08.2026 (v2 + metadata). Old GnUEP... abandoned. */
+const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
+const PAWLY_DECIMALS = 6;
+const PAWLY_PER_USDC = 5; // 临时比例，Raydium 池上线后改用链上报价 / Jupiter
 const TOKEN_MINTS = {
   USDC: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
   USDT: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
@@ -1288,12 +1289,14 @@ function ImportantNotice({ feature }) {
               </button>
             </div>
             <p style={{ margin: "0 0 10px" }}>
-              <strong>{feature || "本功能"}</strong>：PAWLY Token CA 尚未创建，状态为{" "}
-              <strong>To Be Announced</strong>。界面与 Gas 为真实链上框架，正式功能将在 CA + 流动性池上线后开放。
+              <strong>{feature || "本功能"}</strong>：官方 PAWLY CA 已上线{" "}
+              <code style={{ fontSize: 11 }}>88cCF4cD…MdWn87</code>。
+              转账/支付可用 PAWLY；质押合约与流动性池仍按路线图开放。请只认官网与 @pawlypetslover 公布的 CA。
             </p>
             <p style={{ margin: 0, color: "#c9a06a" }}>
-              <strong>{feature || "This feature"}</strong>: PAWLY Token CA is not live yet (
-              <strong>TBA</strong>). UI & gas use real Solana base fees; full on-chain execution opens after CA & pool launch.
+              <strong>{feature || "This feature"}</strong>: Official PAWLY CA is live{" "}
+              <code style={{ fontSize: 11 }}>88cCF4cD…MdWn87</code>.
+              Transfer/payment with PAWLY is enabled; staking contract & LP follow the roadmap. Trust only CA from the official site and @pawlypetslover.
             </p>
             <button
               type="button"
@@ -2836,10 +2839,7 @@ function PaymentPage() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (payToken === "PAWLY") {
-        if (alive) setRealBalance(maxPawly);
-        return;
-      }
+      
       if (!payWalletAddr) {
         if (alive) setRealBalance(0);
         return;
@@ -2927,12 +2927,6 @@ function PaymentPage() {
     if (!ensureSigningWallet()) return;
     if (!amt || amt <= 0) {
       alert("请输入有效金额\nPlease enter a valid amount");
-      return;
-    }
-    if (payToken === "PAWLY") {
-      alert(
-        "PAWLY Token CA 尚未创建（TBA）。请先使用 SOL / USDC / USDT。\nPAWLY CA is TBA. Use SOL / USDC / USDT for now."
-      );
       return;
     }
     if (amt > realBalance + 1e-12) {
@@ -3176,9 +3170,9 @@ function PaymentPage() {
           )}
           {payToken === "PAWLY" && (
             <p style={{ color: "#667", fontSize: 12, margin: "0 0 8px", lineHeight: 1.45 }}>
-              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（CA 上线后开放真实支付）
+              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（池子上线后改用链上报价）
               <br />
-              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (live pay after CA)
+              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (on-chain quote after LP)
             </p>
           )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -3345,9 +3339,9 @@ function PaymentPage() {
         </div>
 
         <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
-          SOL / USDC / USDT 为真实链上转账。PAWLY 待 CA 上线。汇率仅供参考。
+          SOL / USDC / USDT / PAWLY 为真实链上转账（官方 CA 已接入）。汇率仅供参考。
           <br />
-          SOL / USDC / USDT are live on-chain transfers. PAWLY awaits CA. Rates are reference only.
+          SOL / USDC / USDT / PAWLY are live on-chain transfers (official CA integrated). Rates are reference only.
         </p>
       </div>
 
@@ -3742,12 +3736,6 @@ function SwapPage() {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
     if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
-    if (involvesPawly) {
-      alert(
-        "PAWLY Token CA 与流动性池尚未上线（TBA）。\n请先使用 SOL / USDC / USDT 兑换。\n\nPAWLY CA & pool TBA. Swap SOL / USDC / USDT for now."
-      );
-      return;
-    }
     if (!bestQuote) {
       return alert("请等待实时报价完成（Jupiter / Raydium）\nWait for live quote (Jupiter / Raydium)");
     }
@@ -5058,3 +5046,4 @@ function App() {
 }
 
 export default App;
+
