@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 12.08.2026 v7.6.7 My Data + all pages read on-chain PAWLY; actions gated until pool
+ * PAWLY DApp — 12.08.2026 v7.6.8 PAWLY selectable + confirm clickable; pool alert on confirm only
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -3044,11 +3044,11 @@ function PaymentPage() {
                 cursor: "pointer",
                 background: payToken === t ? "#00ff9d" : "#1a1a2e",
                 color: payToken === t ? "#000" : "#fff",
-                opacity: t === "PAWLY" && !PAWLY_MINT ? 0.75 : 1,
+                opacity: 1,
               }}
             >
               {t}
-              {t === "PAWLY" && !PAWLY_MINT ? " · TBA" : ""}
+              
             </button>
           ))}
         </div>
@@ -3291,6 +3291,13 @@ function PaymentPage() {
             ? "✓ 签名钱包已连接 — 点确认将向当前钱包请求签名 / Signing wallet ready (any platform)"
             : "⚠ 未连接 — 点确认将打开多钱包选择（地址已保留） / Tap Confirm to open multi-wallet selector"}
         </p>
+        {!PAWLY_POOL_LIVE && payToken === "PAWLY" ? (
+          <p style={{ color: "#fbbf24", fontSize: 12, margin: "0 0 10px", lineHeight: 1.5 }}>
+            已选 PAWLY：可查看余额。点「确认」将提示流动性池尚未开放。
+            <br />
+            PAWLY selected: balance is visible. Tap Confirm to see the pool-pending notice.
+          </p>
+        ) : null}
         <button
           onClick={confirm}
           disabled={txLoading}
@@ -3774,14 +3781,19 @@ function SwapPage() {
 
   const handleSwap = async () => {
     if (!connected || !publicKey || !sendTransaction) {
-      return alert("请先连接可签名的钱包\nPlease connect a signing wallet");
+      return alert("请先连接可签名的钱包
+Please connect a signing wallet");
     }
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
-    if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
+    if (!amt || amt <= 0) return alert("请输入有效数量
+Enter a valid amount");
+    if (fromToken === toToken) return alert("请选择不同代币
+Select different tokens");
+    // 池未开：按钮可点，点确认才弹窗（不依赖报价）
     if ((fromToken === "PAWLY" || toToken === "PAWLY") && !ensurePawlyPoolLive()) return;
     if (!bestQuote) {
-      return alert("请等待实时报价完成（Jupiter / Raydium）\nWait for live quote (Jupiter / Raydium)");
+      return alert("请等待实时报价完成（Jupiter / Raydium）
+Wait for live quote (Jupiter / Raydium)");
     }
     if (amt > realBalance + 1e-12) {
       return alert("余额不足\nInsufficient balance");
@@ -3839,11 +3851,11 @@ function SwapPage() {
         cursor: "pointer",
         background: selected ? "#00ff9d" : "#1a1a2e",
         color: selected ? "#000" : "#fff",
-        opacity: tok === "PAWLY" && !PAWLY_MINT ? 0.75 : 1,
+        opacity: 1,
       }}
     >
       {tok}
-      {tok === "PAWLY" && !PAWLY_MINT ? "·TBA" : ""}
+      
     </button>
   );
 
@@ -3948,14 +3960,21 @@ function SwapPage() {
 
         <GasEstimateBox presetKey="swap" refreshKey={gasKey} />
 
+        {!PAWLY_POOL_LIVE && (fromToken === "PAWLY" || toToken === "PAWLY") ? (
+          <p style={{ color: "#fbbf24", fontSize: 12, margin: "0 0 10px", lineHeight: 1.5 }}>
+            已选 PAWLY：可查看余额。点「兑换」将提示流动性池尚未开放（按钮可点）。
+            <br />
+            PAWLY selected: balance visible. Tap Swap for pool-pending notice (button stays enabled).
+          </p>
+        ) : null}
         <button
           onClick={handleSwap}
-          disabled={txLoading || quoteLoading}
+          disabled={txLoading || (quoteLoading && !(fromToken === "PAWLY" || toToken === "PAWLY"))}
           style={{
             ...neonBtn,
             width: "100%",
             marginTop: 8,
-            opacity: txLoading || quoteLoading ? 0.65 : 1,
+            opacity: txLoading || (quoteLoading && !(fromToken === "PAWLY" || toToken === "PAWLY")) ? 0.65 : 1,
           }}
         >
           {txLoading
@@ -4487,11 +4506,11 @@ function CharityPage() {
                 cursor: "pointer",
                 background: token === t ? "#00ff9d" : "#1a1a2e",
                 color: token === t ? "#000" : "#fff",
-                opacity: t === "PAWLY" && !PAWLY_MINT ? 0.75 : 1,
+                opacity: 1,
               }}
             >
               {t}
-              {t === "PAWLY" && !PAWLY_MINT ? "·TBA" : ""}
+              
             </button>
           ))}
         </div>
@@ -4658,6 +4677,13 @@ function CharityPage() {
           />
         )}
 
+        {!PAWLY_POOL_LIVE && token === "PAWLY" ? (
+          <p style={{ color: "#fbbf24", fontSize: 12, margin: "0 0 10px", lineHeight: 1.5 }}>
+            已选 PAWLY：可查看余额。点「确认捐赠」将提示流动性池尚未开放。
+            <br />
+            PAWLY selected: balance visible. Tap Confirm Donate for pool-pending notice.
+          </p>
+        ) : null}
         <button
           type="button"
           onClick={handleDonate}
@@ -5083,6 +5109,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
