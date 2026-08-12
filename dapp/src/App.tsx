@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 11.08.2026 v7.6.6 on-chain PAWLY bal; pool gate transfer/payment/swap/stake/charity
+ * PAWLY DApp — 12.08.2026 v7.6.7 My Data + all pages read on-chain PAWLY; actions gated until pool
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -199,17 +199,23 @@ const HELIUS_RPC_GLOBAL =
 const LAMPORTS_PER_SOL = 1e9;
 const BASE_FEE_LAMPORTS = 5000;
 
-/** 读取钱包某代币余额（主网，有地址即可） */
+/** 读取钱包某代币余额（主网，有地址即可；PAWLY/USDC/USDT 读链上） */
 async function fetchTokenBalance(owner, token) {
   if (!owner) return 0;
-  try {
-    const pubkey =
-      typeof owner === "string"
-        ? new PublicKey(owner)
-        : owner instanceof PublicKey
-          ? owner
-          : new PublicKey(owner.toString());
-    const connection = new Connection(HELIUS_RPC_GLOBAL, "confirmed");
+  const pubkey =
+    typeof owner === "string"
+      ? new PublicKey(owner)
+      : owner instanceof PublicKey
+        ? owner
+        : new PublicKey(owner.toString());
+
+  const rpcs = [
+    HELIUS_RPC_GLOBAL,
+    "https://api.mainnet-beta.solana.com",
+  ].filter(Boolean);
+
+  const readOnce = async (rpcUrl) => {
+    const connection = new Connection(rpcUrl, "confirmed");
     if (token === "SOL") {
       const lamports = await connection.getBalance(pubkey);
       return lamports / LAMPORTS_PER_SOL;
@@ -217,11 +223,27 @@ async function fetchTokenBalance(owner, token) {
     const mintStr = TOKEN_MINTS[token];
     if (!mintStr) return 0;
     const mint = new PublicKey(mintStr);
-    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
-    return accounts.value[0]?.account.data.parsed.info.tokenAmount.uiAmount || 0;
-  } catch (_) {
-    return 0;
+    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, {
+      mint,
+    });
+    let total = 0;
+    for (const a of accounts.value || []) {
+      const ui = a?.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+      if (typeof ui === "number" && Number.isFinite(ui)) total += ui;
+    }
+    return total;
+  };
+
+  let lastErr = null;
+  for (const rpc of rpcs) {
+    try {
+      return await readOnce(rpc);
+    } catch (e) {
+      lastErr = e;
+    }
   }
+  if (lastErr) console.warn("[PAWLY] fetchTokenBalance", token, lastErr?.message || lastErr);
+  return 0;
 }
 
 function fmtBal(n, digits = 4) {
@@ -1599,6 +1621,7 @@ function HomePage() {
   const [balSol, setBalSol] = useState(null);
   const [balUsdc, setBalUsdc] = useState(null);
   const [balUsdt, setBalUsdt] = useState(null);
+  const [balPawly, setBalPawly] = useState(null);
   const [balLoading, setBalLoading] = useState(false);
 
   const loadChainBalances = useCallback(async () => {
@@ -1610,22 +1633,26 @@ function HomePage() {
       setBalSol(null);
       setBalUsdc(null);
       setBalUsdt(null);
+      setBalPawly(null);
       return;
     }
     setBalLoading(true);
     try {
-      const [sol, usdc, usdt] = await Promise.all([
+      const [sol, usdc, usdt, pawly] = await Promise.all([
         fetchTokenBalance(addr, "SOL"),
         fetchTokenBalance(addr, "USDC"),
         fetchTokenBalance(addr, "USDT"),
+        fetchTokenBalance(addr, "PAWLY"),
       ]);
       setBalSol(sol);
       setBalUsdc(usdc);
       setBalUsdt(usdt);
+      setBalPawly(pawly);
     } catch (_) {
       setBalSol(null);
       setBalUsdc(null);
       setBalUsdt(null);
+      setBalPawly(null);
     } finally {
       setBalLoading(false);
     }
@@ -1730,21 +1757,25 @@ function HomePage() {
                 </div>
               </div>
               <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 14 }}>
-                <div style={{ color: "#778", fontSize: 12 }}>PAWLY / Points</div>
+                <div style={{ color: "#778", fontSize: 12 }}>PAWLY（链上钱包 / On-chain）</div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: 4, color: "#00ff9d" }}>
-                  {pwaData.total_pawly || "0"} PAWLY
+                  {balLoading ? "…" : fmtBal(balPawly)} PAWLY
                 </div>
                 <div style={{ fontSize: 12, color: "#889", marginTop: 4 }}>
-                  Points: {pwaData.points || "0"}
-                  {pwaData.guest || (!pwaData.email && wallet.publicKey) ? " · 需 PWA 注册才有签到积分" : ""}
+                  官方 CA 余额 · Official mint balance
                 </div>
+                {!pwaData.guest && pwaData.email ? (
+                  <div style={{ fontSize: 11, color: "#667", marginTop: 6 }}>
+                    早期签到记账 / Early credit: {pwaData.total_pawly || "0"} · Points: {pwaData.points || "0"}
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : (
             <p style={{ color: "#889", margin: 0, fontSize: "0.9rem", lineHeight: 1.6 }}>
-              请先连接钱包。无需 PWA 注册也可查看 SOL / USDC / USDT 链上余额。
+              请先连接钱包。无需 PWA 注册也可查看 SOL / USDC / USDT / PAWLY 链上余额。
               <br />
-              <span style={{ color: "#667" }}>Connect any wallet to load on-chain balances. PWA registration is optional.</span>
+              <span style={{ color: "#667" }}>Connect any wallet to load on-chain SOL / USDC / USDT / PAWLY. PWA registration is optional.</span>
             </p>
           )}
         </div>
@@ -5052,5 +5083,6 @@ function App() {
 }
 
 export default App;
+
 
 
