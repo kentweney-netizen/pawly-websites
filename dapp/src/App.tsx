@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 12.08.2026 v7.6.8 PAWLY selectable + confirm clickable; pool alert on confirm only
+ * PAWLY DApp — 12.08.2026 v7.6.8b PAWLY confirm popup + fixed handleSwap string literals
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -3781,19 +3781,15 @@ function SwapPage() {
 
   const handleSwap = async () => {
     if (!connected || !publicKey || !sendTransaction) {
-      return alert("请先连接可签名的钱包
-Please connect a signing wallet");
+      return alert("请先连接可签名的钱包\nPlease connect a signing wallet");
     }
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return alert("请输入有效数量
-Enter a valid amount");
-    if (fromToken === toToken) return alert("请选择不同代币
-Select different tokens");
+    if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
+    if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
     // 池未开：按钮可点，点确认才弹窗（不依赖报价）
     if ((fromToken === "PAWLY" || toToken === "PAWLY") && !ensurePawlyPoolLive()) return;
     if (!bestQuote) {
-      return alert("请等待实时报价完成（Jupiter / Raydium）
-Wait for live quote (Jupiter / Raydium)");
+      return alert("请等待实时报价完成（Jupiter / Raydium）\nWait for live quote (Jupiter / Raydium)");
     }
     if (amt > realBalance + 1e-12) {
       return alert("余额不足\nInsufficient balance");
@@ -5109,6 +5105,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
