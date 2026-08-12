@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 11.08.2026 v7.6.5 Official PAWLY CA 88cCF4cD… integrated
+ * PAWLY DApp — 11.08.2026 v7.6.6 on-chain PAWLY bal; pool gate transfer/payment/swap/stake/charity
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -177,6 +177,16 @@ async function logDappOnchainEvent(payload) {
 const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
 const PAWLY_DECIMALS = 6;
 const PAWLY_PER_USDC = 5; // 临时比例，Raydium 池上线后改用链上报价 / Jupiter
+/** Raydium 池就绪后改为 true；此前各页可读链上 PAWLY 余额，转账/Swap/质押确认时弹窗 */
+const PAWLY_POOL_LIVE = false;
+const PAWLY_POOL_PENDING_MSG =
+  "流动性池尚未创建。目前仅可查看钱包中的 PAWLY 余额，暂不能用于转账 / 支付 / Swap / 质押 / 慈善捐赠。\n池子上线后将自动开放。\n\nLiquidity pool is not live yet. You can view on-chain PAWLY balance only; Transfer / Payment / Swap / Staking / Charity with PAWLY is temporarily unavailable.\nWill open after the pool launches.";
+
+function ensurePawlyPoolLive() {
+  if (PAWLY_POOL_LIVE) return true;
+  alert(PAWLY_POOL_PENDING_MSG);
+  return false;
+}
 const TOKEN_MINTS = {
   USDC: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
   USDT: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
@@ -1824,6 +1834,7 @@ function StakingPage() {
   const handleStake = () => {
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
     if (!amount || parseFloat(amount) <= 0) return alert("请输入金额\nEnter amount");
+    if (selectedToken === "PAWLY" && !ensurePawlyPoolLive()) return;
     setLoading(true);
     setTimeout(() => {
       alert("Staking 合约尚未部署。Token / 池子上线后将开放真实质押。\nStaking contract not deployed yet.");
@@ -2929,6 +2940,7 @@ function PaymentPage() {
       alert("请输入有效金额\nPlease enter a valid amount");
       return;
     }
+    if (payToken === "PAWLY" && !ensurePawlyPoolLive()) return;
     if (amt > realBalance + 1e-12) {
       alert("余额不足\nInsufficient balance");
       return;
@@ -3736,6 +3748,7 @@ function SwapPage() {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
     if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
+    if ((fromToken === "PAWLY" || toToken === "PAWLY") && !ensurePawlyPoolLive()) return;
     if (!bestQuote) {
       return alert("请等待实时报价完成（Jupiter / Raydium）\nWait for live quote (Jupiter / Raydium)");
     }
@@ -4292,10 +4305,7 @@ function CharityPage() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (token === "PAWLY") {
-        if (alive) setRealBalance(maxPawly);
-        return;
-      }
+      // PAWLY 与其它币一样读链上钱包余额（不再用签到 total_pawly）
       if (!charityAddr) {
         if (alive) setRealBalance(0);
         return;
@@ -4306,7 +4316,7 @@ function CharityPage() {
     return () => {
       alive = false;
     };
-  }, [charityAddr, token, maxPawly]);
+  }, [charityAddr, token]);
 
   const handleDonate = async () => {
     if (!toAddress.trim()) {
@@ -4326,11 +4336,7 @@ function CharityPage() {
     if (!amt || amt <= 0) {
       return alert("请输入捐赠数量\nEnter donation amount");
     }
-    if (token === "PAWLY" && !PAWLY_MINT) {
-      return alert(
-        "PAWLY Token CA 尚未创建（TBA）。请先使用 SOL / USDC / USDT 捐赠。\nPAWLY CA is TBA. Donate with SOL / USDC / USDT for now."
-      );
-    }
+    if (token === "PAWLY" && !ensurePawlyPoolLive()) return;
     if (amt > realBalance + 1e-12) {
       return alert("余额不足\nInsufficient balance");
     }
@@ -5046,4 +5052,5 @@ function App() {
 }
 
 export default App;
+
 
