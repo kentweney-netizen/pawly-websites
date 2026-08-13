@@ -44,6 +44,16 @@
       margin-top: 8px;
       font-size: 0.86rem;
     }
+    .notice code {
+      display: block;
+      margin-top: 8px;
+      word-break: break-all;
+      font-size: 0.78rem;
+      color: #00ff9d;
+      background: rgba(0,0,0,0.35);
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
     .btn-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -215,11 +225,11 @@
       width: 100%;
       border-collapse: collapse;
       margin: 10px 0 8px;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
     }
     .stage-table th, .stage-table td {
       border: 1px solid rgba(0,255,157,0.25);
-      padding: 8px 6px;
+      padding: 8px 5px;
       text-align: left;
       vertical-align: top;
     }
@@ -231,7 +241,7 @@
     .stage-table td { color: #ccc; }
     .stage-table .en-cell {
       color: #888;
-      font-size: 0.76rem;
+      font-size: 0.72rem;
       display: block;
       margin-top: 3px;
     }
@@ -335,8 +345,9 @@
     <p class="subtitle">More Project Info</p>
 
     <div class="notice">
-      ⚠️ <strong>官方声明：</strong>PAWLY Token 合约地址（CA）尚未发布。任何 Pump.fun 或其它平台上的同名代币均<strong>非官方</strong>。正式 CA 只会在 <strong>www.pawlypets.online</strong> 与官方 X <strong>@pawlypetslover</strong> 公布。请勿购买假盘。
-      <span class="en">⚠️ <strong>Official notice:</strong> PAWLY Token CA is not live yet. Any same-name token on Pump.fun or elsewhere is <strong>unofficial</strong>. Official CA will be published only on www.pawlypets.online and official X @pawlypetslover. Do not buy fakes.</span>
+      ⚠️ <strong>官方声明：</strong>请只认官网与官方 X 公布的 Token CA。任何 Pump.fun 或其它平台上的<strong>同名假盘</strong>均非官方，请勿购买。流动性池（Pool CA）以官网 / dApp 正式上线为准。
+      <span class="en">⚠️ <strong>Official notice:</strong> Trust only the Token CA published on the official site and X. Same-name tokens elsewhere are <strong>unofficial</strong>. Pool CA is valid only after official listing on the site / dApp.</span>
+      <code>Official Token CA:<br>88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87</code>
     </div>
 
     <div class="btn-grid">
@@ -391,7 +402,8 @@
         <div class="label">Total Supply / 总供应量</div>
         <div class="value">50,000,000 PAWLY</div>
         <div style="margin-top:8px;color:#999;font-size:0.84rem;line-height:1.5;">
-          固定总量，无额外增发计划。<br>Fixed supply. No planned extra mint.
+          固定总量；Mint / Freeze Authority 已关闭（N/A），无额外增发。<br>
+          Fixed supply. Mint &amp; freeze authorities revoked (N/A). No extra mint.
         </div>
       </div>
       <div class="info-box">
@@ -401,7 +413,7 @@
           <li>转账 · 扫码 Transfer · QR Pay</li>
           <li>兑换 Swap（Jupiter 聚合）</li>
           <li>慈善捐赠 Charity Donate</li>
-          <li>质押收益 Staking APY（Q4 起）</li>
+          <li>质押收益 Staking APY（路线图 Q4 起）</li>
         </ul>
       </div>
       <div class="section-label">Token Allocation / 代币分配（合计 100%）</div>
@@ -410,8 +422,8 @@
           <strong>Liquidity Pool / 流动性池 — 30,000,000</strong>
           <span class="pct">60%</span>
         </div>
-        <div class="zh">用于官方交易对与市场深度。分 <strong>7 期</strong>释放：2% → 5% → 7% → 8% → 10% → 13% → 15%。前两期代币较少，同等资金下开盘单价与 FDV 更易做高。</div>
-        <div class="en">Official pairs and depth. Unlocked in <strong>7 stages</strong>: 2% → 5% → 7% → 8% → 10% → 13% → 15%. Smaller early stages support higher launch price/FDV for the same capital.</div>
+        <div class="zh">用于官方交易对与市场深度。分 <strong>10 期</strong>释放：<strong>2% → 3% → 4% → 5% → 6% → 6% → 7% → 8% → 9% → 10%</strong>。Stage 1 仍为 2%（约 100 万枚），前几期代币较少，同等资金下更有利于开盘单价与 FDV；后期逐步加深流动性。</div>
+        <div class="en">Official pairs and depth. Unlocked in <strong>10 stages</strong>: <strong>2% → 3% → 4% → 5% → 6% → 6% → 7% → 8% → 9% → 10%</strong>. Stage 1 stays at 2% (~1M tokens). Smaller early stages support stronger launch price/FDV; later stages deepen liquidity.</div>
       </div>
       <div class="highlight-alloc">
         <div class="top">
@@ -426,8 +438,8 @@
           <strong>Staking APY &amp; Airdrop / 质押与空投 — 15,000,000</strong>
           <span class="pct">30%</span>
         </div>
-        <div class="zh">仅用于质押奖励与空投。<strong>LP Stage 7 完成之后</strong>起算，分 3 年、6 期，每期额度上限为总供应 5%（2,500,000）。未发完保留在金库，不强制抛售。</div>
-        <div class="en">Rewards and airdrops only. Starts <strong>after LP Stage 7</strong>, over 3 years in 6 stages (up to 5% of supply each). Unused stays in vault — not forced to market.</div>
+        <div class="zh">仅用于质押奖励与空投。<strong>LP Stage 10 完成之后</strong>起算，分 3 年、6 期，每期额度上限为总供应 5%（2,500,000）。未发完保留在金库，不强制抛售。</div>
+        <div class="en">Rewards and airdrops only. Starts <strong>after LP Stage 10</strong>, over 3 years in 6 stages (up to 5% of supply each). Unused stays in vault — not forced to market.</div>
       </div>
       <div class="alloc-row">
         <div class="top">
@@ -452,8 +464,8 @@
         <button type="button" class="close-btn" data-close aria-label="Close">×</button>
       </div>
 
-      <p class="p-zh"><strong style="color:#fff;">流动性池（60% · 30,000,000 PAWLY）</strong> — 自 Token + LP 正式上线日起，分 <strong>7 期</strong>释放。前两期比例较低，有利于第一、二池在同等深度下保持更高单价与 FDV。</p>
-      <p class="p-en"><strong>Liquidity Pool (60% · 30,000,000 PAWLY)</strong> — From official Token + LP launch, unlocked in <strong>7 stages</strong>. Smaller Stage 1–2 support stronger launch price/FDV for the same pool depth.</p>
+      <p class="p-zh"><strong style="color:#fff;">流动性池（60% · 30,000,000 PAWLY）</strong> — 自 Token + LP 正式上线日起，分 <strong>10 期</strong>释放。Stage 1 保持 <strong>2%</strong>（1,000,000）；Stage 2–10 重新分配为 3%→10%，节奏更平滑，后期逐步加深池子。</p>
+      <p class="p-en"><strong>Liquidity Pool (60% · 30,000,000 PAWLY)</strong> — From official Token + LP launch, unlocked in <strong>10 stages</strong>. Stage 1 remains <strong>2%</strong> (1,000,000); Stages 2–10 are redistributed 3%→10% for a smoother curve and deeper late liquidity.</p>
 
       <table class="stage-table">
         <thead>
@@ -473,45 +485,63 @@
           </tr>
           <tr>
             <td>LP Stage 2</td>
+            <td>3%</td>
+            <td>1,500,000</td>
             <td>5%</td>
-            <td>2,500,000</td>
-            <td>7%</td>
           </tr>
           <tr>
             <td>LP Stage 3</td>
-            <td>7%</td>
-            <td>3,500,000</td>
-            <td>14%</td>
+            <td>4%</td>
+            <td>2,000,000</td>
+            <td>9%</td>
           </tr>
           <tr>
             <td>LP Stage 4</td>
-            <td>8%</td>
-            <td>4,000,000</td>
-            <td>22%</td>
+            <td>5%</td>
+            <td>2,500,000</td>
+            <td>14%</td>
           </tr>
           <tr>
             <td>LP Stage 5</td>
-            <td>10%</td>
-            <td>5,000,000</td>
-            <td>32%</td>
+            <td>6%</td>
+            <td>3,000,000</td>
+            <td>20%</td>
           </tr>
           <tr>
             <td>LP Stage 6</td>
-            <td>13%</td>
-            <td>6,500,000</td>
-            <td>45%</td>
+            <td>6%</td>
+            <td>3,000,000</td>
+            <td>26%</td>
           </tr>
           <tr>
             <td>LP Stage 7</td>
-            <td>15%</td>
-            <td>7,500,000</td>
+            <td>7%</td>
+            <td>3,500,000</td>
+            <td>33%</td>
+          </tr>
+          <tr>
+            <td>LP Stage 8</td>
+            <td>8%</td>
+            <td>4,000,000</td>
+            <td>41%</td>
+          </tr>
+          <tr>
+            <td>LP Stage 9</td>
+            <td>9%</td>
+            <td>4,500,000</td>
+            <td>50%</td>
+          </tr>
+          <tr>
+            <td>LP Stage 10</td>
+            <td>10%</td>
+            <td>5,000,000</td>
             <td>60%</td>
           </tr>
         </tbody>
       </table>
 
-      <p class="p-zh" style="margin-top:8px;">第一池建议使用 <strong>Stage 1 = 1,000,000 PAWLY</strong> 配对 USDC 或 SOL；第二期再释放 2,500,000。各期具体起止日以官方公告与锁仓合约为准。</p>
-      <p class="p-en">First pool is intended to use <strong>Stage 1 = 1,000,000 PAWLY</strong> paired with USDC or SOL; Stage 2 adds 2,500,000. Exact dates follow official announcements and lock contracts.</p>
+      <p class="p-zh" style="margin-top:8px;">第一池建议使用 <strong>Stage 1 = 1,000,000 PAWLY</strong> 配对 USDC 或 SOL。各期具体起止日以官方公告与锁仓合约（如 Streamflow）为准。未释放部分应锁仓，避免热钱包大额裸持仓。</p>
+      <p class="p-en">First pool is intended to use <strong>Stage 1 = 1,000,000 PAWLY</strong> paired with USDC or SOL. Exact dates follow official announcements and lock contracts (e.g. Streamflow). Unreleased amounts should be locked — not left as large hot-wallet balances.</p>
 
       <div class="highlight-alloc">
         <div class="top">
@@ -522,8 +552,8 @@
         <div class="en"><strong>After Stage 4</strong>. Priority: <strong>airdrop to early check-in / registered Members</strong>; remainder may support growth. Not released in Stages 1–3. Early supporters are not forgotten.</div>
       </div>
 
-      <p class="p-zh" style="margin-top:16px;"><strong style="color:#fff;">质押收益与空投（30% · 15,000,000）</strong> — 于 <strong>LP Stage 7 完成之后</strong>起算：再分 3 年、共 6 期，每期额度上限为总供应的 <strong>5%</strong>（2,500,000），仅用于 APY 与空投。未使用完的额度保留在奖励金库，不强制进入市场、无需团队回购。</p>
-      <p class="p-en"><strong>Staking APY &amp; Airdrop (30% · 15,000,000)</strong> — Starts <strong>after LP Stage 7 is complete</strong>: 3 years, 6 stages, up to <strong>5%</strong> of total supply per stage (2,500,000). Unused amounts stay in the reward vault — not forced onto the market; no team buyback required.</p>
+      <p class="p-zh" style="margin-top:16px;"><strong style="color:#fff;">质押收益与空投（30% · 15,000,000）</strong> — 于 <strong>LP Stage 10 完成之后</strong>起算：再分 3 年、共 6 期，每期额度上限为总供应的 <strong>5%</strong>（2,500,000），仅用于 APY 与空投。未使用完的额度保留在奖励金库，不强制进入市场、无需团队回购。</p>
+      <p class="p-en"><strong>Staking APY &amp; Airdrop (30% · 15,000,000)</strong> — Starts <strong>after LP Stage 10 is complete</strong>: 3 years, 6 stages, up to <strong>5%</strong> of total supply per stage (2,500,000). Unused amounts stay in the reward vault — not forced onto the market; no team buyback required.</p>
 
       <table class="stage-table">
         <thead>
@@ -537,7 +567,7 @@
         <tbody>
           <tr>
             <td>Reward 1</td>
-            <td>Stage7 后第 1–6 月<span class="en-cell">Months 1–6 after Stage 7</span></td>
+            <td>Stage10 后第 1–6 月<span class="en-cell">Months 1–6 after Stage 10</span></td>
             <td>5% · 2.5M</td>
             <td>5%/30%</td>
           </tr>
@@ -610,14 +640,14 @@
       <div class="roadmap-block">
         <div class="q">Q3</div>
         <strong>PAWLY Token + LP + LP Lock</strong>
-        <p class="p-zh">发布官方 CA；建立流动性池并锁仓。LP 按 7 期释放（2%→5%→7%→8%→10%→13%→15%）。第一池建议 1,000,000 PAWLY。CA 仅官网与官方 X 公布。</p>
-        <p class="p-en">Official CA, main LP and lock. LP unlocks in 7 stages (2%→15%). First pool targets 1,000,000 PAWLY. CA only via official site and X.</p>
+        <p class="p-zh">发布官方 CA；建立流动性池并锁仓。LP 按 <strong>10 期</strong>释放（2%→3%→4%→5%→6%→6%→7%→8%→9%→10%）。第一池建议 1,000,000 PAWLY。仅认官网与官方 X 公布的 CA / Pool。</p>
+        <p class="p-en">Official CA, main LP and lock. LP unlocks in <strong>10 stages</strong> (2%→10%). First pool targets 1,000,000 PAWLY. Trust only official site and X for CA / Pool.</p>
       </div>
       <div class="roadmap-block">
         <div class="q">Q4</div>
         <strong>PAWLY Token Staking Pool</strong>
-        <p class="p-zh">上线本币质押。收益来自 30% 分配；在 LP Stage 7 完成后按 3 年 6 期释放奖励。空投规则另行公告。</p>
-        <p class="p-en">Native PAWLY staking. Rewards from the 30% allocation after LP Stage 7, over 3 years. Airdrop rules announced separately.</p>
+        <p class="p-zh">上线本币质押。收益来自 30% 分配；在 <strong>LP Stage 10 完成后</strong>按 3 年 6 期释放奖励。空投规则另行公告。</p>
+        <p class="p-en">Native PAWLY staking. Rewards from the 30% allocation after <strong>LP Stage 10</strong>, over 3 years. Airdrop rules announced separately.</p>
       </div>
       <div class="roadmap-block">
         <div class="q">Q5</div>
@@ -694,15 +724,15 @@
       <div class="faq-item">
         <div class="faq-q">Q3: Staking 什么时候开？ / When is staking?</div>
         <div class="faq-a">
-          <div class="zh"><strong>Q4</strong> 上线 PAWLY 质押；奖励在 <strong>LP Stage 7 之后</strong>按 3 年分期释放。<strong>Q5</strong> 再开放 USDT/USDC/SOL 池。</div>
-          <div class="en"><strong>Q4</strong> PAWLY staking; emissions after <strong>LP Stage 7</strong> over 3 years. <strong>Q5</strong> USDT/USDC/SOL pools.</div>
+          <div class="zh"><strong>Q4</strong> 上线 PAWLY 质押；奖励在 <strong>LP Stage 10 之后</strong>按 3 年分期释放。<strong>Q5</strong> 再开放 USDT/USDC/SOL 池。</div>
+          <div class="en"><strong>Q4</strong> PAWLY staking; emissions after <strong>LP Stage 10</strong> over 3 years. <strong>Q5</strong> USDT/USDC/SOL pools.</div>
         </div>
       </div>
       <div class="faq-item">
         <div class="faq-q">Q4: LP 怎么解锁？ / How does LP unlock?</div>
         <div class="faq-a">
-          <div class="zh">共 7 期：2% → 5% → 7% → 8% → 10% → 13% → 15%（合计 60%）。第一池约 100 万枚，有利于开盘 FDV。</div>
-          <div class="en">7 stages: 2%→5%→7%→8%→10%→13%→15% (60% total). First pool ~1M tokens for stronger launch FDV.</div>
+          <div class="zh">共 <strong>10 期</strong>：2% → 3% → 4% → 5% → 6% → 6% → 7% → 8% → 9% → 10%（合计 60%）。Stage 1 仍为约 100 万枚，有利于开盘 FDV；后期逐步加深流动性。</div>
+          <div class="en"><strong>10 stages</strong>: 2%→3%→4%→5%→6%→6%→7%→8%→9%→10% (60% total). Stage 1 stays ~1M tokens for stronger launch FDV; later stages deepen liquidity.</div>
         </div>
       </div>
       <div class="faq-item">
@@ -729,8 +759,8 @@
       <div class="faq-item">
         <div class="faq-q">Q8: Pump.fun 上的 PAWLY 是官方的吗？ / Is Pump.fun PAWLY official?</div>
         <div class="faq-a">
-          <div class="zh"><strong>不是。</strong>官方 CA 发布前，同名币均为非官方，请勿购买。</div>
-          <div class="en"><strong>No.</strong> Same-name tokens are unofficial until the official CA is published.</div>
+          <div class="zh"><strong>不是。</strong>请只认官网与官方 X 公布的 CA：<code style="word-break:break-all;font-size:0.8rem;">88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87</code></div>
+          <div class="en"><strong>No.</strong> Trust only the official CA on the website and X.</div>
         </div>
       </div>
     </div>
@@ -811,5 +841,6 @@
   </script>
 </body>
 </html>
+
 
 
