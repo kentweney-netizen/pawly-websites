@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 18.08.2026 v7.7.0 pool live: PAWLY_POOL_LIVE=true + Raydium CPMM pool/LP/lock ids
+ * PAWLY DApp — 18.08.2026 v7.7.1 pool live UI: remove PAWLY preview/TBA yellow copy; staking still TBA
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1930,7 +1930,7 @@ function StakingPage() {
     if (!amount || parseFloat(amount) <= 0) return alert("请输入金额\nEnter amount");
     setLoading(true);
     setTimeout(() => {
-      alert("Staking 合约尚未部署。Token / 池子上线后将开放真实质押。\nStaking contract not deployed yet.");
+      alert("Staking 合约尚未部署，真实质押与 APY 待合约上线。\nStaking contract not deployed yet.");
       setLoading(false);
     }, 400);
   };
@@ -2003,9 +2003,9 @@ function StakingPage() {
           {loading ? "处理中..." : "Stake / 质押"}
         </button>
         <p style={{ color: "#667", fontSize: 13, marginTop: 16, lineHeight: 1.5, textAlign: "center" }}>
-          真实质押将在 PAWLY Token 与池子上线后开放。
+          Token / 流动性池已上线；Staking 合约尚未部署，真实 APY 待合约上线。
           <br />
-          Real staking opens after token & pool launch.
+          Token & LP pool are live; staking contract not deployed yet — real APY later.
         </p>
       </div>
     </div>
@@ -3274,11 +3274,18 @@ function PaymentPage() {
                   : "SOL 价格暂不可用 / SOL price unavailable"}
             </div>
           )}
-          {payToken === "PAWLY" && (
+          {payToken === "PAWLY" && !PAWLY_POOL_LIVE && (
             <p style={{ color: "#667", fontSize: 12, margin: "0 0 8px", lineHeight: 1.45 }}>
               临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（池子上线后改用链上报价）
               <br />
               Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (on-chain quote after LP)
+            </p>
+          )}
+          {payToken === "PAWLY" && PAWLY_POOL_LIVE && (
+            <p style={{ color: "#667", fontSize: 12, margin: "0 0 8px", lineHeight: 1.45 }}>
+              PAWLY 已上线；支付数量按当前设定/报价折算（优先链上流动性）。
+              <br />
+              PAWLY is live; amount uses live quote / configured rate against pool liquidity.
             </p>
           )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -3777,7 +3784,7 @@ function SwapPage() {
               )
       );
       const one = fromUsdc(toToken, toUsdc(fromToken, 1));
-      if (one != null) setRateText(`1 ${fromToken} ≈ ${one.toFixed(6)} ${toToken} (TBA preview)`);
+      if (one != null) setRateText(`1 ${fromToken} ≈ ${one.toFixed(6)} ${toToken}`);
       setQuoteLoading(false);
       return;
     }
@@ -3995,11 +4002,18 @@ function SwapPage() {
               当前路由 / Route: <strong>{routeSource}</strong>
             </p>
           )}
-          {involvesPawly && (
+          {involvesPawly && !PAWLY_POOL_LIVE && (
             <p style={{ color: "#ffaa00", fontSize: 11, margin: "10px 0 0", lineHeight: 1.45 }}>
               PAWLY 为预览比例，CA + 池上线后开放真实兑换。
               <br />
               PAWLY is preview only until CA & pool launch.
+            </p>
+          )}
+          {involvesPawly && PAWLY_POOL_LIVE && (
+            <p style={{ color: "#00c853", fontSize: 11, margin: "10px 0 0", lineHeight: 1.45 }}>
+              PAWLY 池已上线，优先 Jupiter / 链上真实路由。
+              <br />
+              PAWLY pool is live — real Jupiter / on-chain routes preferred.
             </p>
           )}
           {livePair && (
@@ -5146,6 +5160,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
