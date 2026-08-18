@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 12.08.2026 v7.6.9 stable rebuild: on-chain bal + pool gate on confirm only
+ * PAWLY DApp — 18.08.2026 v7.7.0 pool live: PAWLY_POOL_LIVE=true + Raydium CPMM pool/LP/lock ids
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -176,15 +176,103 @@ async function logDappOnchainEvent(payload) {
 /** Official PAWLY CA — 11.08.2026 (v2 + metadata). Old GnUEP... abandoned. */
 const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
 const PAWLY_DECIMALS = 6;
-const PAWLY_PER_USDC = 5; // 临时比例，Raydium 池上线后改用链上报价 / Jupiter
-/** 池上线后改为 true；此前各页可读链上 PAWLY，点确认才弹窗 */
-const PAWLY_POOL_LIVE = false;
+/** 仅兜底预览；池已上线后优先 Jupiter / 链上报价 */
+const PAWLY_PER_USDC = 5;
+
+/** 池已上线：2026-08-19 10:00 +08 — Raydium CPMM PAWLY/USDC */
+const PAWLY_POOL_LIVE = true;
+/** Pool account */
+const PAWLY_POOL_ID = "6n8wjFK3mLxrw25q2k6oejt8oYupzWoBPdZqrcHDVwJ";
+/** LP mint（Streamflow 锁的是这个） */
+const PAWLY_LP_MINT = "Eb8vGh4wXi9StTD1ZvGv1C225kBQNPUFsJMm8PxWwNad";
+/** Streamflow LP lock contract */
+const PAWLY_LP_LOCK_ID = "89j2DH3hHEGuvxtwY9qRiQjShdWpPdjmsgYafeBKPw5e";
+
 const PAWLY_POOL_PENDING_MSG =
   "流动性池尚未创建。目前仅可查看钱包中的 PAWLY 余额，暂不能用于支付/转账/Swap/质押/慈善。\n池子上线后将自动开放。\n\nLiquidity pool not live yet. On-chain PAWLY balance is visible only; Payment / Transfer / Swap / Staking / Charity with PAWLY is pending.\nWill open after the pool launches.";
 function ensurePawlyPoolLive() {
   if (PAWLY_POOL_LIVE) return true;
-  alert(PAWLY_POOL_PENDING_MSG);
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("pawly-pool-pending", { detail: { msg: PAWLY_POOL_PENDING_MSG } }));
+    }
+  } catch (_) {}
+  try {
+    alert(PAWLY_POOL_PENDING_MSG);
+  } catch (_) {}
   return false;
+}
+
+/** 页面内双语弹窗（钱包内置浏览器有时会拦 alert） */
+function PawlyPoolPendingModal() {
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState(PAWLY_POOL_PENDING_MSG);
+  useEffect(() => {
+    const onEvt = (e) => {
+      setMsg((e && e.detail && e.detail.msg) || PAWLY_POOL_PENDING_MSG);
+      setOpen(true);
+    };
+    window.addEventListener("pawly-pool-pending", onEvt);
+    return () => window.removeEventListener("pawly-pool-pending", onEvt);
+  }, []);
+  if (!open) return null;
+  const parts = String(msg).split(/\n/).filter(Boolean);
+  return (
+    <div
+      role="dialog"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        background: "rgba(0,0,0,0.72)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+      onClick={() => setOpen(false)}
+    >
+      <div
+        style={{
+          maxWidth: 400,
+          width: "100%",
+          background: "#1a0033",
+          border: "2px solid #fbbf24",
+          borderRadius: 16,
+          padding: 22,
+          color: "#eee",
+          lineHeight: 1.55,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ color: "#fbbf24", fontWeight: 800, fontSize: "1.05rem", marginBottom: 12 }}>
+          重要提醒 / Important Notice
+        </div>
+        {parts.map((line, idx) => (
+          <p key={idx} style={{ margin: "0 0 8px", fontSize: 14, color: idx === 0 ? "#fff" : "#ccc" }}>
+            {line}
+          </p>
+        ))}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          style={{
+            marginTop: 14,
+            width: "100%",
+            padding: "12px 16px",
+            borderRadius: 12,
+            border: "none",
+            background: "linear-gradient(90deg,#00ff9d,#00c853)",
+            color: "#041",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          知道了 / OK
+        </button>
+      </div>
+    </div>
+  );
 }
 const TOKEN_MINTS = {
   USDC: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -1837,9 +1925,9 @@ function StakingPage() {
   }, [walletAddr, selectedToken]);
 
   const handleStake = () => {
+    if (selectedToken === "PAWLY" && !ensurePawlyPoolLive()) return;
     if (!connected) return alert("请先连接钱包\nPlease connect wallet");
     if (!amount || parseFloat(amount) <= 0) return alert("请输入金额\nEnter amount");
-    if (selectedToken === "PAWLY" && !ensurePawlyPoolLive()) return;
     setLoading(true);
     setTimeout(() => {
       alert("Staking 合约尚未部署。Token / 池子上线后将开放真实质押。\nStaking contract not deployed yet.");
@@ -2936,6 +3024,8 @@ function PaymentPage() {
   };
 
   const confirm = async () => {
+    // 选 PAWLY 点确认 → 立刻弹窗（不依赖地址/金额）
+    if (payToken === "PAWLY" && !ensurePawlyPoolLive()) return;
     if (!toAddress.trim()) {
       alert("请输入收款钱包地址\nPlease enter recipient wallet address");
       return;
@@ -2945,7 +3035,6 @@ function PaymentPage() {
       alert("请输入有效金额\nPlease enter a valid amount");
       return;
     }
-    if (payToken === "PAWLY" && !ensurePawlyPoolLive()) return;
     if (amt > realBalance + 1e-12) {
       alert("余额不足\nInsufficient balance");
       return;
@@ -3747,13 +3836,13 @@ function SwapPage() {
   const involvesPawly = fromToken === "PAWLY" || toToken === "PAWLY";
 
   const handleSwap = async () => {
+    if ((fromToken === "PAWLY" || toToken === "PAWLY") && !ensurePawlyPoolLive()) return;
     if (!connected || !publicKey || !sendTransaction) {
       return alert("请先连接可签名的钱包\nPlease connect a signing wallet");
     }
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
     if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
-    if ((fromToken === "PAWLY" || toToken === "PAWLY") && !ensurePawlyPoolLive()) return;
     if (!bestQuote) {
       return alert("请等待实时报价完成（Jupiter / Raydium）\nWait for live quote (Jupiter / Raydium)");
     }
@@ -4323,6 +4412,7 @@ function CharityPage() {
   }, [charityAddr, token]);
 
   const handleDonate = async () => {
+    if (token === "PAWLY" && !ensurePawlyPoolLive()) return;
     if (!toAddress.trim()) {
       return alert(
         "请粘贴慈善机构的 Solana 钱包地址\nPlease paste the charity Solana wallet address"
@@ -4340,7 +4430,6 @@ function CharityPage() {
     if (!amt || amt <= 0) {
       return alert("请输入捐赠数量\nEnter donation amount");
     }
-    if (token === "PAWLY" && !ensurePawlyPoolLive()) return;
         if (amt > realBalance + 1e-12) {
       return alert("余额不足\nInsufficient balance");
     }
@@ -5007,6 +5096,7 @@ function CashOutPage() {
 function AppRoutes() {
   return (
     <>
+      <PawlyPoolPendingModal />
       <SyncFromUrl />
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -5056,6 +5146,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
