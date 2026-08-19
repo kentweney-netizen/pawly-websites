@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 18.08.2026 v7.7.1 pool live UI: remove PAWLY preview/TBA yellow copy; staking still TBA
+ * PAWLY DApp — 19.08.2026 v7.7.2 PAWLY live all: Swap Jupiter for PAWLY pairs; Payment/Transfer/Charity on official CA; staking still TBA
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -3755,38 +3755,81 @@ function SwapPage() {
     }
 
     if (fromToken === "PAWLY" || toToken === "PAWLY") {
-      const toUsdc = (tok, n) => {
-        if (tok === "USDC" || tok === "USDT") return n;
-        if (tok === "PAWLY") return n / PAWLY_PER_USDC;
-        if (tok === "SOL") return solUsd ? n * solUsd : null;
-        return null;
-      };
-      const fromUsdc = (tok, usdc) => {
-        if (tok === "USDC" || tok === "USDT") return usdc;
-        if (tok === "PAWLY") return usdc * PAWLY_PER_USDC;
-        if (tok === "SOL") return solUsd ? usdc / solUsd : null;
-        return null;
-      };
-      const mid = toUsdc(fromToken, amt);
-      if (mid == null) {
-        setQuote("—");
-        setRateText("汇率加载中… / Rate loading…");
+      // 池未上线：仅固定比例估算，不可兑换
+      if (!PAWLY_POOL_LIVE) {
+        const toUsdc = (tok, n) => {
+          if (tok === "USDC" || tok === "USDT") return n;
+          if (tok === "PAWLY") return n / PAWLY_PER_USDC;
+          if (tok === "SOL") return solUsd ? n * solUsd : null;
+          return null;
+        };
+        const fromUsdc = (tok, usdc) => {
+          if (tok === "USDC" || tok === "USDT") return usdc;
+          if (tok === "PAWLY") return usdc * PAWLY_PER_USDC;
+          if (tok === "SOL") return solUsd ? usdc / solUsd : null;
+          return null;
+        };
+        const mid = toUsdc(fromToken, amt);
+        if (mid == null) {
+          setQuote("—");
+          setRateText("汇率加载中… / Rate loading…");
+          setBestQuote(null);
+          setQuoteLoading(false);
+          return;
+        }
+        const out = fromUsdc(toToken, mid);
+        setQuote(
+          out == null
+            ? "—"
+            : out
+                .toFixed(6)
+                .replace(/\.?0+$/, (m) =>
+                  m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m
+                )
+        );
+        const one = fromUsdc(toToken, toUsdc(fromToken, 1));
+        if (one != null) setRateText(`1 ${fromToken} ≈ ${one.toFixed(6)} ${toToken} (预览/preview)`);
+        setBestQuote(null);
+        setQuoteLoading(false);
         return;
       }
-      const out = fromUsdc(toToken, mid);
-      setQuote(
-        out == null
-          ? "—"
-          : out
+
+      // 池已上线：与 SOL/USDC 相同 — Jupiter 实时报价写入 bestQuote
+      setQuoteLoading(true);
+      const tPawly = setTimeout(async () => {
+        try {
+          const q = await getBestSwapQuote(fromToken, toToken, amt);
+          if (!alive) return;
+          setBestQuote(q);
+          setRouteSource(q.source || "Jupiter");
+          setQuote(
+            q.outUi
               .toFixed(6)
               .replace(/\.?0+$/, (m) =>
                 m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m
               )
-      );
-      const one = fromUsdc(toToken, toUsdc(fromToken, 1));
-      if (one != null) setRateText(`1 ${fromToken} ≈ ${one.toFixed(6)} ${toToken}`);
-      setQuoteLoading(false);
-      return;
+          );
+          const rate = q.outUi / amt;
+          const impact =
+            q.priceImpactPct != null && q.priceImpactPct !== ""
+              ? ` · impact ${Number(q.priceImpactPct).toFixed(3)}%`
+              : "";
+          setRateText(`1 ${fromToken} ≈ ${rate.toFixed(6)} ${toToken} · ${q.source}${impact}`);
+        } catch (e) {
+          if (!alive) return;
+          console.error(e);
+          setBestQuote(null);
+          setQuote("—");
+          setRouteSource("");
+          setRateText(`报价失败 / Quote failed: ${(e?.message || String(e)).slice(0, 100)}`);
+        } finally {
+          if (alive) setQuoteLoading(false);
+        }
+      }, 450);
+      return () => {
+        alive = false;
+        clearTimeout(tPawly);
+      };
     }
 
     if (!livePair) {
@@ -3850,8 +3893,13 @@ function SwapPage() {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return alert("请输入有效数量\nEnter a valid amount");
     if (fromToken === toToken) return alert("请选择不同代币\nSelect different tokens");
+    if (quoteLoading) {
+      return alert("报价加载中，请稍候再点兑换\nQuote loading — try again in a moment");
+    }
     if (!bestQuote) {
-      return alert("请等待实时报价完成（Jupiter / Raydium）\nWait for live quote (Jupiter / Raydium)");
+      return alert(
+        "暂无可用实时报价（Jupiter）。请确认金额后稍候，或稍后重试。\nNo live Jupiter quote yet. Wait a moment after entering amount, then retry."
+      );
     }
     if (amt > realBalance + 1e-12) {
       return alert("余额不足\nInsufficient balance");
@@ -4006,7 +4054,7 @@ function SwapPage() {
             <p style={{ color: "#ffaa00", fontSize: 11, margin: "10px 0 0", lineHeight: 1.45 }}>
               PAWLY 为预览比例，CA + 池上线后开放真实兑换。
               <br />
-              PAWLY is preview only until CA & pool launch.
+              PAWLY pool is live — real Jupiter / on-chain routes preferred.
             </p>
           )}
           {involvesPawly && PAWLY_POOL_LIVE && (
@@ -4052,9 +4100,9 @@ function SwapPage() {
           </p>
         )}
         <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
-          询价与上链均为 Jupiter 加强通道。PAWLY 待 CA。
+          询价与上链均为 Jupiter 加强通道。PAWLY 官方 CA 已接入。
           <br />
-          Quote & swap use hardened Jupiter only. PAWLY awaits CA.
+          Quote & swap use hardened Jupiter only. Official PAWLY CA integrated.
         </p>
       </div>
     </div>
@@ -5160,13 +5208,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
-
