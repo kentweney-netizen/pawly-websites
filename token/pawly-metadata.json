@@ -1,7 +1,7 @@
 {
   "name": "PAWLY",
   "symbol": "PAWLY",
-  "description": "PAWLY PETS official token. Site: https://www.pawlypets.online — Only trust CA from official site and @pawlypetslover.",
+  "description": "PAWLY PETS official token for pet payments, charity and community. Official site only: https://www.pawlypets.online — Official X: @pawlypetslover — Official CA: 88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87. Any other same-name token is unofficial.",
   "image": "https://raw.githubusercontent.com/kentweney-netizen/pawly-websites/main/pawly-token-logo.jpg",
   "external_url": "https://www.pawlypets.online",
   "seller_fee_basis_points": 0,
@@ -13,5 +13,12 @@
       }
     ],
     "category": "image"
+  },
+  "extensions": {
+    "website": "https://www.pawlypets.online",
+    "twitter": "https://x.com/pawlypetslover",
+    "telegram": "https://t.me/pawlythepetslovers",
+    "discord": "",
+    "coingeckoId": ""
   }
 }
