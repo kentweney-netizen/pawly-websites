@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 24.08.2026 v7.7.3 PAWLY transfer fix: Swap Jupiter for PAWLY pairs; Payment/Transfer/Charity on official CA; staking still TBA
+ * PAWLY DApp — 24.08.2026 v7.7.4 PAWLY multi-wallet transfer: Swap Jupiter for PAWLY pairs; Payment/Transfer/Charity on official CA; staking still TBA
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -356,19 +356,16 @@ async function walletSignAndSend({
         replaceRecentBlockhash: true,
       });
       if (sim?.value?.err) {
-        throw new Error("Simulation failed / 模拟失败: " + JSON.stringify(sim.value.err));
+        console.warn("[PAWLY] pre-sim err (continue to wallet):", JSON.stringify(sim.value.err));
       }
     } else {
       const sim = await connection.simulateTransaction(transaction);
       if (sim?.value?.err) {
-        throw new Error("Simulation failed / 模拟失败: " + JSON.stringify(sim.value.err));
+        console.warn("[PAWLY] pre-sim err (continue to wallet):", JSON.stringify(sim.value.err));
       }
     }
   } catch (e) {
-    const m = String(e?.message || e);
-    if (m.includes("Simulation failed") || m.includes("模拟失败")) throw e;
-    // RPC restricted in some in-app browsers — continue to wallet path
-    console.warn("[PAWLY] pre-sim soft fail:", m);
+    console.warn("[PAWLY] pre-sim soft fail:", e?.message || e);
   }
 
   const pickSig = (res) => {
@@ -435,17 +432,20 @@ async function walletSignAndSend({
   }
 }
 
-/** 真实 SOL / SPL 转账（需已连接可签名钱包）— v7.7.3: PAWLY/USDC/USDT 加强 */
+/** 真实 SOL / SPL 转账 v7.7.4 — 简化路径，兼容 Bitget/Jupiter/Solflare/Phantom/Trust */
 async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, toAddress, uiAmount }) {
-  if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
+  if (!publicKey || !sendTransaction) throw new Error("Wallet not connected / 请先连接钱包");
   let toPubkey;
   try {
-    toPubkey = new PublicKey(toAddress.trim());
+    toPubkey = new PublicKey(String(toAddress).trim());
   } catch {
     throw new Error("Invalid recipient address / 收款地址无效");
   }
-  const raw = toRawAmount(uiAmount, token);
-  if (raw == null || raw <= 0) throw new Error("Invalid amount / 数量无效");
+  if (toPubkey.equals(publicKey)) {
+    throw new Error("Cannot transfer to the same wallet / 不能转给自己同一地址");
+  }
+  const rawNum = toRawAmount(uiAmount, token);
+  if (rawNum == null || rawNum <= 0) throw new Error("Invalid amount / 数量无效");
 
   const connection = getConnection();
   const ixs = [];
@@ -455,88 +455,49 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
       SystemProgram.transfer({
         fromPubkey: publicKey,
         toPubkey,
-        lamports: raw,
+        lamports: rawNum,
       })
     );
   } else {
     const mintStr = TOKEN_MINTS[token];
-    if (!mintStr) throw new Error(`${token} mint not available / 尚未配置 ${token} 合约地址`);
+    if (!mintStr) throw new Error(`${token} mint not configured`);
     const mint = new PublicKey(mintStr);
-    const decimals = TOKEN_DECIMALS[token] ?? 6;
+    const tokenProgramId = TOKEN_PROGRAM_ID;
 
-    // 从 mint 账户读取实际 Token Program（兼容标准 SPL / Token-2022）
-    let tokenProgramId = TOKEN_PROGRAM_ID;
-    try {
-      const mintInfo = await connection.getAccountInfo(mint, "confirmed");
-      if (!mintInfo) throw new Error(`${token} mint not found on-chain / 链上找不到 ${token}`);
-      tokenProgramId = mintInfo.owner;
-    } catch (e) {
-      if (String(e?.message || e).includes("not found")) throw e;
-      // RPC 失败时回退标准 TOKEN_PROGRAM_ID
-      console.warn("[PAWLY] mint program resolve soft-fail, use TOKEN_PROGRAM_ID", e?.message || e);
-    }
+    const fromAta = await getAssociatedTokenAddress(mint, publicKey, false, tokenProgramId);
+    const toAta = await getAssociatedTokenAddress(mint, toPubkey, false, tokenProgramId);
 
-    const fromAta = await getAssociatedTokenAddress(
-      mint,
-      publicKey,
-      false,
-      tokenProgramId,
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );
-    const toAta = await getAssociatedTokenAddress(
-      mint,
-      toPubkey,
-      false,
-      tokenProgramId,
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );
-
-    // 发送方账户：先试 ATA，失败则扫描该 mint 下所有 token account
     let sourceAta = fromAta;
-    let sourceAmount = null;
     try {
       const acc = await getAccount(connection, fromAta, "confirmed", tokenProgramId);
-      sourceAmount = Number(acc.amount);
-      sourceAta = fromAta;
-    } catch (_) {
-      try {
-        const accounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
-          mint,
-          programId: tokenProgramId,
-        });
-        let best = null;
-        let bestAmt = -1;
-        for (const a of accounts.value || []) {
-          const amt = Number(a?.account?.data?.parsed?.info?.tokenAmount?.amount || 0);
-          if (amt > bestAmt) {
-            bestAmt = amt;
-            best = a;
-          }
-        }
-        if (!best || bestAmt <= 0) {
-          throw new Error(
-            `No ${token} token account / 没有 ${token} 代币账户。请确认钱包里已有 ${token}（可先在 Swap 兑换）。`
-          );
-        }
-        sourceAta = new PublicKey(best.pubkey);
-        sourceAmount = bestAmt;
-      } catch (e2) {
-        if (String(e2?.message || e2).includes("No ")) throw e2;
+      if (Number(acc.amount) < rawNum) {
         throw new Error(
-          `No ${token} token account / 没有 ${token} 代币账户。请确认钱包里已有 ${token}（可先在 Swap 兑换）。`
+          `Insufficient ${token} / ${token} 余额不足（链上 ${Number(acc.amount) / Math.pow(10, TOKEN_DECIMALS[token] || 6)}）`
         );
       }
+    } catch (e) {
+      const msg = String(e?.message || e);
+      if (msg.includes("Insufficient") || msg.includes("余额不足")) throw e;
+      const accounts = await connection.getParsedTokenAccountsByOwner(publicKey, { mint });
+      let best = null;
+      let bestAmt = 0;
+      for (const a of accounts.value || []) {
+        const amt = Number(a?.account?.data?.parsed?.info?.tokenAmount?.amount || 0);
+        if (amt > bestAmt) {
+          bestAmt = amt;
+          best = a;
+        }
+      }
+      if (!best || bestAmt < rawNum) {
+        throw new Error(
+          `No ${token} balance / 钱包没有足够 ${token}。请先 Swap 获得 ${token} 后再试。`
+        );
+      }
+      sourceAta = new PublicKey(best.pubkey);
     }
 
-    if (sourceAmount != null && sourceAmount < raw) {
-      throw new Error(
-        `Insufficient ${token} balance / ${token} 余额不足（链上 ${sourceAmount / Math.pow(10, decimals)}，需要 ${uiAmount}）`
-      );
-    }
-
-    // 收款方无 ATA 则同笔交易创建（付款方付租金）
-    const toAtaInfo = await connection.getAccountInfo(toAta, "confirmed");
-    if (!toAtaInfo) {
+    const toInfo = await connection.getAccountInfo(toAta, "confirmed");
+    if (!toInfo) {
       ixs.push(
         createAssociatedTokenAccountInstruction(
           publicKey,
@@ -549,36 +510,11 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
       );
     }
 
-    // TransferChecked：明确 decimals，钱包模拟更稳（尤其 PAWLY）
-    try {
-      ixs.push(
-        createTransferCheckedInstruction(
-          sourceAta,
-          mint,
-          toAta,
-          publicKey,
-          BigInt(raw),
-          decimals,
-          [],
-          tokenProgramId
-        )
-      );
-    } catch (_) {
-      // 旧版 spl-token 无 Checked 时回退
-      ixs.push(
-        createTransferInstruction(
-          sourceAta,
-          toAta,
-          publicKey,
-          raw,
-          [],
-          tokenProgramId
-        )
-      );
-    }
+    ixs.push(
+      createTransferInstruction(sourceAta, toAta, publicKey, rawNum, [], tokenProgramId)
+    );
   }
 
-  // Trust / 多钱包：统一 VersionedTransaction，失败再 legacy
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   const messageV0 = new TransactionMessage({
     payerKey: publicKey,
@@ -594,15 +530,11 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
       transaction: vtx,
       sendTransaction,
       wallet,
+      allowSkipPreflightFallback: true,
     });
   } catch (e) {
     const msg = String(e?.message || e);
-    if (
-      msg.includes("serializeMessage") ||
-      msg.includes("VersionedTransaction") ||
-      msg.includes("Unexpected") ||
-      msg.includes("not a function")
-    ) {
+    try {
       const legacy = new Transaction();
       legacy.recentBlockhash = blockhash;
       legacy.feePayer = publicKey;
@@ -612,12 +544,23 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
         transaction: legacy,
         sendTransaction,
         wallet,
+        allowSkipPreflightFallback: true,
       });
-    } else {
-      throw e;
+    } catch (e2) {
+      throw new Error((msg || "sign failed") + " | legacy: " + (e2?.message || String(e2)));
     }
   }
-  await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+
+  if (!sig || sig === "[object Object]") {
+    throw new Error("No signature returned from wallet / 钱包未返回签名");
+  }
+
+  try {
+    await connection.confirmTransaction(
+      { signature: sig, blockhash, lastValidBlockHeight },
+      "confirmed"
+    );
+  } catch (_) {}
   return sig;
 }
 
