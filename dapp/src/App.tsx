@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 19.08.2026 v7.7.2 PAWLY live all: Swap Jupiter for PAWLY pairs; Payment/Transfer/Charity on official CA; staking still TBA
+ * PAWLY DApp — 24.08.2026 v7.7.3 PAWLY transfer fix: Swap Jupiter for PAWLY pairs; Payment/Transfer/Charity on official CA; staking still TBA
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -55,6 +55,7 @@ import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
+  createTransferCheckedInstruction,
   getAccount,
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -434,7 +435,7 @@ async function walletSignAndSend({
   }
 }
 
-/** 真实 SOL / SPL 转账（需已连接可签名钱包） */
+/** 真实 SOL / SPL 转账（需已连接可签名钱包）— v7.7.3: PAWLY/USDC/USDT 加强 */
 async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, toAddress, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   let toPubkey;
@@ -459,20 +460,82 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
     );
   } else {
     const mintStr = TOKEN_MINTS[token];
-    if (!mintStr) throw new Error(`${token} mint not available`);
+    if (!mintStr) throw new Error(`${token} mint not available / 尚未配置 ${token} 合约地址`);
     const mint = new PublicKey(mintStr);
-    const fromAta = await getAssociatedTokenAddress(mint, publicKey);
-    const toAta = await getAssociatedTokenAddress(mint, toPubkey);
+    const decimals = TOKEN_DECIMALS[token] ?? 6;
 
-    // Phantom 模拟友好：先确认发送方有 ATA；收款方无 ATA 则由付款方创建（同笔交易、单签）
+    // 从 mint 账户读取实际 Token Program（兼容标准 SPL / Token-2022）
+    let tokenProgramId = TOKEN_PROGRAM_ID;
     try {
-      await getAccount(connection, fromAta);
-    } catch {
-      throw new Error(`No ${token} token account / 没有 ${token} 代币账户`);
+      const mintInfo = await connection.getAccountInfo(mint, "confirmed");
+      if (!mintInfo) throw new Error(`${token} mint not found on-chain / 链上找不到 ${token}`);
+      tokenProgramId = mintInfo.owner;
+    } catch (e) {
+      if (String(e?.message || e).includes("not found")) throw e;
+      // RPC 失败时回退标准 TOKEN_PROGRAM_ID
+      console.warn("[PAWLY] mint program resolve soft-fail, use TOKEN_PROGRAM_ID", e?.message || e);
     }
 
-    // 与 Phantom 支持建议一致：用 getAccountInfo 判断收款 ATA 是否存在
-    const toAtaInfo = await connection.getAccountInfo(toAta);
+    const fromAta = await getAssociatedTokenAddress(
+      mint,
+      publicKey,
+      false,
+      tokenProgramId,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    const toAta = await getAssociatedTokenAddress(
+      mint,
+      toPubkey,
+      false,
+      tokenProgramId,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    // 发送方账户：先试 ATA，失败则扫描该 mint 下所有 token account
+    let sourceAta = fromAta;
+    let sourceAmount = null;
+    try {
+      const acc = await getAccount(connection, fromAta, "confirmed", tokenProgramId);
+      sourceAmount = Number(acc.amount);
+      sourceAta = fromAta;
+    } catch (_) {
+      try {
+        const accounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+          mint,
+          programId: tokenProgramId,
+        });
+        let best = null;
+        let bestAmt = -1;
+        for (const a of accounts.value || []) {
+          const amt = Number(a?.account?.data?.parsed?.info?.tokenAmount?.amount || 0);
+          if (amt > bestAmt) {
+            bestAmt = amt;
+            best = a;
+          }
+        }
+        if (!best || bestAmt <= 0) {
+          throw new Error(
+            `No ${token} token account / 没有 ${token} 代币账户。请确认钱包里已有 ${token}（可先在 Swap 兑换）。`
+          );
+        }
+        sourceAta = new PublicKey(best.pubkey);
+        sourceAmount = bestAmt;
+      } catch (e2) {
+        if (String(e2?.message || e2).includes("No ")) throw e2;
+        throw new Error(
+          `No ${token} token account / 没有 ${token} 代币账户。请确认钱包里已有 ${token}（可先在 Swap 兑换）。`
+        );
+      }
+    }
+
+    if (sourceAmount != null && sourceAmount < raw) {
+      throw new Error(
+        `Insufficient ${token} balance / ${token} 余额不足（链上 ${sourceAmount / Math.pow(10, decimals)}，需要 ${uiAmount}）`
+      );
+    }
+
+    // 收款方无 ATA 则同笔交易创建（付款方付租金）
+    const toAtaInfo = await connection.getAccountInfo(toAta, "confirmed");
     if (!toAtaInfo) {
       ixs.push(
         createAssociatedTokenAccountInstruction(
@@ -480,24 +543,42 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
           toAta,
           toPubkey,
           mint,
-          TOKEN_PROGRAM_ID,
+          tokenProgramId,
           ASSOCIATED_TOKEN_PROGRAM_ID
         )
       );
     }
-    ixs.push(
-      createTransferInstruction(
-        fromAta,
-        toAta,
-        publicKey,
-        raw,
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    );
+
+    // TransferChecked：明确 decimals，钱包模拟更稳（尤其 PAWLY）
+    try {
+      ixs.push(
+        createTransferCheckedInstruction(
+          sourceAta,
+          mint,
+          toAta,
+          publicKey,
+          BigInt(raw),
+          decimals,
+          [],
+          tokenProgramId
+        )
+      );
+    } catch (_) {
+      // 旧版 spl-token 无 Checked 时回退
+      ixs.push(
+        createTransferInstruction(
+          sourceAta,
+          toAta,
+          publicKey,
+          raw,
+          [],
+          tokenProgramId
+        )
+      );
+    }
   }
 
-  // Trust Wallet 等：统一用 VersionedTransaction（与 Swap 相同路径），避免 serializeMessage is not a function
+  // Trust / 多钱包：统一 VersionedTransaction，失败再 legacy
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   const messageV0 = new TransactionMessage({
     payerKey: publicKey,
@@ -2271,7 +2352,7 @@ function MyQrModal({ address, onClose }) {
               color: "#fff",
             }}
           >
-            {["USDC", "USDT", "SOL"].map((x) => (
+            {["USDC", "USDT", "SOL", "PAWLY"].map((x) => (
               <option key={x} value={x}>
                 {x}
               </option>
@@ -5208,3 +5289,4 @@ function App() {
 }
 
 export default App;
+
