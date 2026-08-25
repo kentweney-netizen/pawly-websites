@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 24.08.2026 v7.7.4 PAWLY multi-wallet transfer: Swap Jupiter for PAWLY pairs; Payment/Transfer/Charity on official CA; staking still TBA
+ * PAWLY DApp — 25.08.2026 v7.7.6 iOS-safe — PAWLY/SOL/USDC/USDT full transfer; no BigInt literal/no numeric separator; TransferChecked + ATA rent + on-page txError; Payment/Charity/Swap
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -432,20 +432,43 @@ async function walletSignAndSend({
   }
 }
 
-/** 真实 SOL / SPL 转账 v7.7.4 — 简化路径，兼容 Bitget/Jupiter/Solflare/Phantom/Trust */
+
+/** Resolve mint owner (Token vs Token-2022) — plain JS, no BigInt literals */
+async function resolveTokenProgramId(connection, mint) {
+  try {
+    const info = await connection.getAccountInfo(mint, "confirmed");
+    if (info && info.owner) {
+      return info.owner;
+    }
+  } catch (_) {}
+  return TOKEN_PROGRAM_ID;
+}
+
+/**
+ * 真实 SOL / SPL 转账 v7.7.6 iOS-safe
+ * - 无 BigInt(0) / 无数字分隔符（旧 WebView 直接 SyntaxError）
+ * - TransferChecked + mint program resolve
+ * - 发送方 ATA 失败则扫描同 mint 账户
+ * - 收款方无 ATA 同笔创建 + SOL 租金预检
+ * - Versioned → legacy 回退
+ */
 async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, toAddress, uiAmount }) {
-  if (!publicKey || !sendTransaction) throw new Error("Wallet not connected / 请先连接钱包");
+  if (!publicKey || !sendTransaction) {
+    throw new Error("Wallet not connected / 请先连接钱包");
+  }
   let toPubkey;
   try {
     toPubkey = new PublicKey(String(toAddress).trim());
-  } catch {
+  } catch (_) {
     throw new Error("Invalid recipient address / 收款地址无效");
   }
   if (toPubkey.equals(publicKey)) {
     throw new Error("Cannot transfer to the same wallet / 不能转给自己同一地址");
   }
-  const rawNum = toRawAmount(uiAmount, token);
-  if (rawNum == null || rawNum <= 0) throw new Error("Invalid amount / 数量无效");
+  const raw = toRawAmount(uiAmount, token);
+  if (raw == null || raw <= 0) {
+    throw new Error("Invalid amount / 数量无效");
+  }
 
   const connection = getConnection();
   const ixs = [];
@@ -454,50 +477,102 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
     ixs.push(
       SystemProgram.transfer({
         fromPubkey: publicKey,
-        toPubkey,
-        lamports: rawNum,
+        toPubkey: toPubkey,
+        lamports: raw,
       })
     );
   } else {
     const mintStr = TOKEN_MINTS[token];
-    if (!mintStr) throw new Error(`${token} mint not configured`);
+    if (!mintStr) {
+      throw new Error(token + " mint not configured / 尚未配置合约地址");
+    }
     const mint = new PublicKey(mintStr);
-    const tokenProgramId = TOKEN_PROGRAM_ID;
+    const decimals = TOKEN_DECIMALS[token] != null ? TOKEN_DECIMALS[token] : 6;
+    const tokenProgramId = await resolveTokenProgramId(connection, mint);
 
-    const fromAta = await getAssociatedTokenAddress(mint, publicKey, false, tokenProgramId);
-    const toAta = await getAssociatedTokenAddress(mint, toPubkey, false, tokenProgramId);
+    const fromAta = await getAssociatedTokenAddress(
+      mint,
+      publicKey,
+      false,
+      tokenProgramId,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    const toAta = await getAssociatedTokenAddress(
+      mint,
+      toPubkey,
+      false,
+      tokenProgramId,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
 
+    // 发送方：先标准 ATA，失败再扫描该 mint 全部 token account
     let sourceAta = fromAta;
+    let sourceAmount = null;
     try {
       const acc = await getAccount(connection, fromAta, "confirmed", tokenProgramId);
-      if (Number(acc.amount) < rawNum) {
-        throw new Error(
-          `Insufficient ${token} / ${token} 余额不足（链上 ${Number(acc.amount) / Math.pow(10, TOKEN_DECIMALS[token] || 6)}）`
-        );
-      }
-    } catch (e) {
-      const msg = String(e?.message || e);
-      if (msg.includes("Insufficient") || msg.includes("余额不足")) throw e;
-      const accounts = await connection.getParsedTokenAccountsByOwner(publicKey, { mint });
-      let best = null;
-      let bestAmt = 0;
-      for (const a of accounts.value || []) {
-        const amt = Number(a?.account?.data?.parsed?.info?.tokenAmount?.amount || 0);
-        if (amt > bestAmt) {
-          bestAmt = amt;
-          best = a;
+      sourceAmount = Number(acc.amount.toString());
+      sourceAta = fromAta;
+    } catch (_) {
+      try {
+        const accounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+          mint: mint,
+          programId: tokenProgramId,
+        });
+        let best = null;
+        let bestAmt = -1;
+        const list = (accounts && accounts.value) ? accounts.value : [];
+        for (let i = 0; i < list.length; i++) {
+          const a = list[i];
+          const amtStr =
+            a &&
+            a.account &&
+            a.account.data &&
+            a.account.data.parsed &&
+            a.account.data.parsed.info &&
+            a.account.data.parsed.info.tokenAmount &&
+            a.account.data.parsed.info.tokenAmount.amount
+              ? a.account.data.parsed.info.tokenAmount.amount
+              : "0";
+          const amt = Number(amtStr);
+          if (amt > bestAmt) {
+            bestAmt = amt;
+            best = a;
+          }
         }
-      }
-      if (!best || bestAmt < rawNum) {
+        if (!best || bestAmt < raw) {
+          throw new Error(
+            "No " + token + " balance / 钱包没有足够 " + token + "。请确认持有官方 CA（非同名假币）。"
+          );
+        }
+        sourceAta = new PublicKey(best.pubkey);
+        sourceAmount = bestAmt;
+      } catch (e2) {
+        const m2 = String((e2 && e2.message) || e2);
+        if (m2.indexOf("No ") >= 0 || m2.indexOf("没有") >= 0) throw e2;
         throw new Error(
-          `No ${token} balance / 钱包没有足够 ${token}。请先 Swap 获得 ${token} 后再试。`
+          "No " + token + " token account / 没有 " + token + " 代币账户。请确认钱包已有 " + token + "（可先 Swap）。"
         );
       }
-      sourceAta = new PublicKey(best.pubkey);
     }
 
-    const toInfo = await connection.getAccountInfo(toAta, "confirmed");
-    if (!toInfo) {
+    if (sourceAmount != null && sourceAmount < raw) {
+      const uiHave = sourceAmount / Math.pow(10, decimals);
+      throw new Error(
+        "Insufficient " + token + " / " + token + " 余额不足（链上 " + uiHave + "，需要 " + uiAmount + "）"
+      );
+    }
+
+    // 收款方无 ATA：同笔创建，并预检 SOL 租金（避免 iOS 静默失败）
+    const toAtaInfo = await connection.getAccountInfo(toAta, "confirmed");
+    if (!toAtaInfo) {
+      const solLamports = await connection.getBalance(publicKey, "confirmed");
+      const need = 2500000; // ~0.0025 SOL buffer — no numeric separator (iOS WebView)
+      if (solLamports < need) {
+        throw new Error(
+          "SOL 不足：对方首次接收 " + token + " 需新建代币账户（约 0.002 SOL 租金）+ 手续费。请至少保留 0.01 SOL。\n" +
+            "Not enough SOL: first-time " + token + " receive needs ~0.002 SOL rent + fees. Keep >= 0.01 SOL."
+        );
+      }
       ixs.push(
         createAssociatedTokenAccountInstruction(
           publicKey,
@@ -510,12 +585,39 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
       );
     }
 
-    ixs.push(
-      createTransferInstruction(sourceAta, toAta, publicKey, rawNum, [], tokenProgramId)
-    );
+    // TransferChecked（decimals 明确，钱包模拟更稳）；失败回退普通 Transfer
+    // 金额：Checked 用 BigInt() 构造函数（勿写 BigInt(0) 字面量）；普通 Transfer 用 number
+    try {
+      ixs.push(
+        createTransferCheckedInstruction(
+          sourceAta,
+          mint,
+          toAta,
+          publicKey,
+          BigInt(raw),
+          decimals,
+          [],
+          tokenProgramId
+        )
+      );
+    } catch (_) {
+      ixs.push(
+        createTransferInstruction(
+          sourceAta,
+          toAta,
+          publicKey,
+          raw,
+          [],
+          tokenProgramId
+        )
+      );
+    }
   }
 
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+  const latest = await connection.getLatestBlockhash("confirmed");
+  const blockhash = latest.blockhash;
+  const lastValidBlockHeight = latest.lastValidBlockHeight;
+
   const messageV0 = new TransactionMessage({
     payerKey: publicKey,
     recentBlockhash: blockhash,
@@ -526,28 +628,30 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
   let sig;
   try {
     sig = await walletSignAndSend({
-      connection,
+      connection: connection,
       transaction: vtx,
-      sendTransaction,
-      wallet,
+      sendTransaction: sendTransaction,
+      wallet: wallet,
       allowSkipPreflightFallback: true,
     });
   } catch (e) {
-    const msg = String(e?.message || e);
+    const msg = String((e && e.message) || e);
     try {
       const legacy = new Transaction();
       legacy.recentBlockhash = blockhash;
       legacy.feePayer = publicKey;
-      for (const ix of ixs) legacy.add(ix);
+      for (let k = 0; k < ixs.length; k++) {
+        legacy.add(ixs[k]);
+      }
       sig = await walletSignAndSend({
-        connection,
+        connection: connection,
         transaction: legacy,
-        sendTransaction,
-        wallet,
+        sendTransaction: sendTransaction,
+        wallet: wallet,
         allowSkipPreflightFallback: true,
       });
     } catch (e2) {
-      throw new Error((msg || "sign failed") + " | legacy: " + (e2?.message || String(e2)));
+      throw new Error((msg || "sign failed") + " | legacy: " + String((e2 && e2.message) || e2));
     }
   }
 
@@ -557,12 +661,13 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
 
   try {
     await connection.confirmTransaction(
-      { signature: sig, blockhash, lastValidBlockHeight },
+      { signature: sig, blockhash: blockhash, lastValidBlockHeight: lastValidBlockHeight },
       "confirmed"
     );
   } catch (_) {}
   return sig;
 }
+
 
 /** Jupiter v6：SOL/USDC/USDT 真实兑换报价 */
 /** Jupiter 单次报价 */
@@ -2948,6 +3053,7 @@ function PaymentPage() {
   const [fiatAmount, setFiatAmount] = useState("");
   const [txLoading, setTxLoading] = useState(false);
   const [lastSig, setLastSig] = useState("");
+  const [txError, setTxError] = useState("");
   const [showMyQr, setShowMyQr] = useState(false);
   const [showScanQr, setShowScanQr] = useState(false);
   const [showSettle, setShowSettle] = useState(false);
@@ -3065,6 +3171,7 @@ function PaymentPage() {
     }
     setTxLoading(true);
     setLastSig("");
+    setTxError("");
     try {
       const sig = await sendTokenTransfer({
         publicKey,
@@ -3094,9 +3201,11 @@ function PaymentPage() {
       setAmount("");
     } catch (e) {
       console.error(e);
-      alert(
-        `交易失败 / Transaction failed\n\n${e?.message || String(e)}`
-      );
+      const em = e?.message || String(e);
+      setTxError(em);
+      try {
+        alert(`交易失败 / Transaction failed\n\n${em}`);
+      } catch (_) {}
     } finally {
       setTxLoading(false);
     }
@@ -3449,6 +3558,44 @@ function PaymentPage() {
           />
         )}
 
+        {txError && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 12,
+              padding: "12px 14px",
+              background: "rgba(244,67,54,0.12)",
+              border: "1px solid rgba(244,67,54,0.55)",
+              borderRadius: 12,
+              color: "#ffcdd2",
+              fontSize: 13,
+              lineHeight: 1.5,
+              wordBreak: "break-word",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <div style={{ color: "#ff8a80", fontWeight: 800, marginBottom: 6 }}>交易错误 / Tx Error</div>
+            {txError}
+            <button
+              type="button"
+              onClick={() => setTxError("")}
+              style={{
+                marginTop: 10,
+                display: "block",
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "transparent",
+                color: "#eee",
+                cursor: "pointer",
+              }}
+            >
+              关闭 / Dismiss
+            </button>
+          </div>
+        )}
+
         {lastSig && (
           <p style={{ color: "#00ff9d", fontSize: 12, marginTop: 12, wordBreak: "break-all", textAlign: "center" }}>
             最近交易 / Last tx:{" "}
@@ -3724,6 +3871,7 @@ function SwapPage() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
   const [lastSig, setLastSig] = useState("");
+  const [txError, setTxError] = useState("");
 
   const tokens = ["SOL", "USDC", "USDT", "PAWLY"];
   const livePair =
@@ -3930,6 +4078,7 @@ function SwapPage() {
     }
     setTxLoading(true);
     setLastSig("");
+    setTxError("");
     try {
       const sig = await executeSwapRoute({
         publicKey,
@@ -3960,7 +4109,11 @@ function SwapPage() {
       setBestQuote(null);
     } catch (e) {
       console.error(e);
-      alert(`兑换失败 / Swap failed\n\n${e?.message || String(e)}`);
+      const em = e?.message || String(e);
+      setTxError(em);
+      try {
+        alert(`兑换失败 / Swap failed\n\n${em}`);
+      } catch (_) {}
     } finally {
       setTxLoading(false);
     }
@@ -4111,6 +4264,44 @@ function SwapPage() {
             ? "链上兑换中… / Swapping…"
             : `交易 / Swap ${fromToken} → ${toToken}`}
         </button>
+        {txError && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 12,
+              padding: "12px 14px",
+              background: "rgba(244,67,54,0.12)",
+              border: "1px solid rgba(244,67,54,0.55)",
+              borderRadius: 12,
+              color: "#ffcdd2",
+              fontSize: 13,
+              lineHeight: 1.5,
+              wordBreak: "break-word",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <div style={{ color: "#ff8a80", fontWeight: 800, marginBottom: 6 }}>交易错误 / Tx Error</div>
+            {txError}
+            <button
+              type="button"
+              onClick={() => setTxError("")}
+              style={{
+                marginTop: 10,
+                display: "block",
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "transparent",
+                color: "#eee",
+                cursor: "pointer",
+              }}
+            >
+              关闭 / Dismiss
+            </button>
+          </div>
+        )}
+
         {lastSig && (
           <p style={{ color: "#00ff9d", fontSize: 12, marginTop: 12, wordBreak: "break-all", textAlign: "center" }}>
             <a
@@ -4431,6 +4622,7 @@ function CharityPage() {
   const [realBalance, setRealBalance] = useState(0);
   const [txLoading, setTxLoading] = useState(false);
   const [lastSig, setLastSig] = useState("");
+  const [txError, setTxError] = useState("");
   const [showMyQr, setShowMyQr] = useState(false);
   const [showScanQr, setShowScanQr] = useState(false);
   const [fiatRates, setFiatRates] = useState(null);
@@ -4521,6 +4713,7 @@ function CharityPage() {
     }
     setTxLoading(true);
     setLastSig("");
+    setTxError("");
     try {
       const sig = await sendTokenTransfer({
         publicKey,
@@ -4549,7 +4742,11 @@ function CharityPage() {
       setAmount("");
     } catch (e) {
       console.error(e);
-      alert(`捐赠失败 / Donation failed\n\n${e?.message || String(e)}`);
+      const em = e?.message || String(e);
+      setTxError(em);
+      try {
+        alert(`捐赠失败 / Donation failed\n\n${em}`);
+      } catch (_) {}
     } finally {
       setTxLoading(false);
     }
@@ -4821,6 +5018,44 @@ function CharityPage() {
             ? "链上捐赠中… / Donating…"
             : "确认捐赠 / Confirm Donate"}
         </button>
+        {txError && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 12,
+              padding: "12px 14px",
+              background: "rgba(244,67,54,0.12)",
+              border: "1px solid rgba(244,67,54,0.55)",
+              borderRadius: 12,
+              color: "#ffcdd2",
+              fontSize: 13,
+              lineHeight: 1.5,
+              wordBreak: "break-word",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <div style={{ color: "#ff8a80", fontWeight: 800, marginBottom: 6 }}>交易错误 / Tx Error</div>
+            {txError}
+            <button
+              type="button"
+              onClick={() => setTxError("")}
+              style={{
+                marginTop: 10,
+                display: "block",
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "transparent",
+                color: "#eee",
+                cursor: "pointer",
+              }}
+            >
+              关闭 / Dismiss
+            </button>
+          </div>
+        )}
+
         {lastSig && (
           <p
             style={{
@@ -5232,4 +5467,5 @@ function App() {
 }
 
 export default App;
+
 
