@@ -2,10 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
+    />
+
     <meta name="theme-color" content="#00ff9d" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="PAWLY" />
+    <meta
+      name="description"
+      content="PAWLY Pets — self-custody Solana wallet. Payment, transfer, swap & charity."
+    />
+
     <link rel="manifest" href="/dapp/manifest.json" />
-    <title>PAWLY DApp</title>
+
+    <!-- 与主站 PWA 同一套 logo -->
+    <link rel="icon" type="image/png" href="/dapp/pawly-token-helps.png" />
+    <link rel="icon" type="image/jpeg" sizes="512x512" href="/dapp/pawly-token-helps2.jpg" />
+
+    <!-- iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PAWLY" />
+    <link rel="apple-touch-icon" href="/dapp/pawly-token-helps.png" />
+
+    <title>PAWLY Wallet</title>
   </head>
   <body>
     <div id="root"></div>
