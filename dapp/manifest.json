@@ -1,6 +1,6 @@
 {
-  "name": "PAWLY Wallet",
-  "short_name": "PAWLY",
+  "name": "PAWLY DApp",
+  "short_name": "PAWLY DApp",
   "description": "PAWLY Pets — self-custody Solana wallet for payment, transfer, swap & charity",
   "start_url": "/dapp/",
   "scope": "/dapp/",
