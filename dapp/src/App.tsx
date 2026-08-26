@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 25.08.2026 v7.7.8 Buffer polyfill iOS+Android — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 26.08.2026 v7.7.9 Buffer polyfill iOS+Android — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -73,6 +73,11 @@ import {
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider, useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
+  LocalWalletProvider,
+  usePawlyWallet,
+  LocalWalletEntryButtons,
+} from "./localWallet";
+import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
   TrustWalletAdapter,
@@ -89,6 +94,7 @@ import {
   clusterApiUrl,
   Connection,
   PublicKey,
+  Keypair,
   Transaction,
   TransactionMessage,
   SystemProgram,
@@ -1852,7 +1858,7 @@ function SyncFromUrl() {
 }
 
 function HomePage() {
-  const wallet = useWallet();
+  const wallet = usePawlyWallet();
   const navigate = useNavigate();
   const { pwaData, verified, refreshUserData } = useUserData();
   const [showExport, setShowExport] = useState(false);
@@ -1929,6 +1935,7 @@ function HomePage() {
   return (
     <div style={pageWrap}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <LocalWalletEntryButtons />
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div
             style={{
@@ -2072,7 +2079,7 @@ function HomePage() {
 }
 
 function StakingPage() {
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected } = usePawlyWallet();
   const [selectedToken, setSelectedToken] = useState("SOL");
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -3082,7 +3089,7 @@ function ScanQrModal({ onDetected, onClose }) {
 }
 
 function PaymentPage() {
-  const { publicKey, connected, sendTransaction, wallet } = useWallet();
+  const { publicKey, connected, sendTransaction, wallet } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [payToken, setPayToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadPayDraft().toAddress || "");
@@ -3901,7 +3908,7 @@ function PaymentPage() {
 }
 
 function SwapPage() {
-  const { connected, publicKey, sendTransaction, wallet } = useWallet();
+  const { connected, publicKey, sendTransaction, wallet } = usePawlyWallet();
   const [fromToken, setFromToken] = useState("SOL");
   const [toToken, setToToken] = useState("USDC");
   const [amount, setAmount] = useState("");
@@ -4369,7 +4376,7 @@ function SwapPage() {
 }
 
 function BuyPage() {
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [crypto, setCrypto] = useState("SOL");
   const [showPlatforms, setShowPlatforms] = useState(false);
@@ -4658,7 +4665,7 @@ function BuyPage() {
 }
 
 function CharityPage() {
-  const { connected, publicKey, sendTransaction, wallet } = useWallet();
+  const { connected, publicKey, sendTransaction, wallet } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [token, setToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadCharityDraft().toAddress || "");
@@ -5140,7 +5147,7 @@ function CharityPage() {
 
 
 function CashOutPage() {
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [crypto, setCrypto] = useState("USDC");
   const [amount, setAmount] = useState("");
@@ -5481,11 +5488,13 @@ function App() {
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <BrowserRouter basename="/dapp">
-            <UserDataProvider>
-              <AppRoutes />
-            </UserDataProvider>
-          </BrowserRouter>
+          <LocalWalletProvider>
+            <BrowserRouter basename="/dapp">
+              <UserDataProvider>
+                <AppRoutes />
+              </UserDataProvider>
+            </BrowserRouter>
+          </LocalWalletProvider>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
@@ -5511,4 +5520,6 @@ function App() {
 }
 
 export default App;
+
+
 
