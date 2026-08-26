@@ -1,23 +1,32 @@
 {
-    "name": "PAWLY dApp",
-    "short_name": "PAWLY STAKING dAPP",
-    "description": "Pet Meme Coin Ecosystem on Solana",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#0a0a0a",
-    "theme_color": "#00ff9d",
-    "icons": [
-      {
-        "src": "/pawly-logo-192.png",
-        "sizes": "192x192",
-        "type": "image/png",
-        "purpose": "any maskable"
-      },
-      {
-        "src": "/pawly-logo-512.png",
-        "sizes": "512x512",
-        "type": "image/png",
-        "purpose": "any maskable"
-      }
-    ]
-  }
+  "name": "PAWLY Wallet",
+  "short_name": "PAWLY",
+  "description": "PAWLY Pets — self-custody Solana wallet for payment, transfer, swap & charity",
+  "start_url": "/dapp/",
+  "scope": "/dapp/",
+  "id": "/dapp/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00ff9d",
+  "icons": [
+    {
+      "src": "/dapp/pawly-token-helps.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/dapp/pawly-token-helps2.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/dapp/pawly-token-helps2.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -2,8 +2,7 @@
   command = "cd dapp && npm install --legacy-peer-deps && npm run build"
   publish = "."
 
-# —— 域名统一（解决 GSC 里 http / 非 www）——
-# 若主域已在 Netlify Domain 设成强制 HTTPS + 主站 www，下面可只留 apex→www
+# —— 域名统一 ——
 [[redirects]]
   from = "http://pawlypets.online/*"
   to = "https://www.pawlypets.online/:splat"
@@ -22,13 +21,57 @@
   status = 301
   force = true
 
-# —— dApp SPA（必须 200，不要 301）——
+# —— dApp 静态资源（必须写在 SPA catch-all 之前，否则 logo/manifest 会变成 HTML）——
 [[redirects]]
   from = "/dapp/assets/*"
   to = "/dapp/dist/assets/:splat"
   status = 200
   force = true
 
+[[redirects]]
+  from = "/dapp/manifest.json"
+  to = "/dapp/dist/manifest.json"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pawly-token-helps.png"
+  to = "/dapp/dist/pawly-token-helps.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pawly-token-helps2.jpg"
+  to = "/dapp/dist/pawly-token-helps2.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pawly-token-helps-180.png"
+  to = "/dapp/dist/pawly-token-helps-180.png"
+  status = 200
+  force = true
+
+# 兼容旧路径（若缓存仍请求旧 logo 文件名）
+[[redirects]]
+  from = "/dapp/pawly-logo-192.png"
+  to = "/dapp/dist/pawly-token-helps.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pawly-logo-512.png"
+  to = "/dapp/dist/pawly-token-helps2.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pawly-logo-180.png"
+  to = "/dapp/dist/pawly-token-helps.png"
+  status = 200
+  force = true
+
+# —— dApp SPA（最后才 catch-all）——
 [[redirects]]
   from = "/dapp"
   to = "/dapp/dist/index.html"
