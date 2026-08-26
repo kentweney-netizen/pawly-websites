@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 26.08.2026 v7.7.9 Buffer polyfill iOS+Android — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 26.08.2026 v7.7.10 UI compact: collapsible copy + footer Home — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1607,6 +1607,7 @@ function CaWarningBanner({ feature }) {
  * 仅双语说明 + 建议预留；实际费用以钱包确认页为准
  */
 function GasEstimateBox({ presetKey, refreshKey }) {
+  const [open, setOpen] = useState(false);
   const label = (GAS_PRESETS[presetKey] && GAS_PRESETS[presetKey].label) || presetKey || "";
   return (
     <div
@@ -1614,29 +1615,47 @@ function GasEstimateBox({ presetKey, refreshKey }) {
         background: "rgba(0,255,157,0.06)",
         border: "1px solid rgba(0,255,157,0.25)",
         borderRadius: 12,
-        padding: 14,
+        padding: "10px 14px",
         marginTop: 14,
         marginBottom: 8,
         fontSize: 13,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ color: "#00ff9d", fontWeight: 700 }}>⛽ 费用说明 / Fee notes</span>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex",
+          width: "100%",
+          justifyContent: "space-between",
+          alignItems: "center",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          color: "inherit",
+        }}
+      >
+        <span style={{ color: "#00ff9d", fontWeight: 700 }}>
+          ⛽ 费用说明 / Fee notes {open ? "▾" : "▸"}
+        </span>
         <span style={{ color: "#889", fontSize: 11 }}>{label}</span>
-      </div>
-      <div style={{ color: "#c8e6d9", fontSize: 12, lineHeight: 1.55 }}>
-        · 网络手续费与优先费随拥堵变化，以钱包确认页显示为准。
-        <br />
-        · Network & priority fees vary; trust the amount shown in your wallet.
-        <br />
-        · 转 USDC/USDT 时若对方首次收款，可能需额外 SOL 用于新建代币账户（租金）。
-        <br />
-        · First-time token receive may need extra SOL for account rent (ATA).
-        <br />
-        · 建议钱包保留足够 SOL 作为手续费；余额过低时 Transfer / Swap 易失败。
-        <br />
-        · Keep enough SOL for fees; low SOL often causes Transfer/Swap failure.
-      </div>
+      </button>
+      {open ? (
+        <div style={{ color: "#c8e6d9", fontSize: 12, lineHeight: 1.55, marginTop: 10 }}>
+          · 网络手续费与优先费随拥堵变化，以钱包确认页显示为准。
+          <br />
+          · Network & priority fees vary; trust the amount shown in your wallet.
+          <br />
+          · 转 USDC/USDT 时若对方首次收款，可能需额外 SOL 用于新建代币账户（租金）。
+          <br />
+          · First-time token receive may need extra SOL for account rent (ATA).
+          <br />
+          · 建议钱包保留足够 SOL 作为手续费；余额过低时 Transfer / Swap 易失败。
+          <br />
+          · Keep enough SOL for fees; low SOL often causes Transfer/Swap failure.
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1803,16 +1822,24 @@ function UserDataProvider({ children }) {
 }
 
 function PageHeader({ title, subtitle }) {
-  const navigate = useNavigate();
   return (
     <div style={{ maxWidth: 720, margin: "0 auto 24px" }}>
-      <button onClick={() => navigate("/")} style={{ ...ghostBtn, marginBottom: 16 }}>
-        ← 返回主页 / Home
-      </button>
       <h1 style={{ margin: "0 0 8px", fontSize: "1.75rem", color: "#00ff9d" }}>{title}</h1>
       {subtitle && (
         <p style={{ margin: 0, color: "#9aa", fontSize: "0.95rem", lineHeight: 1.5 }}>{subtitle}</p>
       )}
+    </div>
+  );
+}
+
+/** 各功能页底部返回主页 */
+function PageFooterNav() {
+  const navigate = useNavigate();
+  return (
+    <div style={{ maxWidth: 720, margin: "28px auto 8px", textAlign: "center" }}>
+      <button type="button" onClick={() => navigate("/")} style={{ ...ghostBtn, minWidth: 200 }}>
+        ← 返回主页 / Home
+      </button>
     </div>
   );
 }
@@ -2068,11 +2095,7 @@ function HomePage() {
           </a>
         </div>
 
-        <div style={{ ...card, borderColor: "#333", fontSize: "0.85rem", color: "#778", lineHeight: 1.65, textAlign: "center" }}>
-          测试版 · 合约审计进行中 · 正式功能将在 Token 上线后开放
-          <br />
-          Beta · Audit in progress · Full features after token launch
-        </div>
+
       </div>
     </div>
   );
@@ -2188,6 +2211,7 @@ function StakingPage() {
           Token & LP pool are live; staking contract not deployed yet — real APY later.
         </p>
       </div>
+      <PageFooterNav />
     </div>
   );
 }
@@ -3330,14 +3354,16 @@ function PaymentPage() {
             marginBottom: 12,
           }}
         >
-          <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
-            法币计价 / Fiat pricing · settle in crypto
-          </div>
-          <p style={{ color: "#889", fontSize: 11, margin: "0 0 10px", lineHeight: 1.45 }}>
-            输入对方要的法币金额，系统按今日汇率算出应付 USDC/USDT（或 SOL）。实际链上转的是加密资产。
-            <br />
-            Enter the fiat amount requested → auto crypto amount. On-chain settlement stays USDC/USDT/SOL.
-          </p>
+          <details style={{ marginBottom: 8 }}>
+            <summary style={{ color: "#00ff9d", fontWeight: 700, fontSize: 13, cursor: "pointer", listStyle: "none" }}>
+              法币计价 / Fiat pricing ▸
+            </summary>
+            <p style={{ color: "#889", fontSize: 11, margin: "8px 0 0", lineHeight: 1.45 }}>
+              输入对方要的法币金额，系统按今日汇率算出应付 USDC/USDT（或 SOL）。实际链上转的是加密资产。
+              <br />
+              Enter the fiat amount requested → auto crypto amount. On-chain settlement stays USDC/USDT/SOL.
+            </p>
+          </details>
           <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             <select
               value={fiatCode}
@@ -3903,6 +3929,7 @@ function PaymentPage() {
           </div>
         </div>
       )}
+      <PageFooterNav />
     </div>
   );
 }
@@ -4371,6 +4398,7 @@ function SwapPage() {
           Quote & swap use hardened Jupiter only. Official PAWLY CA integrated.
         </p>
       </div>
+      <PageFooterNav />
     </div>
   );
 }
@@ -4414,12 +4442,6 @@ function BuyPage() {
         subtitle="SOL · USDC · USDT · 跳转合规通道自行入金 / Self-serve on-ramp"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
-        <p style={{ color: "#bcc", lineHeight: 1.65, marginTop: 0 }}>
-          连接钱包后，点「入金 / Deposit」选择通道。你将在第三方合规页面完成验证与支付；代币进入你自己的钱包。PAWLY 不托管资金。
-          <br />
-          After connecting, tap Deposit and choose a channel. Complete KYC & pay on the third-party site; crypto goes to your wallet. PAWLY does not custody funds.
-        </p>
-
         <p style={{ color: "#99a", fontSize: 13, margin: "0 0 8px" }}>购买代币 / Asset</p>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           {["SOL", "USDC", "USDT"].map((t) => (
@@ -4620,9 +4642,9 @@ function BuyPage() {
                 </button>
               </div>
               <p style={{ margin: "0 0 10px" }}>
-                · 点「入金」后选择通道，将打开第三方合规页面完成验证与付款。
+                · 连接钱包后，点「入金 / Deposit」选择通道；在第三方合规页面完成验证与支付，代币进入你自己的钱包。PAWLY 不托管资金。
                 <br />
-                · Tap Deposit, choose a channel, complete KYC & payment on the third-party page.
+                · After connecting, tap Deposit, choose a channel, complete KYC & pay on the third-party site; crypto goes to your wallet. PAWLY does not custody funds.
               </p>
               <p style={{ margin: "0 0 10px" }}>
                 · 代币进入上方显示的钱包地址。
@@ -4660,6 +4682,7 @@ function BuyPage() {
           </div>
         )}
       </div>
+      <PageFooterNav />
     </div>
   );
 }
@@ -4902,7 +4925,7 @@ function CharityPage() {
           }}
         >
           <div style={{ color: "#ff8a80", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
-            法币计价捐赠 / Fiat-priced donate
+            法币计价捐赠 / Fiat-priced donate ▸
           </div>
           <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             <select
@@ -5141,6 +5164,7 @@ function CharityPage() {
           Donate only to official published addresses. PAWLY never custodies donations.
         </p>
       </div>
+      <PageFooterNav />
     </div>
   );
 }
@@ -5213,12 +5237,7 @@ function CashOutPage() {
         subtitle="USDC · USDT · SOL → 法币 · 不托管跳转 / Non-custodial off-ramp"
       />
       <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
-        <p style={{ color: "#bcc", lineHeight: 1.55, fontSize: 14 }}>
-          将钱包内稳定币/SOL 通过第三方通道换成法币。PAWLY 只跳转，不托管资金。
-          <br />
-          Sell crypto via third-party channels. PAWLY only redirects — no custody.
-        </p>
-        <div style={{ color: "#889", marginBottom: 6, marginTop: 16 }}>出金币种 / Crypto</div>
+<div style={{ color: "#889", marginBottom: 6, marginTop: 16 }}>出金币种 / Crypto</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
           {["USDC", "USDT", "SOL"].map((c) => (
             <button
@@ -5443,9 +5462,9 @@ function CashOutPage() {
                 </button>
               </div>
               <p style={{ margin: "0 0 8px" }}>
-                · 点「出金」后选择通道，在第三方页面完成卖出/提现。
+                · 将钱包内稳定币/SOL 通过第三方通道换成法币。点「出金」后选择通道，在对方页面完成卖出/提现。PAWLY 只跳转，不托管资金。
                 <br />
-                · Tap Cash out, complete sell on the third-party site.
+                · Sell crypto via third-party channels. Tap Cash out, complete sell on their site. PAWLY only redirects — no custody.
               </p>
               <p style={{ margin: "0 0 8px" }}>
                 · PAWLY 不托管资金；KYC/限额以对方为准。
@@ -5461,6 +5480,7 @@ function CashOutPage() {
           </div>
         )}
       </div>
+      <PageFooterNav />
     </div>
   );
 }
@@ -5520,6 +5540,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
