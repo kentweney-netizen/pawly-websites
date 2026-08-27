@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 27.08.2026 v7.7.17 cashout: remove hardcoded sell USDC / target MYR line — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 27.08.2026 v7.7.19 chart pairs: each token vs the other three — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -2017,7 +2017,10 @@ function HomePage() {
               <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: "1.05rem" }}>我的数据 / My Data</div>
               <div style={{ color: "#778", fontSize: "0.8rem", marginTop: 2 }}>链上余额优先 · PWA 可选 / On-chain first · PWA optional</div>
             </div>
-            <button onClick={onRefresh} style={ghostBtn}>🔄 刷新</button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" onClick={onRefresh} style={ghostBtn}>🔄 刷新</button>
+              <button type="button" onClick={() => navigate("/chart")} style={ghostBtn}>📈 Chart</button>
+            </div>
           </div>
 
           {(wallet.publicKey || verified || pwaData.wallet) ? (
@@ -5438,6 +5441,156 @@ function CashOutPage() {
   );
 }
 
+
+function ChartPage() {
+  const POOL_PAWLY_USDC = PAWLY_POOL_ID;
+  const POOL_SOL_USDC = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
+  const POOL_SOL_USDT = "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX";
+  const POOL_USDC_USDT = "3NeUgARDmFgnKtkJLqUcEUNCfknFCcGsFfMJCtx6bAgx";
+
+  const pairPool = {
+    "PAWLY-USDC": { pool: POOL_PAWLY_USDC, note: "Official Raydium pool / 官方池" },
+    "USDC-PAWLY": { pool: POOL_PAWLY_USDC, note: "Official Raydium pool / 官方池" },
+    "SOL-USDC": { pool: POOL_SOL_USDC, note: "Raydium SOL/USDC" },
+    "USDC-SOL": { pool: POOL_SOL_USDC, note: "Raydium SOL/USDC" },
+    "SOL-USDT": { pool: POOL_SOL_USDT, note: "Raydium SOL/USDT" },
+    "USDT-SOL": { pool: POOL_SOL_USDT, note: "Raydium SOL/USDT" },
+    "USDC-USDT": { pool: POOL_USDC_USDT, note: "Raydium USDC/USDT" },
+    "USDT-USDC": { pool: POOL_USDC_USDT, note: "Raydium USDC/USDT" },
+    "PAWLY-SOL": {
+      pool: POOL_PAWLY_USDC,
+      note: "No direct PAWLY/SOL pool yet — showing official PAWLY/USDC. Swap SOL↔PAWLY via Jupiter.",
+    },
+    "SOL-PAWLY": {
+      pool: POOL_PAWLY_USDC,
+      note: "暂无独立 PAWLY/SOL 池，先看官方 PAWLY/USDC。兑换走 Jupiter。",
+    },
+    "PAWLY-USDT": {
+      pool: POOL_PAWLY_USDC,
+      note: "No direct PAWLY/USDT pool yet — showing official PAWLY/USDC. Swap USDT↔PAWLY via Jupiter.",
+    },
+    "USDT-PAWLY": {
+      pool: POOL_PAWLY_USDC,
+      note: "暂无独立 PAWLY/USDT 池，先看官方 PAWLY/USDC。兑换走 Jupiter。",
+    },
+  };
+
+  const quotesOf = {
+    PAWLY: ["USDC", "SOL", "USDT"],
+    SOL: ["PAWLY", "USDC", "USDT"],
+    USDC: ["PAWLY", "SOL", "USDT"],
+    USDT: ["SOL", "PAWLY", "USDC"],
+  };
+
+  const [base, setBase] = useState("PAWLY");
+  const [quote, setQuote] = useState("USDC");
+
+  const pickBase = (b) => {
+    setBase(b);
+    setQuote(quotesOf[b][0]);
+  };
+
+  const key = base + "-" + quote;
+  const meta = pairPool[key] || pairPool["PAWLY-USDC"];
+  const src =
+    "https://www.geckoterminal.com/solana/pools/" +
+    meta.pool +
+    "?embed=1&info=0&swaps=0&light_chart=0&resolution=15m&bg_color=07070f";
+  const openUrl = "https://www.geckoterminal.com/solana/pools/" + meta.pool;
+
+  return (
+    <div style={pageWrap}>
+      <PageHeader title="📈 Onchain Chart" subtitle="Each token vs PAWLY · SOL · USDC · USDT" />
+      <div style={{ ...card, maxWidth: 720, margin: "0 auto" }}>
+        <div style={{ color: "#889", fontSize: 12, marginBottom: 8 }}>Base / 主币</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          {["PAWLY", "SOL", "USDC", "USDT"].map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => pickBase(k)}
+              style={{
+                flex: 1,
+                minWidth: 70,
+                padding: "10px 8px",
+                borderRadius: 12,
+                border: "none",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: base === k ? "#00ff9d" : "#1a1a2e",
+                color: base === k ? "#04140c" : "#fff",
+              }}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
+        <div style={{ color: "#889", fontSize: 12, marginBottom: 8 }}>Pair / 对照</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          {quotesOf[base].map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setQuote(k)}
+              style={{
+                flex: 1,
+                minWidth: 70,
+                padding: "10px 8px",
+                borderRadius: 12,
+                border: "none",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: quote === k ? "#42a5f5" : "#1a1a2e",
+                color: quote === k ? "#041018" : "#fff",
+              }}
+            >
+              {base}/{k}
+            </button>
+          ))}
+        </div>
+        <div style={{ color: "#c8ffe8", fontSize: 13, marginBottom: 8, fontWeight: 700 }}>
+          {base} / {quote}
+        </div>
+        <p style={{ color: "#889", fontSize: 11, margin: "0 0 10px", lineHeight: 1.45 }}>
+          {meta.note}
+        </p>
+        <div
+          style={{
+            width: "100%",
+            height: "min(58vh, 500px)",
+            borderRadius: 14,
+            overflow: "hidden",
+            border: "1px solid rgba(0,255,157,0.28)",
+            background: "#07070f",
+          }}
+        >
+          <iframe
+            title={base + "/" + quote + " chart"}
+            src={src}
+            style={{ width: "100%", height: "100%", border: "none" }}
+            allow="clipboard-write"
+          />
+        </div>
+        <a
+          href={openUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "block",
+            marginTop: 12,
+            textAlign: "center",
+            color: "#00ff9d",
+            fontSize: 13,
+          }}
+        >
+          Open full chart / 打开完整行情 ↗
+        </a>
+      </div>
+      <PageFooterNav />
+    </div>
+  );
+}
+
 function AppRoutes() {
   return (
     <>
@@ -5451,6 +5604,7 @@ function AppRoutes() {
         <Route path="/buy" element={<BuyPage />} />
         <Route path="/cashout" element={<CashOutPage />} />
         <Route path="/charity" element={<CharityPage />} />
+        <Route path="/chart" element={<ChartPage />} />
       </Routes>
     </>
   );
@@ -5493,6 +5647,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
