@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 26.08.2026 v7.7.10 UI compact: collapsible copy + footer Home — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 26.08.2026 v7.7.12 manage-hide-key: local key under title; secret only in Manage — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1962,7 +1962,6 @@ function HomePage() {
   return (
     <div style={pageWrap}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <LocalWalletEntryButtons />
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div
             style={{
@@ -1987,6 +1986,8 @@ function HomePage() {
             <span style={{ color: "#667" }}>Wallet · Stake · Pay · Transfer · Swap</span>
           </p>
         </div>
+
+        <LocalWalletEntryButtons />
 
         <div style={{ ...card, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -5540,6 +5541,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
