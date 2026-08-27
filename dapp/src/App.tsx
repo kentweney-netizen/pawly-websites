@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 26.08.2026 v7.7.12 manage-hide-key: local key under title; secret only in Manage — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 27.08.2026 v7.7.14 key hub: one Import·Export button = Privy embedded + local key — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1888,7 +1888,6 @@ function HomePage() {
   const wallet = usePawlyWallet();
   const navigate = useNavigate();
   const { pwaData, verified, refreshUserData } = useUserData();
-  const [showExport, setShowExport] = useState(false);
   const [balSol, setBalSol] = useState(null);
   const [balUsdc, setBalUsdc] = useState(null);
   const [balUsdt, setBalUsdt] = useState(null);
@@ -1987,7 +1986,7 @@ function HomePage() {
           </p>
         </div>
 
-        <LocalWalletEntryButtons />
+        <LocalWalletEntryButtons embeddedExport={<ExportPawlyWallet />} />
 
         <div style={{ ...card, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -2059,16 +2058,6 @@ function HomePage() {
           </p>
         </div>
 
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <button onClick={() => setShowExport(!showExport)} style={ghostBtn}>
-            {showExport ? "收起导出 / Hide" : "导出嵌入式钱包 / Export Wallet"}
-          </button>
-          {showExport && (
-            <div style={{ marginTop: 16, textAlign: "left" }}>
-              <ExportPawlyWallet />
-            </div>
-          )}
-        </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 28 }}>
           {features.map((f) => (
@@ -5541,6 +5530,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
