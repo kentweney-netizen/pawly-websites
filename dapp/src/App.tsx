@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 26.08.2026 v7.7.15 sheet modal: buy/cashout channel popups centered + scroll — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 27.08.2026 v7.7.16 channel sheet: bottom Home button instead of top X — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -4405,6 +4405,7 @@ function SwapPage() {
 }
 
 function BuyPage() {
+  const navigate = useNavigate();
   const { publicKey, connected } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [crypto, setCrypto] = useState("SOL");
@@ -4535,23 +4536,8 @@ function BuyPage() {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ marginBottom: 8 }}>
                 <strong style={{ fontSize: 16 }}>选择入金通道 / Choose channel</strong>
-                <button
-                  type="button"
-                  onClick={() => setShowPlatforms(false)}
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    border: "none",
-                    color: "#ccc",
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    cursor: "pointer",
-                  }}
-                >
-                  ✕
-                </button>
               </div>
               <p style={{ color: "#889", fontSize: 12, marginTop: 0, marginBottom: 12 }}>
                 购买 {crypto} · 将打开第三方页面 / Buy {crypto} · opens third-party page
@@ -4576,6 +4562,16 @@ function BuyPage() {
                     <div style={{ color: "#889", fontSize: 12, marginTop: 4 }}>{p.sub}</div>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPlatforms(false);
+                    navigate("/");
+                  }}
+                  style={{ ...ghostBtn, width: "100%", boxSizing: "border-box", marginTop: 6, minHeight: 44 }}
+                >
+                  ← 返回主页 / Home
+                </button>
               </div>
             </div>
           </div>
@@ -5148,6 +5144,7 @@ function CharityPage() {
 
 
 function CashOutPage() {
+  const navigate = useNavigate();
   const { publicKey, connected } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [crypto, setCrypto] = useState("USDC");
@@ -5358,11 +5355,8 @@ function CashOutPage() {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ marginBottom: 10 }}>
                 <strong style={{ fontSize: 16 }}>选择出金通道 / Choose channel</strong>
-                <button type="button" onClick={() => setShowPlatforms(false)} style={{ ...ghostBtn, padding: "4px 10px" }}>
-                  ✕
-                </button>
               </div>
               <p style={{ color: "#789", fontSize: 12, marginTop: 0 }}>
                 卖出 {crypto}
@@ -5386,6 +5380,16 @@ function CashOutPage() {
                   <div style={{ fontSize: 11, color: "#789" }}>{p.sub}</div>
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPlatforms(false);
+                  navigate("/");
+                }}
+                style={{ ...ghostBtn, width: "100%", boxSizing: "border-box", marginTop: 4, minHeight: 44 }}
+              >
+                ← 返回主页 / Home
+              </button>
             </div>
           </div>
         )}
@@ -5493,6 +5497,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
