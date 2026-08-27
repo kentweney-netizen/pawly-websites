@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 27.08.2026 v7.7.16 channel sheet: bottom Home button instead of top X — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 27.08.2026 v7.7.17 cashout: remove hardcoded sell USDC / target MYR line — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -5358,10 +5358,6 @@ function CashOutPage() {
               <div style={{ marginBottom: 10 }}>
                 <strong style={{ fontSize: 16 }}>选择出金通道 / Choose channel</strong>
               </div>
-              <p style={{ color: "#789", fontSize: 12, marginTop: 0 }}>
-                卖出 {crypto}
-                {amount ? ` · ${amount}` : ""} · 目标 {fiatCode}
-              </p>
               {platforms.map((p) => (
                 <button
                   key={p.id}
@@ -5497,6 +5493,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
