@@ -1,12 +1,12 @@
 // @ts-nocheck
 /**
- * PAWLY Local Key Wallet — v7.7.13 one-button key vault
+ * PAWLY Local Key Wallet — v7.7.14 combined key hub
  * Path ③: import base58 secret key (or JSON byte array) → use all dApp features
  * without Phantom / Solflare / Trust.
  *
  * Persistence (v7.7.11): localStorage on this device; Clear removes it.
- * UI (v7.7.13): one button under green "PAWLY DApp" title, above My Data.
- *   Click → modal with Import / Export tabs. Home never shows the secret.
+ * UI (v7.7.14): one button under title = Privy embedded export + local key.
+ *   Click → Embedded / Import / Export. Home never shows the secret.
  *
  * Place file at: dapp/src/localWallet.tsx
  */
@@ -295,7 +295,6 @@ export function LocalWalletProvider({ children }: { children: React.ReactNode })
   return (
     <LocalWalletContext.Provider value={value}>
       {children}
-      <KeyVaultModal />
     </LocalWalletContext.Provider>
   );
 }
@@ -336,7 +335,7 @@ export function usePawlyWallet() {
   };
 }
 
-function KeyVaultModal() {
+function KeyVaultModal({ embeddedExport }) {
   const {
     showKeyModal,
     setShowKeyModal,
@@ -350,7 +349,8 @@ function KeyVaultModal() {
     getSecretB58,
   } = useLocalKeyWallet();
 
-  const [tab, setTab] = useState(connected ? "export" : "import");
+  const hasEmbedded = !!embeddedExport;
+  const [tab, setTab] = useState(hasEmbedded ? "embedded" : connected ? "export" : "import");
   const [raw, setRaw] = useState("");
   const [persist, setPersist] = useState(true);
   const [ack, setAck] = useState(false);
@@ -363,8 +363,8 @@ function KeyVaultModal() {
       setAck(false);
       return;
     }
-    setTab(connected ? "export" : "import");
-  }, [showKeyModal, connected]);
+    setTab(hasEmbedded ? "embedded" : connected ? "export" : "import");
+  }, [showKeyModal, connected, hasEmbedded]);
 
   if (!showKeyModal) return null;
 
@@ -455,20 +455,30 @@ function KeyVaultModal() {
         }}
       >
         <h2 style={{ margin: "0 0 6px", color: "#00ff9d", fontSize: 18 }}>
-          Local key / 本地密钥
+          Import · Export / 导入·导出
         </h2>
         <p style={{ margin: "0 0 14px", fontSize: 12, lineHeight: 1.45, color: "#9aa" }}>
-          Import or export on this device only. PAWLY never uploads the key.
+          Embedded Privy wallet or local secret key — never uploaded to PAWLY.
           <br />
-          仅本机导入 / 导出。私钥不会上传服务器。
+          嵌入式钱包或本机私钥。不会上传到 PAWLY 服务器。
         </p>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          {hasEmbedded ? tabBtn("embedded", "Embedded / 嵌入式") : null}
           {tabBtn("import", "Import / 导入")}
           {tabBtn("export", "Export / 导出")}
         </div>
 
-        {tab === "import" ? (
+        {tab === "embedded" ? (
+          <div style={{ textAlign: "left" }}>
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: "#bbb", lineHeight: 1.45 }}>
+              Export the Privy embedded wallet created by email login.
+              <br />
+              导出邮箱登录生成的嵌入式钱包。
+            </p>
+            {embeddedExport}
+          </div>
+        ) : tab === "import" ? (
           <>
             <div
               style={{
@@ -637,9 +647,10 @@ function KeyVaultModal() {
 }
 
 /**
- * One button, same slot under title / above My Data — Import + Export live in the modal.
+ * One button under title / above My Data.
+ * Combines Privy 「导出嵌入式钱包 / Export Wallet」 + local key import/export.
  */
-export function LocalWalletEntryButtons() {
+export function LocalWalletEntryButtons({ embeddedExport = null }) {
   const local = useLocalKeyWallet();
 
   return (
@@ -649,7 +660,7 @@ export function LocalWalletEntryButtons() {
         onClick={() => local.setShowKeyModal(true)}
         style={btnBar}
       >
-        <span>Local key / 本地密钥</span>
+        <span>Import · Export / 导入·导出</span>
         <span
           style={{
             fontSize: 11,
@@ -660,9 +671,10 @@ export function LocalWalletEntryButtons() {
             padding: "3px 8px",
           }}
         >
-          {local.connected ? "On" : "Off"}
+          {local.connected ? "Local On" : "Keys"}
         </span>
       </button>
+      <KeyVaultModal embeddedExport={embeddedExport} />
     </div>
   );
 }
