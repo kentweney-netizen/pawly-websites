@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 27.08.2026 v7.7.14 key hub: one Import·Export button = Privy embedded + local key — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 26.08.2026 v7.7.15 sheet modal: buy/cashout channel popups centered + scroll — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1725,6 +1725,29 @@ const ghostBtn = {
   padding: "10px 20px",
   cursor: "pointer",
   fontSize: "0.9rem",
+};
+
+const sheetOverlay = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 9999,
+  background: "rgba(0,0,0,0.72)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "12px 12px calc(12px + env(safe-area-inset-bottom, 0px))",
+};
+
+const sheetPanel = {
+  maxWidth: 420,
+  width: "100%",
+  maxHeight: "min(76dvh, 520px)",
+  overflowY: "auto",
+  WebkitOverflowScrolling: "touch",
+  overscrollBehavior: "contain",
+  margin: "0 auto",
+  borderRadius: 18,
+  padding: "14px 16px 16px",
 };
 
 const UserDataContext = createContext(null);
@@ -3700,28 +3723,16 @@ function PaymentPage() {
         {showSettle && (
           <div
             role="dialog"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 9999,
-              background: "rgba(0,0,0,0.75)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-            }}
+            style={sheetOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowSettle(false);
             }}
           >
             <div
               style={{
-                maxWidth: 400,
-                width: "100%",
+                ...sheetPanel,
                 background: "linear-gradient(165deg,#0d1b2a,#0d0d18)",
                 border: "1px solid rgba(66,165,245,0.4)",
-                borderRadius: 18,
-                padding: 20,
                 color: "#e3f2fd",
               }}
               onClick={(e) => e.stopPropagation()}
@@ -4510,28 +4521,16 @@ function BuyPage() {
         {showPlatforms && (
           <div
             role="dialog"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 9999,
-              background: "rgba(0,0,0,0.72)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-            }}
+            style={sheetOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowPlatforms(false);
             }}
           >
             <div
               style={{
-                maxWidth: 420,
-                width: "100%",
+                ...sheetPanel,
                 background: "linear-gradient(165deg, #1a1030, #0d0d18)",
                 border: "1px solid rgba(0,255,157,0.35)",
-                borderRadius: 18,
-                padding: 20,
                 color: "#e8fff5",
               }}
               onClick={(e) => e.stopPropagation()}
@@ -4565,7 +4564,7 @@ function BuyPage() {
                     onClick={() => pick(p.id)}
                     style={{
                       textAlign: "left",
-                      padding: "14px 16px",
+                      padding: "10px 12px",
                       borderRadius: 12,
                       border: "1px solid #333",
                       background: "#12121f",
@@ -4585,28 +4584,16 @@ function BuyPage() {
         {showNotes && (
           <div
             role="dialog"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 9999,
-              background: "rgba(0,0,0,0.72)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-            }}
+            style={sheetOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowNotes(false);
             }}
           >
             <div
               style={{
-                maxWidth: 420,
-                width: "100%",
+                ...sheetPanel,
                 background: "linear-gradient(165deg, #1a1030, #0d0d18)",
                 border: "1px solid rgba(255,193,7,0.4)",
-                borderRadius: 18,
-                padding: 20,
                 color: "#ffe082",
                 lineHeight: 1.6,
                 fontSize: 13,
@@ -5357,28 +5344,16 @@ function CashOutPage() {
         {showPlatforms && (
           <div
             role="dialog"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 9999,
-              background: "rgba(0,0,0,0.75)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-            }}
+            style={sheetOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowPlatforms(false);
             }}
           >
             <div
               style={{
-                maxWidth: 400,
-                width: "100%",
+                ...sheetPanel,
                 background: "linear-gradient(165deg,#0d1b2a,#0d0d18)",
                 border: "1px solid rgba(66,165,245,0.4)",
-                borderRadius: 18,
-                padding: 20,
                 color: "#e3f2fd",
               }}
               onClick={(e) => e.stopPropagation()}
@@ -5417,28 +5392,16 @@ function CashOutPage() {
         {showNotes && (
           <div
             role="dialog"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 9999,
-              background: "rgba(0,0,0,0.75)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-            }}
+            style={sheetOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowNotes(false);
             }}
           >
             <div
               style={{
-                maxWidth: 400,
-                width: "100%",
+                ...sheetPanel,
                 background: "#12121f",
                 border: "1px solid #333",
-                borderRadius: 16,
-                padding: 20,
                 color: "#ddd",
                 fontSize: 13,
                 lineHeight: 1.55,
