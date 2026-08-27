@@ -1,13 +1,13 @@
 // @ts-nocheck
 /**
- * PAWLY Local Key Wallet — v7.7.9
+ * PAWLY Local Key Wallet — v7.7.12 manage-hide-key
  * Path ③: import base58 secret key (or JSON byte array) → use all dApp features
  * without Phantom / Solflare / Trust.
  *
- * Rules:
- * - Key never leaves the device (sessionStorage only, optional)
- * - Server never receives the secret
- * - Strong UI warnings required
+ * Persistence (v7.7.11): localStorage on this device; Clear removes it.
+ * UI (v7.7.12): home shows only Manage + Clear key.
+ *   Secret / full address only inside Manage panel.
+ *   Entry sits under green "PAWLY DApp" title, above My Data (App.tsx placement).
  *
  * Place file at: dapp/src/localWallet.tsx
  */
@@ -17,6 +17,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -30,12 +31,13 @@ import { useWallet } from "@solana/wallet-adapter-react";
 
 const STORAGE_KEY = "pawly_local_sk_b58_v1";
 
+const B58_ALPH = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
 /** Minimal base58 decode (no extra dep if bs58 missing) */
 function b58decode(str: string): Uint8Array {
-  const ALPH = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
   const bytes = [0];
   for (let i = 0; i < str.length; i++) {
-    const c = ALPH.indexOf(str[i]);
+    const c = B58_ALPH.indexOf(str[i]);
     if (c < 0) throw new Error("Invalid base58 character");
     let carry = c;
     for (let j = 0; j < bytes.length; j++) {
@@ -52,11 +54,30 @@ function b58decode(str: string): Uint8Array {
   return Uint8Array.from(bytes.reverse());
 }
 
+function b58encode(bytes: Uint8Array): string {
+  if (!bytes || !bytes.length) return "";
+  const digits = [0];
+  for (let i = 0; i < bytes.length; i++) {
+    let carry = bytes[i];
+    for (let j = 0; j < digits.length; j++) {
+      carry += digits[j] << 8;
+      digits[j] = carry % 58;
+      carry = (carry / 58) | 0;
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = (carry / 58) | 0;
+    }
+  }
+  let zeros = 0;
+  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) zeros++;
+  return "1".repeat(zeros) + digits.reverse().map((d) => B58_ALPH[d]).join("");
+}
+
 function parseSecretInput(raw: string): Keypair {
   const s = String(raw || "").trim();
   if (!s) throw new Error("Empty secret / 私钥为空");
 
-  // JSON array export e.g. [1,2,3,...,64]
   if (s.startsWith("[")) {
     const arr = JSON.parse(s);
     if (!Array.isArray(arr) || arr.length < 32) {
@@ -65,7 +86,6 @@ function parseSecretInput(raw: string): Keypair {
     return Keypair.fromSecretKey(Uint8Array.from(arr));
   }
 
-  // base58 secret key (64 bytes typical for Solana)
   const decoded = b58decode(s.replace(/\s+/g, ""));
   if (decoded.length !== 64 && decoded.length !== 32) {
     throw new Error(
@@ -75,13 +95,41 @@ function parseSecretInput(raw: string): Keypair {
   return Keypair.fromSecretKey(decoded);
 }
 
+function readPersistedSecret(): string | null {
+  try {
+    const ls = localStorage.getItem(STORAGE_KEY);
+    if (ls) return ls;
+    const ss = sessionStorage.getItem(STORAGE_KEY);
+    if (ss) {
+      try {
+        localStorage.setItem(STORAGE_KEY, ss);
+        sessionStorage.removeItem(STORAGE_KEY);
+      } catch (_) {}
+      return ss;
+    }
+  } catch (_) {}
+  return null;
+}
+
+function writePersistedSecret(b58: string | null) {
+  try {
+    if (b58) localStorage.setItem(STORAGE_KEY, b58);
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch (_) {}
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch (_) {}
+}
+
 type LocalCtx = {
   connected: boolean;
   publicKey: PublicKey | null;
   importing: boolean;
   error: string;
-  importSecret: (raw: string, persistSession: boolean) => Promise<void>;
+  persistDevice: boolean;
+  importSecret: (raw: string, persistDevice: boolean) => Promise<void>;
   disconnect: () => void;
+  getSecretB58: () => string | null;
   sendTransaction: (
     transaction: Transaction | VersionedTransaction,
     connection: Connection,
@@ -100,41 +148,44 @@ export function LocalWalletProvider({ children }: { children: React.ReactNode })
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
   const [showImportModal, setShowImportModal] = useState(false);
+  const [persistDevice, setPersistDevice] = useState(true);
+  const secretRef = useRef<string | null>(null);
 
-  // Restore session (tab refresh) — still device-local only
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
+      const saved = readPersistedSecret();
       if (saved) {
         const kp = parseSecretInput(saved);
+        secretRef.current = b58encode(kp.secretKey);
         setKeypair(kp);
+        setPersistDevice(true);
       }
     } catch (_) {
-      sessionStorage.removeItem(STORAGE_KEY);
+      secretRef.current = null;
+      writePersistedSecret(null);
     }
   }, []);
 
   const disconnect = useCallback(() => {
     setKeypair(null);
     setError("");
-    try {
-      sessionStorage.removeItem(STORAGE_KEY);
-    } catch (_) {}
+    secretRef.current = null;
+    writePersistedSecret(null);
   }, []);
 
-  const importSecret = useCallback(async (raw: string, persistSession: boolean) => {
+  const getSecretB58 = useCallback(() => secretRef.current, []);
+
+  const importSecret = useCallback(async (raw: string, persist: boolean) => {
     setImporting(true);
     setError("");
     try {
       const kp = parseSecretInput(raw);
+      const b58 = b58encode(kp.secretKey);
+      secretRef.current = b58;
       setKeypair(kp);
-      if (persistSession) {
-        // Store only in sessionStorage (cleared when tab closes). Never localStorage by default.
-        const cleaned = String(raw).trim();
-        sessionStorage.setItem(STORAGE_KEY, cleaned);
-      } else {
-        sessionStorage.removeItem(STORAGE_KEY);
-      }
+      setPersistDevice(!!persist);
+      if (persist) writePersistedSecret(b58);
+      else writePersistedSecret(null);
       setShowImportModal(false);
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -195,7 +246,6 @@ export function LocalWalletProvider({ children }: { children: React.ReactNode })
               connected: true,
               signTransaction,
               signAndSendTransaction: async (tx: any) => {
-                // Used by walletSignAndSend prefer path — sign only; send via sendTransaction
                 const signed = await signTransaction(tx);
                 return signed;
               },
@@ -210,8 +260,10 @@ export function LocalWalletProvider({ children }: { children: React.ReactNode })
     publicKey,
     importing,
     error,
+    persistDevice,
     importSecret,
     disconnect,
+    getSecretB58,
     sendTransaction,
     signTransaction,
     walletStub,
@@ -237,7 +289,6 @@ export function useLocalKeyWallet() {
 
 /**
  * Unified wallet: Local key (③) wins when active, else adapter (①).
- * Use this instead of useWallet() in Payment / Transfer / Swap / Charity / Home.
  */
 export function usePawlyWallet() {
   const adapter = useWallet();
@@ -257,7 +308,6 @@ export function usePawlyWallet() {
       select: (_name?: any) => {},
       wallets: adapter.wallets || [],
       autoConnect: false,
-      // flag for UI
       pawlyLocal: true as const,
     };
   }
@@ -268,7 +318,6 @@ export function usePawlyWallet() {
   };
 }
 
-/** Modal UI — bilingual warnings */
 function ImportKeyModal() {
   const {
     showImportModal,
@@ -277,14 +326,13 @@ function ImportKeyModal() {
     importing,
     error,
     connected,
-    publicKey,
-    disconnect,
   } = useLocalKeyWallet();
   const [raw, setRaw] = useState("");
   const [persist, setPersist] = useState(true);
   const [ack, setAck] = useState(false);
 
   if (!showImportModal) return null;
+  if (connected) return null;
 
   const onSubmit = async () => {
     if (!ack) {
@@ -349,122 +397,96 @@ function ImportKeyModal() {
         >
           · PAWLY never stores your key on any server.
           <br />
+          · Remember-on-device keeps the key in this phone/browser only.
+          <br />
           · Lost key = lost funds. We cannot recover it.
           <br />
           · Do not import on public / shared devices.
           <br />
-          · Prefer hardware or Phantom for large balances.
-          <br />
           · 私钥只留在本机；丢失无法找回；勿在公共设备导入。
         </div>
 
-        {connected && publicKey ? (
-          <div style={{ marginBottom: 12, fontSize: 13 }}>
-            Active local wallet:
-            <br />
-            <code style={{ color: "#00ff9d", wordBreak: "break-all" }}>
-              {publicKey.toString()}
-            </code>
-            <button
-              type="button"
-              onClick={disconnect}
-              style={{
-                marginTop: 8,
-                display: "block",
-                width: "100%",
-                padding: 10,
-                borderRadius: 10,
-                border: "none",
-                background: "#333",
-                color: "#fff",
-              }}
-            >
-              Disconnect local key / 清除本地密钥
-            </button>
-          </div>
-        ) : (
-          <>
-            <label style={{ fontSize: 12, color: "#aaa" }}>
-              Secret key (base58) or JSON byte array
-            </label>
-            <textarea
-              value={raw}
-              onChange={(e) => setRaw(e.target.value)}
-              placeholder="Paste secret key only — never share this"
-              rows={4}
-              style={{
-                width: "100%",
-                marginTop: 6,
-                marginBottom: 10,
-                borderRadius: 10,
-                border: "1px solid #333",
-                background: "#0a0a10",
-                color: "#eee",
-                padding: 10,
-                fontSize: 13,
-                boxSizing: "border-box",
-              }}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            <label
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "flex-start",
-                fontSize: 12,
-                marginBottom: 8,
-                color: "#ccc",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={persist}
-                onChange={(e) => setPersist(e.target.checked)}
-              />
-              Keep for this browser tab session only (sessionStorage)
-            </label>
-            <label
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "flex-start",
-                fontSize: 12,
-                marginBottom: 12,
-                color: "#ffab91",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={ack}
-                onChange={(e) => setAck(e.target.checked)}
-              />
-              I understand PAWLY cannot recover this key and I use import at my own
-              risk. / 我了解无法找回且风险自负。
-            </label>
-            {error ? (
-              <p style={{ color: "#ff5252", fontSize: 12, marginBottom: 8 }}>{error}</p>
-            ) : null}
-            <button
-              type="button"
-              disabled={importing || !raw.trim()}
-              onClick={onSubmit}
-              style={{
-                width: "100%",
-                padding: 12,
-                borderRadius: 12,
-                border: "none",
-                background: importing ? "#444" : "#00c853",
-                color: "#000",
-                fontWeight: 700,
-                fontSize: 15,
-              }}
-            >
-              {importing ? "Importing…" : "Import & use in PAWLY / 导入并使用"}
-            </button>
-          </>
-        )}
+        <label style={{ fontSize: 12, color: "#aaa" }}>
+          Secret key (base58) or JSON byte array
+        </label>
+        <textarea
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          placeholder="Paste secret key only — never share this"
+          rows={4}
+          style={{
+            width: "100%",
+            marginTop: 6,
+            marginBottom: 10,
+            borderRadius: 10,
+            border: "1px solid #333",
+            background: "#0a0a10",
+            color: "#eee",
+            padding: 10,
+            fontSize: 13,
+            boxSizing: "border-box",
+          }}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        <label
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "flex-start",
+            fontSize: 12,
+            marginBottom: 8,
+            color: "#c8ffe8",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={persist}
+            onChange={(e) => setPersist(e.target.checked)}
+          />
+          Remember on this device (reopen without pasting again)
+          <br />
+          本机记住，下次打开 dApp 不用再贴私钥
+        </label>
+        <label
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "flex-start",
+            fontSize: 12,
+            marginBottom: 12,
+            color: "#ffab91",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={ack}
+            onChange={(e) => setAck(e.target.checked)}
+          />
+          I understand PAWLY cannot recover this key and I use import at my own
+          risk. / 我了解无法找回且风险自负。
+        </label>
+        {error ? (
+          <p style={{ color: "#ff5252", fontSize: 12, marginBottom: 8 }}>{error}</p>
+        ) : null}
+        <button
+          type="button"
+          disabled={importing || !raw.trim()}
+          onClick={onSubmit}
+          style={{
+            width: "100%",
+            padding: 12,
+            borderRadius: 12,
+            border: "none",
+            background: importing ? "#444" : "#00c853",
+            color: "#000",
+            fontWeight: 700,
+            fontSize: 15,
+          }}
+        >
+          {importing ? "Importing…" : "Import & use in PAWLY / 导入并使用"}
+        </button>
 
         <button
           type="button"
@@ -486,40 +508,168 @@ function ImportKeyModal() {
   );
 }
 
-/** Small entry buttons for Home */
+function copyText(label: string, value: string) {
+  if (!value) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value);
+      alert(label + " copied / 已复制");
+      return;
+    }
+  } catch (_) {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = value;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    alert(label + " copied / 已复制");
+  } catch (_) {
+    alert("Copy failed / 复制失败");
+  }
+}
+
+/**
+ * Home entry: sits under green PAWLY DApp title, above My Data.
+ * Connected: only Manage + Clear key. Secret is never shown on the home strip.
+ */
 export function LocalWalletEntryButtons() {
   const local = useLocalKeyWallet();
   const adapter = useWallet();
+  const [manageOpen, setManageOpen] = useState(false);
+  const [revealSecret, setRevealSecret] = useState(false);
+
+  const closeManage = () => {
+    setManageOpen(false);
+    setRevealSecret(false);
+  };
+
+  const onClear = () => {
+    if (
+      !window.confirm(
+        "Clear local key from this device? You will need to paste it again.\n清除本机私钥？之后需要重新粘贴。"
+      )
+    ) {
+      return;
+    }
+    closeManage();
+    local.disconnect();
+  };
+
+  const secret = manageOpen ? local.getSecretB58() || "" : "";
+  const addr = local.publicKey ? local.publicKey.toString() : "";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+    <div style={{ margin: "0 0 16px" }}>
       {local.connected && local.publicKey ? (
         <div
           style={{
-            padding: 12,
+            padding: 10,
             borderRadius: 12,
-            background: "rgba(0,255,157,0.1)",
-            border: "1px solid rgba(0,255,157,0.35)",
-            fontSize: 13,
-            color: "#c8ffe8",
+            background: "rgba(0,255,157,0.08)",
+            border: "1px solid rgba(0,255,157,0.28)",
           }}
         >
-          <b style={{ color: "#00ff9d" }}>Local key active / 本地密钥已启用</b>
-          <div style={{ wordBreak: "break-all", marginTop: 4, opacity: 0.9 }}>
-            {local.publicKey.toString()}
-          </div>
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
-              onClick={() => local.setShowImportModal(true)}
+              onClick={() => {
+                setManageOpen((v) => !v);
+                setRevealSecret(false);
+              }}
               style={btnSecondary}
             >
-              Manage / 管理
+              {manageOpen ? "Close / 关闭" : "Manage / 管理"}
             </button>
-            <button type="button" onClick={local.disconnect} style={btnSecondary}>
+            <button type="button" onClick={onClear} style={btnSecondary}>
               Clear key / 清除
             </button>
           </div>
+
+          {manageOpen ? (
+            <div
+              style={{
+                marginTop: 10,
+                padding: 12,
+                borderRadius: 12,
+                background: "#0d0d14",
+                border: "1px solid rgba(0,255,157,0.25)",
+              }}
+            >
+              <div style={{ color: "#00ff9d", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
+                Local key / 本地私钥
+              </div>
+              <div style={{ fontSize: 11, color: "#9ad", marginBottom: 10 }}>
+                {local.persistDevice
+                  ? "Saved on this device / 本机已记住"
+                  : "Not saved — leave and it unbinds / 未记住，离开后需重贴"}
+              </div>
+
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
+                Address / 地址
+              </div>
+              <div
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  color: "#c8ffe8",
+                  wordBreak: "break-all",
+                  marginBottom: 8,
+                }}
+              >
+                {addr}
+              </div>
+              <button
+                type="button"
+                onClick={() => copyText("Address", addr)}
+                style={btnTiny}
+              >
+                Copy address / 复制地址
+              </button>
+
+              <div style={{ fontSize: 11, color: "#888", margin: "12px 0 4px" }}>
+                Secret key / 私钥（默认隐藏）
+              </div>
+              <div
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  color: revealSecret ? "#ffccbc" : "#666",
+                  wordBreak: "break-all",
+                  marginBottom: 8,
+                  minHeight: 36,
+                }}
+              >
+                {revealSecret
+                  ? secret || "(not available / 无法读取)"
+                  : "••••••••••••••••••••••••••••••••"}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setRevealSecret((v) => !v)}
+                  style={btnTiny}
+                >
+                  {revealSecret ? "Hide / 隐藏" : "Show secret / 显示私钥"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => copyText("Secret key", secret)}
+                  style={btnTiny}
+                >
+                  Copy secret / 复制私钥
+                </button>
+              </div>
+              <p style={{ margin: "10px 0 0", fontSize: 11, color: "#f48", lineHeight: 1.4 }}>
+                Never screenshot or share this key. Anyone with it controls the funds.
+                <br />
+                不要截图或分享私钥。拿到私钥等于控制资产。
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : (
         <button
@@ -527,20 +677,25 @@ export function LocalWalletEntryButtons() {
           onClick={() => local.setShowImportModal(true)}
           style={btnPrimary}
         >
-          Import secret key (no Phantom) / 导入私钥（不连外部钱包）
+          Import secret key / 导入私钥
         </button>
       )}
-      <p style={{ margin: 0, fontSize: 11, color: "#888", lineHeight: 1.4 }}>
-        Path ③ advanced. Default: connect wallet or email/Privy. Keys never uploaded.
-        <br />
-        高级路径。默认请连接钱包或邮箱登录。私钥不会上传服务器。
-        {adapter.connected ? " · External wallet also connected (local key has priority when active)." : ""}
-      </p>
+      {!local.connected ? (
+        <p style={{ margin: "8px 0 0", fontSize: 11, color: "#888", lineHeight: 1.4 }}>
+          Advanced path. Default: connect wallet or email / Privy. Key stays on this device.
+          <br />
+          高级路径。默认请连接钱包或邮箱登录。私钥只留本机。
+          {adapter.connected
+            ? " · External wallet also connected (local key has priority when active)."
+            : ""}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 const btnPrimary: React.CSSProperties = {
+  width: "100%",
   padding: "12px 14px",
   borderRadius: 12,
   border: "none",
@@ -561,3 +716,14 @@ const btnSecondary: React.CSSProperties = {
   fontSize: 12,
   cursor: "pointer",
 };
+
+const btnTiny: React.CSSProperties = {
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: "1px solid #444",
+  background: "#1a1a22",
+  color: "#ddd",
+  fontSize: 11,
+  cursor: "pointer",
+};
+
