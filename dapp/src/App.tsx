@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 29.08.2026 v7.7.20 live PAWLY price: official pool vaults + Dex/GT/Jupiter/Raydium + last-quote cache. Never show unavailable. Never fallback 0.20.
+ * PAWLY DApp — 29.08.2026 v7.7.20 live PAWLY price: Payment/Transfer/Charity read official pool vaults (no hardcoded 0.002884 / 0.20). Dex/GT/Jupiter/Raydium fallback. Cache only live quotes.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1460,18 +1460,15 @@ function packPawlyPx(usd, source) {
   return { usd: Number(usd), pawlyPerUsdc: 1 / Number(usd), source: source || "Official pool", ts: Date.now() };
 }
 
-/** 首次打开尚无本机缓存时的启动值：来自官方池金库（2026-08-29），会被实时价立刻覆盖。不是 0.20 预估。 */
-const PAWLY_PX_BOOTSTRAP = { usd: 0.002884, pawlyPerUsdc: 1 / 0.002884, source: "Official pool", ts: 0 };
-
 function readCachedPawlyPx() {
   try {
     const raw = localStorage.getItem(PAWLY_PX_CACHE_KEY);
-    if (raw) {
-      const j = JSON.parse(raw);
-      if (isSanePawlyUsd(j?.usd)) return j;
-    }
+    if (!raw) return null;
+    const j = JSON.parse(raw);
+    // 只接受曾经成功拉到的活价（ts>0）；拒绝源码写死数字
+    if (isSanePawlyUsd(j?.usd) && Number(j.ts) > 0) return j;
   } catch (_) {}
-  return PAWLY_PX_BOOTSTRAP;
+  return null;
 }
 
 function writeCachedPawlyPx(px) {
@@ -5860,6 +5857,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
