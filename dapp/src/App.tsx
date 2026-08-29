@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 27.08.2026 v7.7.19 chart pairs: each token vs the other three — must pair with index.tsx + vite.config; Buffer/process; no BigInt literal; TransferChecked + ATA + txError
+ * PAWLY DApp — 29.08.2026 v7.7.20 live PAWLY price: official pool vaults + Dex/GT/Jupiter/Raydium + last-quote cache. Never show unavailable. Never fallback 0.20.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -227,8 +227,13 @@ async function logDappOnchainEvent(payload) {
 /** Official PAWLY CA — 11.08.2026 (v2 + metadata). Old GnUEP... abandoned. */
 const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
 const PAWLY_DECIMALS = 6;
-/** 仅兜底预览；池已上线后优先 Jupiter / 链上报价 */
+/** 仅报价全失败时的最后兜底，不再用于 Payment/Transfer/Charity 主路径。
+ *  旧预览 5 PAWLY≈1 USDC（1 PAWLY=0.20 USDC）已废弃。
+ *  现价以官方池金库 reserve 为准（约 1 PAWLY ≈ 0.0029 USDC，随池变动）。 */
 const PAWLY_PER_USDC = 5;
+/** 官方 Raydium CPMM 池金库（与 PAWLY_POOL_ID 对应，Deposit 后仍是这对） */
+const PAWLY_VAULT_PAWLY = "cFCT1uq9uRGCnGipuo5nXtfJxb52n48Z7Bk7r2SYhnf";
+const PAWLY_VAULT_USDC = "8zUBHzXfokN4De9Smqo5JivGDs3jiHfPZ654mzTJRUWG";
 
 /** 池已上线：2026-08-19 10:00 +08 — Raydium CPMM PAWLY/USDC */
 const PAWLY_POOL_LIVE = true;
@@ -1426,7 +1431,7 @@ const PAWLY_FIATS = [
 ];
 
 /** 法币金额 → 需支付的加密数量（USD≈USDC） */
-function fiatToCryptoAmount(fiatAmt, fiatCode, rates, payToken, solUsd) {
+function fiatToCryptoAmount(fiatAmt, fiatCode, rates, payToken, solUsd, pawlyUsd) {
   const fa = Number(fiatAmt);
   if (!Number.isFinite(fa) || fa <= 0) return null;
   const rate = rates?.[fiatCode];
@@ -1437,8 +1442,198 @@ function fiatToCryptoAmount(fiatAmt, fiatCode, rates, payToken, solUsd) {
     if (!solUsd || !(solUsd > 0)) return null;
     return usd / solUsd;
   }
-  if (payToken === "PAWLY") return usd * (typeof PAWLY_PER_USDC === "number" ? PAWLY_PER_USDC : 5);
+  if (payToken === "PAWLY") {
+    if (!pawlyUsd || !(pawlyUsd > 0)) return null;
+    return usd / pawlyUsd;
+  }
   return usd;
+}
+
+function isSanePawlyUsd(p) {
+  const n = Number(p);
+  return Number.isFinite(n) && n > 0.0000001 && n < 5;
+}
+
+const PAWLY_PX_CACHE_KEY = "pawly_live_px_v1";
+
+function packPawlyPx(usd, source) {
+  return { usd: Number(usd), pawlyPerUsdc: 1 / Number(usd), source: source || "Official pool", ts: Date.now() };
+}
+
+/** 首次打开尚无本机缓存时的启动值：来自官方池金库（2026-08-29），会被实时价立刻覆盖。不是 0.20 预估。 */
+const PAWLY_PX_BOOTSTRAP = { usd: 0.002884, pawlyPerUsdc: 1 / 0.002884, source: "Official pool", ts: 0 };
+
+function readCachedPawlyPx() {
+  try {
+    const raw = localStorage.getItem(PAWLY_PX_CACHE_KEY);
+    if (raw) {
+      const j = JSON.parse(raw);
+      if (isSanePawlyUsd(j?.usd)) return j;
+    }
+  } catch (_) {}
+  return PAWLY_PX_BOOTSTRAP;
+}
+
+function writeCachedPawlyPx(px) {
+  try {
+    if (px && isSanePawlyUsd(px.usd)) localStorage.setItem(PAWLY_PX_CACHE_KEY, JSON.stringify(px));
+  } catch (_) {}
+  return px;
+}
+
+async function jsonRpcTokenUiAmount(rpcUrl, tokenAccount) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(function () { ctrl.abort(); }, 7000);
+  try {
+    const r = await fetch(rpcUrl, {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenAccountBalance",
+        params: [tokenAccount, { commitment: "confirmed" }],
+      }),
+    });
+    if (!r.ok) return 0;
+    const d = await r.json();
+    const v = d?.result?.value;
+    const n = parseFloat(v?.uiAmountString ?? v?.uiAmount);
+    return Number.isFinite(n) ? n : 0;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function pawlyPxFromVaults(rpcUrl) {
+  const pair = await Promise.all([
+    jsonRpcTokenUiAmount(rpcUrl, PAWLY_VAULT_PAWLY),
+    jsonRpcTokenUiAmount(rpcUrl, PAWLY_VAULT_USDC),
+  ]);
+  const pawlyAmt = pair[0];
+  const usdcAmt = pair[1];
+  if (pawlyAmt > 0 && usdcAmt > 0) {
+    const usd = usdcAmt / pawlyAmt;
+    if (isSanePawlyUsd(usd)) return packPawlyPx(usd, "Official pool (on-chain)");
+  }
+  return null;
+}
+
+/**
+ * PAWLY 现价：官方池金库优先，多源接力；成功写入本机。
+ * 瞬时全失败只用上次成功的真实报价，绝不回退 0.20，不对用户报失败。
+ */
+async function fetchPawlyUsdPrice() {
+  const cached = readCachedPawlyPx();
+  const tryOne = async function (fn) {
+    try { return await fn(); } catch (_) { return null; }
+  };
+
+  const rpcList = [];
+  try { if (HELIUS_RPC_GLOBAL) rpcList.push(HELIUS_RPC_GLOBAL); } catch (_) {}
+  rpcList.push("https://api.mainnet-beta.solana.com");
+  rpcList.push("https://solana-rpc.publicnode.com");
+
+  for (let i = 0; i < rpcList.length; i++) {
+    const onchain = await tryOne(function () { return pawlyPxFromVaults(rpcList[i]); });
+    if (onchain) return writeCachedPawlyPx(onchain);
+  }
+
+  const viaConn = await tryOne(async function () {
+    const connection = getConnection();
+    const pawlyAcc = await connection.getTokenAccountBalance(new PublicKey(PAWLY_VAULT_PAWLY), "confirmed");
+    const usdcAcc = await connection.getTokenAccountBalance(new PublicKey(PAWLY_VAULT_USDC), "confirmed");
+    const pawlyAmt = parseFloat(pawlyAcc?.value?.uiAmountString ?? pawlyAcc?.value?.uiAmount);
+    const usdcAmt = parseFloat(usdcAcc?.value?.uiAmountString ?? usdcAcc?.value?.uiAmount);
+    if (pawlyAmt > 0 && usdcAmt > 0) {
+      const usd = usdcAmt / pawlyAmt;
+      if (isSanePawlyUsd(usd)) return packPawlyPx(usd, "Official pool (on-chain)");
+    }
+    return null;
+  });
+  if (viaConn) return writeCachedPawlyPx(viaConn);
+
+  const dexPair = await tryOne(async function () {
+    const r = await fetchWithTimeout("https://api.dexscreener.com/latest/dex/pairs/solana/" + PAWLY_POOL_ID, 8000);
+    if (!r || !r.ok) return null;
+    const d = await r.json();
+    const pair = d?.pair || (d?.pairs && d.pairs[0]);
+    const px = parseFloat(pair?.priceUsd);
+    return isSanePawlyUsd(px) ? packPawlyPx(px, "DexScreener") : null;
+  });
+  if (dexPair) return writeCachedPawlyPx(dexPair);
+
+  const dexTok = await tryOne(async function () {
+    const r = await fetchWithTimeout("https://api.dexscreener.com/latest/dex/tokens/" + PAWLY_MINT, 8000);
+    if (!r || !r.ok) return null;
+    const d = await r.json();
+    const pairs = (d?.pairs || []).filter(function (x) { return x && x.priceUsd; });
+    const official = pairs.find(function (x) { return String(x.pairAddress) === PAWLY_POOL_ID; }) || pairs[0];
+    const px = parseFloat(official?.priceUsd);
+    return isSanePawlyUsd(px) ? packPawlyPx(px, "DexScreener") : null;
+  });
+  if (dexTok) return writeCachedPawlyPx(dexTok);
+
+  const gt = await tryOne(async function () {
+    const r = await fetchWithTimeout("https://api.geckoterminal.com/api/v2/networks/solana/pools/" + PAWLY_POOL_ID, 8000);
+    if (!r || !r.ok) return null;
+    const d = await r.json();
+    const px = parseFloat(d?.data?.attributes?.base_token_price_usd);
+    return isSanePawlyUsd(px) ? packPawlyPx(px, "GeckoTerminal") : null;
+  });
+  if (gt) return writeCachedPawlyPx(gt);
+
+  const ray = await tryOne(async function () {
+    const r = await fetchWithTimeout("https://api-v3.raydium.io/pools/info/ids?ids=" + PAWLY_POOL_ID, 8000);
+    if (!r || !r.ok) return null;
+    const d = await r.json();
+    const info = Array.isArray(d?.data) ? d.data[0] : d?.data;
+    const a = parseFloat(info?.mintAmountA);
+    const b = parseFloat(info?.mintAmountB);
+    if (a > 0 && b > 0) {
+      const usd = b / a;
+      if (isSanePawlyUsd(usd)) return packPawlyPx(usd, "Raydium");
+    }
+    const px = parseFloat(info?.price);
+    return isSanePawlyUsd(px) ? packPawlyPx(px, "Raydium") : null;
+  });
+  if (ray) return writeCachedPawlyPx(ray);
+
+  const jupPx = await tryOne(async function () {
+    const urls = [
+      "https://lite-api.jup.ag/price/v2?ids=" + PAWLY_MINT,
+      "https://api.jup.ag/price/v2?ids=" + PAWLY_MINT,
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const r = await fetchWithTimeout(urls[i], 8000);
+        if (!r || !r.ok) continue;
+        const d = await r.json();
+        const row = d?.data ? d.data[PAWLY_MINT] : null;
+        const px = parseFloat(row?.price);
+        if (isSanePawlyUsd(px)) return packPawlyPx(px, "Jupiter");
+      } catch (_) {}
+    }
+    return null;
+  });
+  if (jupPx) return writeCachedPawlyPx(jupPx);
+
+  const jupQ = await tryOne(async function () {
+    const q = await jupiterQuoteOnce("USDC", "PAWLY", 1, 150);
+    const out = Number(q && q.outUi);
+    if (out > 0) {
+      const usd = 1 / out;
+      if (isSanePawlyUsd(usd)) return packPawlyPx(usd, "Jupiter");
+    }
+    return null;
+  });
+  if (jupQ) return writeCachedPawlyPx(jupQ);
+
+  if (cached && isSanePawlyUsd(cached.usd)) {
+    return Object.assign({}, cached, { source: (cached.source || "Official pool") + " · last quote" });
+  }
+  return cached || null;
 }
 
 
@@ -3138,6 +3333,14 @@ function PaymentPage() {
   const [fiatRates, setFiatRates] = useState(null);
   const [solUsd, setSolUsd] = useState(null);
   const [solSource, setSolSource] = useState("");
+  const [pawlyUsd, setPawlyUsd] = useState(function () {
+    const c = readCachedPawlyPx();
+    return c && c.usd ? c.usd : null;
+  });
+  const [pawlySource, setPawlySource] = useState(function () {
+    const c = readCachedPawlyPx();
+    return c && c.source ? c.source : "";
+  });
   const [rateLoading, setRateLoading] = useState(true);
   const [showRates, setShowRates] = useState(false);
   const [fiatCode, setFiatCode] = useState("MYR");
@@ -3179,11 +3382,11 @@ function PaymentPage() {
 
   // 法币金额 → 自动换算链上支付数量
   useEffect(() => {
-    const cryptoAmt = fiatToCryptoAmount(fiatAmount, fiatCode, fiatRates, payToken, solUsd);
+    const cryptoAmt = fiatToCryptoAmount(fiatAmount, fiatCode, fiatRates, payToken, solUsd, pawlyUsd);
     if (cryptoAmt == null) return;
-    const decimals = payToken === "SOL" ? 6 : 4;
+    const decimals = payToken === "SOL" ? 6 : payToken === "PAWLY" ? 2 : 4;
     setAmount(Number(cryptoAmt.toFixed(decimals)).toString());
-  }, [fiatAmount, fiatCode, fiatRates, payToken, solUsd]);
+  }, [fiatAmount, fiatCode, fiatRates, payToken, solUsd, pawlyUsd]);
 
   const fetchRates = async () => {
     setRateLoading(true);
@@ -3191,9 +3394,11 @@ function PaymentPage() {
       const results = await Promise.allSettled([
         fetchFiatRatesUsd(),
         fetchSolUsdPrice(),
+        fetchPawlyUsdPrice(),
       ]);
       const fiat = results[0].status === "fulfilled" ? results[0].value : null;
       const sol = results[1].status === "fulfilled" ? results[1].value : null;
+      const pawly = results[2].status === "fulfilled" ? results[2].value : null;
       if (fiat?.rates) setFiatRates(fiat.rates);
       else setFiatRates(null);
       if (sol?.usd) {
@@ -3202,6 +3407,10 @@ function PaymentPage() {
       } else {
         setSolUsd(null);
         setSolSource("");
+      }
+      if (pawly?.usd) {
+        setPawlyUsd(pawly.usd);
+        setPawlySource(pawly.source || "Official pool");
       }
     } catch (e) {
       console.error(e);
@@ -3215,12 +3424,14 @@ function PaymentPage() {
 
   useEffect(() => {
     fetchRates();
+    const t = setInterval(fetchRates, 45000);
+    return () => clearInterval(t);
   }, []);
 
   const toUsdcValue = (tok, n) => {
     if (!n || n <= 0) return 0;
     if (tok === "USDC" || tok === "USDT") return n;
-    if (tok === "PAWLY") return n / PAWLY_PER_USDC;
+    if (tok === "PAWLY") return pawlyUsd ? n * pawlyUsd : 0;
     if (tok === "SOL") return solUsd ? n * solUsd : 0;
     return 0;
   };
@@ -3500,19 +3711,12 @@ function PaymentPage() {
                   : "SOL 价格暂不可用 / SOL price unavailable"}
             </div>
           )}
-          {payToken === "PAWLY" && !PAWLY_POOL_LIVE && (
-            <p style={{ color: "#667", fontSize: 12, margin: "0 0 8px", lineHeight: 1.45 }}>
-              临时比例：{PAWLY_PER_USDC} PAWLY ≈ 1 USDC（池子上线后改用链上报价）
-              <br />
-              Temp: {PAWLY_PER_USDC} PAWLY ≈ 1 USDC (on-chain quote after LP)
-            </p>
-          )}
-          {payToken === "PAWLY" && PAWLY_POOL_LIVE && (
-            <p style={{ color: "#667", fontSize: 12, margin: "0 0 8px", lineHeight: 1.45 }}>
-              PAWLY 已上线；支付数量按当前设定/报价折算（优先链上流动性）。
-              <br />
-              PAWLY is live; amount uses live quote / configured rate against pool liquidity.
-            </p>
+          {payToken === "PAWLY" && (
+            <div style={{ color: "#667", fontSize: 12, marginBottom: 8, lineHeight: 1.45 }}>
+              {pawlyUsd
+                ? `PAWLY ≈ $${Number(pawlyUsd).toFixed(6)} USDC · ${pawlySource || "Official pool"}`
+                : "Reading official PAWLY/USDC pool…"}
+            </div>
           )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ color: "#889" }}>
@@ -4677,6 +4881,10 @@ function CharityPage() {
   const [showScanQr, setShowScanQr] = useState(false);
   const [fiatRates, setFiatRates] = useState(null);
   const [solUsd, setSolUsd] = useState(null);
+  const [pawlyUsd, setPawlyUsd] = useState(function () {
+    const c = readCachedPawlyPx();
+    return c && c.usd ? c.usd : null;
+  });
   const [rateLoading, setRateLoading] = useState(true);
   const [fiatCode, setFiatCode] = useState("MYR");
   const [fiatAmount, setFiatAmount] = useState("");
@@ -4689,30 +4897,35 @@ function CharityPage() {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
-      setRateLoading(true);
+    const pull = async () => {
       try {
-        const results = await Promise.allSettled([fetchFiatRatesUsd(), fetchSolUsdPrice()]);
+        const results = await Promise.allSettled([fetchFiatRatesUsd(), fetchSolUsdPrice(), fetchPawlyUsdPrice()]);
         if (!alive) return;
         const fiat = results[0].status === "fulfilled" ? results[0].value : null;
         const sol = results[1].status === "fulfilled" ? results[1].value : null;
+        const pawly = results[2].status === "fulfilled" ? results[2].value : null;
         if (fiat?.rates) setFiatRates(fiat.rates);
         if (sol?.usd) setSolUsd(sol.usd);
+        if (pawly?.usd) setPawlyUsd(pawly.usd);
       } finally {
         if (alive) setRateLoading(false);
       }
-    })();
+    };
+    setRateLoading(true);
+    pull();
+    const t = setInterval(pull, 45000);
     return () => {
       alive = false;
+      clearInterval(t);
     };
   }, []);
 
   useEffect(() => {
-    const cryptoAmt = fiatToCryptoAmount(fiatAmount, fiatCode, fiatRates, token, solUsd);
+    const cryptoAmt = fiatToCryptoAmount(fiatAmount, fiatCode, fiatRates, token, solUsd, pawlyUsd);
     if (cryptoAmt == null) return;
-    const decimals = token === "SOL" ? 6 : 4;
+    const decimals = token === "SOL" ? 6 : token === "PAWLY" ? 2 : 4;
     setAmount(Number(cryptoAmt.toFixed(decimals)).toString());
-  }, [fiatAmount, fiatCode, fiatRates, token, solUsd]);
+  }, [fiatAmount, fiatCode, fiatRates, token, solUsd, pawlyUsd]);
 
   const shelters = [
     { name: "SPCA Selangor", url: "https://www.spca.org.my/" },
@@ -5647,6 +5860,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
