@@ -1,8 +1,8 @@
 // @ts-nocheck
 /**
- * PAWLY Local Key Wallet — v7.7.23 platform wallet export
- * Path ① adapter  ② PWA email → Privy auto  ③ optional local key
- * Import·Export: email login exports the PWA Privy Solana private key
+ * PAWLY Local Key Wallet — v7.7.24 Netlify-safe platform export
+ * No require(), no @privy-io/react-auth/solana subpath (Vite/Netlify resolve fail).
+ * useExportWallet from @privy-io/react-auth only.
  *
  * Persistence (v7.7.11): localStorage on this device; Clear removes it.
  * UI (v7.7.14): one button under title = Privy embedded export + local key.
@@ -27,23 +27,14 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useExportWallet } from "@privy-io/react-auth";
 
-let usePrivySolanaWallets = function () {
+function usePrivySolanaWallets() {
   return { wallets: [], createWallet: null };
-};
-let usePrivySolanaSend = function () {
+}
+function usePrivySolanaSend() {
   return { sendTransaction: null };
-};
-let usePrivyExportSol = function () {
-  return { exportWallet: null };
-};
-try {
-  var solMod = require("@privy-io/react-auth/solana");
-  if (solMod && solMod.useWallets) usePrivySolanaWallets = solMod.useWallets;
-  if (solMod && solMod.useSendTransaction) usePrivySolanaSend = solMod.useSendTransaction;
-  if (solMod && solMod.useExportWallet) usePrivyExportSol = solMod.useExportWallet;
-} catch (_) {}
+}
 
 const privySignerRef = {
   ready: false,
@@ -198,15 +189,8 @@ export function PlatformWalletPanel({ extra = null }) {
 
   let exportWallet = null;
   try {
-    const ex = usePrivyExportSol();
+    const ex = useExportWallet();
     exportWallet = ex && ex.exportWallet;
-  } catch (_) {}
-  try {
-    if (!exportWallet) {
-      const { useExportWallet } = require("@privy-io/react-auth");
-      const ex2 = useExportWallet();
-      exportWallet = ex2 && ex2.exportWallet;
-    }
   } catch (_) {}
 
   const sol = pickPrivySolanaWallet(user, wallets);
@@ -1217,4 +1201,5 @@ const btnGhost: React.CSSProperties = {
   color: "#aaa",
   cursor: "pointer",
 };
+
 
