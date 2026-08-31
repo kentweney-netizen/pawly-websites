@@ -1,8 +1,7 @@
 // @ts-nocheck
 /**
- * PAWLY Local Key Wallet — v7.7.24 Netlify-safe platform export
- * No require(), no @privy-io/react-auth/solana subpath (Vite/Netlify resolve fail).
- * useExportWallet from @privy-io/react-auth only.
+ * PAWLY Local Key Wallet — v7.7.25 no forced Privy login
+ * Path ① adapter (Phantom…)  ② optional local key  ③ Privy only if already signed in (never prompt)
  *
  * Persistence (v7.7.11): localStorage on this device; Clear removes it.
  * UI (v7.7.14): one button under title = Privy embedded export + local key.
@@ -27,103 +26,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { usePrivy, useExportWallet } from "@privy-io/react-auth";
-
-function usePrivySolanaWallets() {
-  return { wallets: [], createWallet: null };
-}
-function usePrivySolanaSend() {
-  return { sendTransaction: null };
-}
-
-const privySignerRef = {
-  ready: false,
-  authed: false,
-  user: null,
-  login: null,
-  wallets: [],
-  createWallet: null,
-  sendTransaction: null,
-};
-
-function emailFromUrl() {
-  try {
-    const q = new URLSearchParams(window.location.search);
-    return (q.get("email") || "").trim();
-  } catch (_) {
-    return "";
-  }
-}
-
-/** Must render under PrivyProvider. Restores email session and exposes Solana signer. */
-export function PawlyPrivyBridge() {
-  let ready = false;
-  let authenticated = false;
-  let user = null;
-  let login = null;
-  let createWalletFn = null;
-  try {
-    const p = usePrivy();
-    ready = !!p.ready;
-    authenticated = !!p.authenticated;
-    user = p.user || null;
-    login = p.login || null;
-    createWalletFn = p.createWallet || p.createSolanaWallet || null;
-  } catch (_) {}
-
-  let wallets = [];
-  let createFromSol = null;
-  let sendFromSol = null;
-  try {
-    const w = usePrivySolanaWallets();
-    wallets = (w && w.wallets) || [];
-    createFromSol = w && w.createWallet;
-  } catch (_) {}
-  try {
-    const st = usePrivySolanaSend();
-    sendFromSol = st && st.sendTransaction;
-  } catch (_) {}
-
-  privySignerRef.ready = ready;
-  privySignerRef.authed = authenticated;
-  privySignerRef.user = user;
-  privySignerRef.login = login;
-  privySignerRef.wallets = wallets;
-  privySignerRef.createWallet = createFromSol || createWalletFn;
-  privySignerRef.sendTransaction = sendFromSol;
-
-  useEffect(() => {
-    let stop = false;
-    (async () => {
-      if (!ready || stop) return;
-      if (!authenticated && typeof login === "function") {
-        const email = emailFromUrl();
-        try {
-          if (email) await login({ prefill: { type: "email", value: email } });
-          else await login();
-        } catch (_) {}
-        return;
-      }
-      if (authenticated && typeof (createFromSol || createWalletFn) === "function") {
-        const hasSol = pickPrivySolanaWallet(user, wallets);
-        if (!hasSol) {
-          try {
-            await (createFromSol || createWalletFn)({ createEthereumWallet: false });
-          } catch (_) {
-            try {
-              await (createFromSol || createWalletFn)();
-            } catch (_) {}
-          }
-        }
-      }
-    })();
-    return () => {
-      stop = true;
-    };
-  }, [ready, authenticated, login, user, wallets, createFromSol, createWalletFn]);
-
-  return null;
-}
+import { usePrivy } from "@privy-io/react-auth";
 
 function pickPrivySolanaWallet(user, extraWallets) {
   const list = [];
@@ -153,204 +56,6 @@ function pickPrivySolanaWallet(user, extraWallets) {
     uniq.push(w);
   });
   return uniq[0] || null;
-}
-
-function userEmail(user) {
-  if (!user) return emailFromUrl();
-  if (user.email && user.email.address) return String(user.email.address);
-  const acc = user.linkedAccounts || user.linked_accounts || [];
-  const em = acc.find((a) => a && (a.type === "email" || a.address && String(a.address).includes("@")));
-  if (em) return String(em.address || em.email || "");
-  return emailFromUrl();
-}
-
-/** Platform wallet panel: same email as PWA → export Privy Solana secret (base58). */
-export function PlatformWalletPanel({ extra = null }) {
-  const [busy, setBusy] = useState("");
-  const [err, setErr] = useState("");
-
-  let ready = false;
-  let authenticated = false;
-  let user = null;
-  let login = null;
-  try {
-    const p = usePrivy();
-    ready = !!p.ready;
-    authenticated = !!p.authenticated;
-    user = p.user || null;
-    login = p.login || null;
-  } catch (_) {}
-
-  let wallets = [];
-  try {
-    const w = usePrivySolanaWallets();
-    wallets = (w && w.wallets) || [];
-  } catch (_) {}
-
-  let exportWallet = null;
-  try {
-    const ex = useExportWallet();
-    exportWallet = ex && ex.exportWallet;
-  } catch (_) {}
-
-  const sol = pickPrivySolanaWallet(user, wallets);
-  const addr = sol ? sol.address : "";
-  const mail = userEmail(user);
-
-  const onLogin = async () => {
-    setErr("");
-    setBusy("login");
-    try {
-      if (typeof login === "function") {
-        if (mail) await login({ prefill: { type: "email", value: mail } });
-        else await login();
-      }
-    } catch (e) {
-      setErr((e && e.message) || "Login failed / 登录失败");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const onExport = async () => {
-    setErr("");
-    if (!authenticated) {
-      await onLogin();
-      return;
-    }
-    if (typeof exportWallet !== "function") {
-      setErr("Export is not available in this build / 此版本无法导出");
-      return;
-    }
-    setBusy("export");
-    try {
-      if (addr) await exportWallet({ address: addr });
-      else await exportWallet();
-    } catch (e) {
-      setErr((e && e.message) || "Export cancelled / 已取消导出");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  return (
-    <div style={{ textAlign: "left" }}>
-      <div
-        style={{
-          background: "linear-gradient(180deg, rgba(0,255,157,0.10), rgba(18,18,26,0.4))",
-          border: "1px solid rgba(0,255,157,0.28)",
-          borderRadius: 12,
-          padding: 12,
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13, marginBottom: 6 }}>
-          PAWLY Platform Wallet / 平台钱包
-        </div>
-        <div style={{ color: "#9aa", fontSize: 12, lineHeight: 1.45 }}>
-          Sign in with the same email you used on the PWA. Then export the Privy Solana key (base58).
-          <br />
-          使用 PWA 注册邮箱登录，即可导出官方嵌入式钱包私钥。密钥只在本机显示，PAWLY 不托管。
-        </div>
-      </div>
-
-      <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Email / 邮箱</div>
-      <div style={{ fontFamily: "monospace", fontSize: 13, color: "#c8ffe8", marginBottom: 10, wordBreak: "break-all" }}>
-        {mail || "—"}
-      </div>
-
-      <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Status / 状态</div>
-      <div style={{ fontSize: 13, color: authenticated ? "#00ff9d" : "#fbbf24", marginBottom: 10 }}>
-        {!ready
-          ? "Connecting… / 正在连接"
-          : authenticated
-            ? "Email wallet signed in / 邮箱钱包已登录"
-            : "Sign in with email to manage this wallet / 请先用邮箱登录"}
-      </div>
-
-      <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Solana address / 地址</div>
-      <div
-        style={{
-          fontFamily: "monospace",
-          fontSize: 12,
-          color: addr ? "#c8ffe8" : "#666",
-          wordBreak: "break-all",
-          marginBottom: 12,
-        }}
-      >
-        {addr || (authenticated ? "Creating embedded wallet… / 正在创建嵌入式钱包" : "Sign in first / 请先登录")}
-      </div>
-
-      {addr ? (
-        <button
-          type="button"
-          onClick={() => copyText("Address", addr)}
-          style={{
-            width: "100%",
-            marginBottom: 8,
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid #333",
-            background: "#1a1a24",
-            color: "#ddd",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          Copy address / 复制地址
-        </button>
-      ) : null}
-
-      {!authenticated ? (
-        <button
-          type="button"
-          disabled={!!busy}
-          onClick={onLogin}
-          style={{
-            width: "100%",
-            marginBottom: 8,
-            padding: "12px 14px",
-            border: "none",
-            borderRadius: 12,
-            fontWeight: 800,
-            cursor: "pointer",
-            background: "linear-gradient(90deg,#00ff9d,#00c853)",
-            color: "#04140c",
-          }}
-        >
-          {busy === "login" ? "Opening email login…" : "Continue with email / 邮箱登录导出"}
-        </button>
-      ) : (
-        <button
-          type="button"
-          disabled={!!busy}
-          onClick={onExport}
-          style={{
-            width: "100%",
-            marginBottom: 8,
-            padding: "12px 14px",
-            border: "none",
-            borderRadius: 12,
-            fontWeight: 800,
-            cursor: "pointer",
-            background: "linear-gradient(90deg,#00ff9d,#00c853)",
-            color: "#04140c",
-          }}
-        >
-          {busy === "export" ? "Opening export…" : "Export private key / 导出私钥"}
-        </button>
-      )}
-
-      {err ? <p style={{ color: "#ff8a80", fontSize: 12, margin: "0 0 8px" }}>{err}</p> : null}
-
-      <p style={{ margin: "8px 0 0", fontSize: 11, color: "#f48", lineHeight: 1.4 }}>
-        Privy shows the key in its own secure window. Never screenshot or send it.
-        <br />
-        私钥在 Privy 安全窗口显示。不要截图、不要发给任何人。
-      </p>
-      {extra}
-    </div>
-  );
 }
 
 const STORAGE_KEY = "pawly_local_sk_b58_v1";
@@ -635,21 +340,21 @@ export function useLocalKeyWallet() {
 export function usePawlyWallet() {
   const adapter = useWallet();
   const local = useLocalKeyWallet();
-  let privyReady = !!privySignerRef.ready;
-  let privyAuthed = !!privySignerRef.authed;
-  let privyLogin = privySignerRef.login || (async (_opts?: any) => {});
-  let privyUser: any = privySignerRef.user;
-  let privyCreateWallet: any = privySignerRef.createWallet;
+  let privyReady = false;
+  let privyAuthed = false;
+  let privyLogin = async (_opts?: any) => {};
+  let privyUser: any = null;
+  let privyCreateWallet: any = null;
   try {
     const p = usePrivy();
     privyReady = !!p.ready;
     privyAuthed = !!p.authenticated;
     privyLogin = p.login || privyLogin;
-    privyUser = p.user || privyUser;
-    privyCreateWallet = p.createWallet || p.createSolanaWallet || privyCreateWallet;
+    privyUser = p.user || null;
+    privyCreateWallet = p.createWallet || p.createSolanaWallet || null;
   } catch (_) {}
 
-  const privyWallet = pickPrivySolanaWallet(privyUser, privySignerRef.wallets || []);
+  const privyWallet = pickPrivySolanaWallet(privyUser, []);
   let privyPk: PublicKey | null = null;
   try {
     if (privyWallet && privyWallet.address) privyPk = new PublicKey(privyWallet.address);
@@ -676,11 +381,7 @@ export function usePawlyWallet() {
       connection: Connection,
       options?: any
     ) => {
-      if (typeof privySignerRef.sendTransaction === "function") {
-        const res = await privySignerRef.sendTransaction({ transaction, connection });
-        return (res && (res.signature || res.hash || res)) || String(res);
-      }
-      const w = pickPrivySolanaWallet(privyUser, privySignerRef.wallets || []);
+      const w = pickPrivySolanaWallet(privyUser, []);
       if (!w) throw new Error("Email wallet not ready / 邮箱钱包未就绪");
       if (typeof w.signAndSendTransaction === "function") {
         const res = await w.signAndSendTransaction({ transaction, connection });
@@ -706,29 +407,9 @@ export function usePawlyWallet() {
   );
 
   const activateEmailWallet = useCallback(async () => {
-    if (!privyReady) return false;
-    if (!privyAuthed) {
-      const email = emailFromUrl();
-      try {
-        if (email && typeof privyLogin === "function") {
-          await privyLogin({ prefill: { type: "email", value: email } });
-        } else if (typeof privyLogin === "function") {
-          await privyLogin();
-        }
-      } catch (_) {}
-      return false;
-    }
-    if (!privyPk && typeof privyCreateWallet === "function") {
-      try {
-        await privyCreateWallet({ createEthereumWallet: false });
-      } catch (_) {
-        try {
-          await privyCreateWallet();
-        } catch (_) {}
-      }
-    }
-    return !!(privyPk || pickPrivySolanaWallet(privyUser, privySignerRef.wallets || []));
-  }, [privyReady, privyAuthed, privyLogin, privyPk, privyCreateWallet, privyUser]);
+    // v7.7.25: never open Privy login / OTP. Use existing session only.
+    return !!(privyAuthed && privyPk);
+  }, [privyAuthed, privyPk]);
 
   if (local.connected && local.publicKey) {
     return {
@@ -820,8 +501,8 @@ function KeyVaultModal({ embeddedExport }) {
     getSecretB58,
   } = useLocalKeyWallet();
 
-  const hasEmbedded = true;
-  const [tab, setTab] = useState("embedded");
+  const hasEmbedded = !!embeddedExport;
+  const [tab, setTab] = useState(hasEmbedded ? "embedded" : connected ? "export" : "import");
   const [raw, setRaw] = useState("");
   const [persist, setPersist] = useState(true);
   const [ack, setAck] = useState(false);
@@ -929,19 +610,26 @@ function KeyVaultModal({ embeddedExport }) {
           Import · Export / 导入·导出
         </h2>
         <p style={{ margin: "0 0 14px", fontSize: 12, lineHeight: 1.45, color: "#9aa" }}>
-          Platform email wallet (PWA) or optional local secret — never uploaded to PAWLY.
+          Embedded Privy wallet or local secret key — never uploaded to PAWLY.
           <br />
-          平台邮箱钱包（PWA 同一把）或本机私钥。不会上传到 PAWLY 服务器。
+          嵌入式钱包或本机私钥。不会上传到 PAWLY 服务器。
         </p>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-          {tabBtn("embedded", "Platform / 平台钱包")}
+          {hasEmbedded ? tabBtn("embedded", "Embedded / 嵌入式") : null}
           {tabBtn("import", "Import / 导入")}
-          {tabBtn("export", "Local key / 本机密钥")}
+          {tabBtn("export", "Export / 导出")}
         </div>
 
         {tab === "embedded" ? (
-          <PlatformWalletPanel extra={embeddedExport} />
+          <div style={{ textAlign: "left" }}>
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: "#bbb", lineHeight: 1.45 }}>
+              Export the Privy embedded wallet created by email login.
+              <br />
+              导出邮箱登录生成的嵌入式钱包。
+            </p>
+            {embeddedExport}
+          </div>
         ) : tab === "import" ? (
           <>
             <div
@@ -1201,5 +889,3 @@ const btnGhost: React.CSSProperties = {
   color: "#aaa",
   cursor: "pointer",
 };
-
-
