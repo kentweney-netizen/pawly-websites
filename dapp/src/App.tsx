@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 31.08.2026 v7.7.24 Netlify-safe: drop unused ExportPawlyWallet import. Platform email export kept. Built on v7.7.23.
+ * PAWLY DApp — 31.08.2026 v7.7.25 no forced Privy login. Sign with adapter or local key only. PWA email/wallet for data. Built from v7.7.21 + live price.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -76,7 +76,6 @@ import {
   LocalWalletProvider,
   usePawlyWallet,
   LocalWalletEntryButtons,
-  PawlyPrivyBridge,
 } from "./localWallet";
 import {
   PhantomWalletAdapter,
@@ -113,6 +112,7 @@ import {
 } from "@solana/spl-token";
 import { createClient } from "@supabase/supabase-js";
 import WalletConnect from "./components/WalletConnect";
+import ExportPawlyWallet from "./components/ExportPawlyWallet";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const endpoint = clusterApiUrl("mainnet-beta");
@@ -2103,21 +2103,6 @@ function HomePage() {
   const wallet = usePawlyWallet();
   const navigate = useNavigate();
   const { pwaData, verified, refreshUserData } = useUserData();
-
-  useEffect(() => {
-    if (wallet.connected) return;
-    if (!(pwaData.email || pwaData.wallet)) return;
-    if (typeof wallet.activateEmailWallet !== "function") return;
-    let alive = true;
-    (async () => {
-      try {
-        await wallet.activateEmailWallet();
-      } catch (_) {}
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [wallet.connected, pwaData.email, pwaData.wallet]);
   const [balSol, setBalSol] = useState(null);
   const [balUsdc, setBalUsdc] = useState(null);
   const [balUsdt, setBalUsdt] = useState(null);
@@ -2216,49 +2201,8 @@ function HomePage() {
           </p>
         </div>
 
-        <LocalWalletEntryButtons />
+        <LocalWalletEntryButtons embeddedExport={<ExportPawlyWallet />} />
 
-        {!wallet.connected && (pwaData.email || pwaData.wallet) ? (
-          <div
-            style={{
-              ...card,
-              marginBottom: 16,
-              border: "1px solid rgba(0,255,157,0.45)",
-              background: "linear-gradient(180deg, rgba(0,255,157,0.10), rgba(26,0,51,0.6))",
-            }}
-          >
-            <div style={{ color: "#00ff9d", fontWeight: 800, marginBottom: 6 }}>
-              邮箱钱包可直接使用 / Email wallet ready
-            </div>
-            <div style={{ color: "#9aa", fontSize: 13, lineHeight: 1.5, marginBottom: 12 }}>
-              PWA 邮箱已带入。正在接通同一邮箱钱包，无需导入私钥。
-              <br />
-              Connecting the same email wallet — key import is optional / advanced.
-            </div>
-            <button
-              type="button"
-              onClick={() => wallet.activateEmailWallet && wallet.activateEmailWallet()}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                border: "none",
-                borderRadius: 12,
-                fontWeight: 800,
-                cursor: "pointer",
-                background: "linear-gradient(90deg,#00ff9d,#00c853)",
-                color: "#04140c",
-              }}
-            >
-              使用邮箱钱包 / Use email wallet
-            </button>
-          </div>
-        ) : null}
-
-        {wallet.pawlyPrivy && wallet.publicKey ? (
-          <div style={{ color: "#00ff9d", fontSize: 12, textAlign: "center", margin: "0 0 12px" }}>
-            Email wallet active · 邮箱钱包已激活
-          </div>
-        ) : null}
 
         <div style={{ ...card, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -3498,15 +3442,9 @@ function PaymentPage() {
 
   const ensureSigningWallet = async () => {
     if (connected && publicKey && typeof sendTransaction === "function") return true;
-    if (typeof activateEmailWallet === "function") {
-      try {
-        await activateEmailWallet();
-      } catch (_) {}
-    }
-    if (connected && publicKey && typeof sendTransaction === "function") return true;
     savePayDraft({ toAddress, amount, payToken });
     alert(
-      "请先用邮箱钱包或连接 Phantom / Solflare。\nPWA 已登录的邮箱点确认即可签名，不必导入私钥。\n\nUse the PWA email wallet or connect Phantom / Solflare. Key import is optional."
+      "请连接 Phantom / Solflare，或使用本机已导入的密钥。\n不会要求登录 Privy。\n\nConnect Phantom / Solflare, or use a key already saved on this device. No Privy login."
     );
     try {
       setWalletModalVisible(true);
@@ -5019,14 +4957,9 @@ function CharityPage() {
       );
     }
     if (!connected || !publicKey || typeof sendTransaction !== "function") {
-      if (typeof activateEmailWallet === "function") {
-        try { await activateEmailWallet(); } catch (_) {}
-      }
-    }
-    if (!connected || !publicKey || typeof sendTransaction !== "function") {
       saveCharityDraft({ toAddress, amount, token });
       alert(
-        "请先用邮箱钱包或连接 Phantom / Solflare。不必导入私钥。\nUse the PWA email wallet or connect an external wallet. Key import is optional."
+        "请连接 Phantom / Solflare，或使用本机已导入的密钥。不会要求登录 Privy。\nConnect Phantom / Solflare or use a saved local key. No Privy login."
       );
       try { setWalletModalVisible(true); } catch (_) {}
       return;
@@ -5893,7 +5826,6 @@ function App() {
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <LocalWalletProvider>
-            <PawlyPrivyBridge />
             <BrowserRouter basename="/dapp">
               <UserDataProvider>
                 <AppRoutes />
@@ -5910,10 +5842,9 @@ function App() {
       <PrivyProvider
         appId={PRIVY_APP_ID}
         config={{
-          loginMethods: ["email"],
-          appearance: { theme: "dark", accentColor: "#00ff9d", walletChainType: "solana-only" },
+          appearance: { theme: "dark", accentColor: "#00ff9d" },
           embeddedWallets: {
-            solana: { createOnLogin: "all-users" },
+            solana: { createOnLogin: "users-without-wallets" },
           },
         }}
       >
@@ -5926,6 +5857,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
