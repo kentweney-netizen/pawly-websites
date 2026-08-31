@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 29.08.2026 v7.7.20 live PAWLY price: Payment/Transfer/Charity read official pool vaults (no hardcoded 0.002884 / 0.20). Dex/GT/Jupiter/Raydium fallback. Cache only live quotes.
+ * PAWLY DApp — 31.08.2026 v7.7.23 platform wallet export in Import·Export (same PWA email / Privy key). Built on v7.7.22 + live price.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -76,6 +76,7 @@ import {
   LocalWalletProvider,
   usePawlyWallet,
   LocalWalletEntryButtons,
+  PawlyPrivyBridge,
 } from "./localWallet";
 import {
   PhantomWalletAdapter,
@@ -2103,6 +2104,21 @@ function HomePage() {
   const wallet = usePawlyWallet();
   const navigate = useNavigate();
   const { pwaData, verified, refreshUserData } = useUserData();
+
+  useEffect(() => {
+    if (wallet.connected) return;
+    if (!(pwaData.email || pwaData.wallet)) return;
+    if (typeof wallet.activateEmailWallet !== "function") return;
+    let alive = true;
+    (async () => {
+      try {
+        await wallet.activateEmailWallet();
+      } catch (_) {}
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [wallet.connected, pwaData.email, pwaData.wallet]);
   const [balSol, setBalSol] = useState(null);
   const [balUsdc, setBalUsdc] = useState(null);
   const [balUsdt, setBalUsdt] = useState(null);
@@ -2201,7 +2217,49 @@ function HomePage() {
           </p>
         </div>
 
-        <LocalWalletEntryButtons embeddedExport={<ExportPawlyWallet />} />
+        <LocalWalletEntryButtons />
+
+        {!wallet.connected && (pwaData.email || pwaData.wallet) ? (
+          <div
+            style={{
+              ...card,
+              marginBottom: 16,
+              border: "1px solid rgba(0,255,157,0.45)",
+              background: "linear-gradient(180deg, rgba(0,255,157,0.10), rgba(26,0,51,0.6))",
+            }}
+          >
+            <div style={{ color: "#00ff9d", fontWeight: 800, marginBottom: 6 }}>
+              邮箱钱包可直接使用 / Email wallet ready
+            </div>
+            <div style={{ color: "#9aa", fontSize: 13, lineHeight: 1.5, marginBottom: 12 }}>
+              PWA 邮箱已带入。正在接通同一邮箱钱包，无需导入私钥。
+              <br />
+              Connecting the same email wallet — key import is optional / advanced.
+            </div>
+            <button
+              type="button"
+              onClick={() => wallet.activateEmailWallet && wallet.activateEmailWallet()}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                border: "none",
+                borderRadius: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                background: "linear-gradient(90deg,#00ff9d,#00c853)",
+                color: "#04140c",
+              }}
+            >
+              使用邮箱钱包 / Use email wallet
+            </button>
+          </div>
+        ) : null}
+
+        {wallet.pawlyPrivy && wallet.publicKey ? (
+          <div style={{ color: "#00ff9d", fontSize: 12, textAlign: "center", margin: "0 0 12px" }}>
+            Email wallet active · 邮箱钱包已激活
+          </div>
+        ) : null}
 
         <div style={{ ...card, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -3321,7 +3379,7 @@ function ScanQrModal({ onDetected, onClose }) {
 }
 
 function PaymentPage() {
-  const { publicKey, connected, sendTransaction, wallet } = usePawlyWallet();
+  const { publicKey, connected, sendTransaction, wallet, activateEmailWallet } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [payToken, setPayToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadPayDraft().toAddress || "");
@@ -3439,12 +3497,17 @@ function PaymentPage() {
   const fiatEq = fiatRate != null ? usdcEq * fiatRate : null;
   const fiatMeta = FIATS.find((f) => f.code === fiatCode) || FIATS[0];
 
-  const ensureSigningWallet = () => {
-    // 任意已注册适配器（Phantom/Solflare/Trust/Coinbase/MWA）只要 connected + sendTransaction 即可签名
+  const ensureSigningWallet = async () => {
+    if (connected && publicKey && typeof sendTransaction === "function") return true;
+    if (typeof activateEmailWallet === "function") {
+      try {
+        await activateEmailWallet();
+      } catch (_) {}
+    }
     if (connected && publicKey && typeof sendTransaction === "function") return true;
     savePayDraft({ toAddress, amount, payToken });
     alert(
-      "请选择钱包平台并完成连接（Phantom / Solflare / Trust / Coinbase 等均可）。\n收款地址已保存，连接成功后请再点一次「确认」完成签名。\n\nChoose any wallet platform to connect. Address is saved — tap Confirm again to sign."
+      "请先用邮箱钱包或连接 Phantom / Solflare。\nPWA 已登录的邮箱点确认即可签名，不必导入私钥。\n\nUse the PWA email wallet or connect Phantom / Solflare. Key import is optional."
     );
     try {
       setWalletModalVisible(true);
@@ -4865,7 +4928,7 @@ function BuyPage() {
 }
 
 function CharityPage() {
-  const { connected, publicKey, sendTransaction, wallet } = usePawlyWallet();
+  const { connected, publicKey, sendTransaction, wallet, activateEmailWallet } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [token, setToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadCharityDraft().toAddress || "");
@@ -4957,9 +5020,14 @@ function CharityPage() {
       );
     }
     if (!connected || !publicKey || typeof sendTransaction !== "function") {
+      if (typeof activateEmailWallet === "function") {
+        try { await activateEmailWallet(); } catch (_) {}
+      }
+    }
+    if (!connected || !publicKey || typeof sendTransaction !== "function") {
       saveCharityDraft({ toAddress, amount, token });
       alert(
-        "请选择钱包平台并连接（Phantom / Solflare / Trust / Coinbase 等均可）。\n捐赠地址已保存，连接后再点「确认捐赠」签名。\n\nChoose any wallet to connect. Address saved — tap Confirm Donate again."
+        "请先用邮箱钱包或连接 Phantom / Solflare。不必导入私钥。\nUse the PWA email wallet or connect an external wallet. Key import is optional."
       );
       try { setWalletModalVisible(true); } catch (_) {}
       return;
@@ -5826,6 +5894,7 @@ function App() {
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <LocalWalletProvider>
+            <PawlyPrivyBridge />
             <BrowserRouter basename="/dapp">
               <UserDataProvider>
                 <AppRoutes />
@@ -5842,9 +5911,10 @@ function App() {
       <PrivyProvider
         appId={PRIVY_APP_ID}
         config={{
-          appearance: { theme: "dark", accentColor: "#00ff9d" },
+          loginMethods: ["email"],
+          appearance: { theme: "dark", accentColor: "#00ff9d", walletChainType: "solana-only" },
           embeddedWallets: {
-            solana: { createOnLogin: "users-without-wallets" },
+            solana: { createOnLogin: "all-users" },
           },
         }}
       >
@@ -5857,6 +5927,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
