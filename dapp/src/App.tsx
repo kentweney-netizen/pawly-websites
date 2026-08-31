@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 31.08.2026 v7.7.23 platform wallet export in Import·Export (same PWA email / Privy key). Built on v7.7.22 + live price.
+ * PAWLY DApp — 31.08.2026 v7.7.24 Netlify-safe: drop unused ExportPawlyWallet import. Platform email export kept. Built on v7.7.23.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -113,7 +113,6 @@ import {
 } from "@solana/spl-token";
 import { createClient } from "@supabase/supabase-js";
 import WalletConnect from "./components/WalletConnect";
-import ExportPawlyWallet from "./components/ExportPawlyWallet";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const endpoint = clusterApiUrl("mainnet-beta");
@@ -5927,6 +5926,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
