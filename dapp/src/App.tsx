@@ -341,6 +341,17 @@ const HELIUS_RPC_GLOBAL =
   "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
 const LAMPORTS_PER_SOL = 1e9;
 const BASE_FEE_LAMPORTS = 5000;
+/** v7.7.26 代付：填热钱包公钥后 Payment/Charity 可由平台垫 SOL，用户用 PAWLY 付手续费 */
+const PAWLY_GAS_SPONSOR = String(
+  (typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_PAWLY_GAS_SPONSOR) ||
+    ""
+).trim();
+const SPONSOR_FN = "/functions/v1/sponsor-dapp-tx";
+function sponsorLive() {
+  return PAWLY_GAS_SPONSOR.length >= 32;
+}
 
 /** 读取钱包某代币余额（主网，有地址即可） */
 async function fetchTokenBalance(owner, token) {
@@ -384,6 +395,66 @@ function toRawAmount(uiAmount, token) {
 function getConnection() {
   return new Connection(HELIUS_RPC_GLOBAL, "confirmed");
 }
+
+async function estimatePawlyGasFeeUi() {
+  let solUsd = 150;
+  let pawlyUsd = 0;
+  try {
+    const s = await fetchSolUsdPrice();
+    if (s && Number(s.usd) > 0) solUsd = Number(s.usd);
+  } catch (_) {}
+  try {
+    const p = await fetchPawlyUsdPrice();
+    if (p && Number(p.usd) > 0) pawlyUsd = Number(p.usd);
+  } catch (_) {}
+  const solCost = 0.00002;
+  if (!(pawlyUsd > 0)) return { ui: 2, solUsd, pawlyUsd: null, source: "fallback" };
+  const raw = (solCost * solUsd) / pawlyUsd;
+  const ui = Math.max(1, Math.ceil(raw * 2.5 * 100) / 100);
+  return { ui, solUsd, pawlyUsd, source: "live" };
+}
+
+async function sponsorBroadcast(signedTx, feePawly) {
+  const base = SUPABASE_URL.replace(/\/$/, "");
+  const raw =
+    signedTx instanceof VersionedTransaction
+      ? signedTx.serialize()
+      : signedTx.serialize();
+  let b64 = "";
+  try {
+    b64 = btoa(String.fromCharCode.apply(null, Array.from(raw)));
+  } catch (_) {
+    let s = "";
+    for (let i = 0; i < raw.length; i++) s += String.fromCharCode(raw[i]);
+    b64 = btoa(s);
+  }
+  const r = await fetch(base + SPONSOR_FN, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + SUPABASE_KEY,
+      apikey: SUPABASE_KEY,
+    },
+    body: JSON.stringify({ transaction: b64, feePawly: Number(feePawly) || 0 }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.signature) {
+    throw new Error(d.error || "sponsor broadcast failed / 代付广播失败");
+  }
+  return d.signature;
+}
+
+async function userPartialSign(transaction, wallet, signTransaction) {
+  if (typeof signTransaction === "function") {
+    return await signTransaction(transaction);
+  }
+  const adapter = wallet && (wallet.adapter || wallet);
+  if (adapter && typeof adapter.signTransaction === "function") {
+    return await adapter.signTransaction(transaction);
+  }
+  throw new Error("Wallet cannot partial-sign / 钱包无法单独签名（代付需要 signTransaction）");
+}
+
 
 
 /**
@@ -507,7 +578,7 @@ async function resolveTokenProgramId(connection, mint) {
  * - 收款方无 ATA 同笔创建 + SOL 租金预检
  * - Versioned → legacy 回退
  */
-async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, toAddress, uiAmount }) {
+async function sendTokenTransfer({ publicKey, sendTransaction, wallet, signTransaction, token, toAddress, uiAmount }) {
   if (!publicKey || !sendTransaction) {
     throw new Error("Wallet not connected / 请先连接钱包");
   }
@@ -669,12 +740,76 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
     }
   }
 
+  let feePawlyUi = 0;
+  let payerKey = publicKey;
+  const wantSponsor = sponsorLive() && token !== "SOL";
+  if (wantSponsor) {
+    try {
+      const feeQuote = await estimatePawlyGasFeeUi();
+      feePawlyUi = feeQuote.ui;
+      const sponsorPk = new PublicKey(PAWLY_GAS_SPONSOR);
+      const pawlyMint = new PublicKey(TOKEN_MINTS.PAWLY);
+      const pawlyProg = await resolveTokenProgramId(connection, pawlyMint);
+      const userPawlyAta = await getAssociatedTokenAddress(
+        pawlyMint, publicKey, false, pawlyProg, ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      const treasPawlyAta = await getAssociatedTokenAddress(
+        pawlyMint, sponsorPk, false, pawlyProg, ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      const feeRaw = toRawAmount(feePawlyUi, "PAWLY");
+      if (feeRaw == null || feeRaw <= 0) throw new Error("fee quote invalid");
+      const treasInfo = await connection.getAccountInfo(treasPawlyAta, "confirmed");
+      if (!treasInfo) {
+        ixs.unshift(
+          createAssociatedTokenAccountInstruction(
+            sponsorPk, treasPawlyAta, sponsorPk, pawlyMint, pawlyProg, ASSOCIATED_TOKEN_PROGRAM_ID
+          )
+        );
+      }
+      // rewrite ATA-create payer to sponsor if we added one for recipient
+      for (let i = 0; i < ixs.length; i++) {
+        const ix = ixs[i];
+        if (
+          ix &&
+          ix.programId &&
+          ix.programId.equals &&
+          ix.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID) &&
+          ix.keys &&
+          ix.keys[0] &&
+          ix.keys[0].pubkey &&
+          ix.keys[0].pubkey.equals(publicKey)
+        ) {
+          ix.keys[0].pubkey = sponsorPk;
+        }
+      }
+      try {
+        ixs.push(
+          createTransferCheckedInstruction(
+            userPawlyAta, pawlyMint, treasPawlyAta, publicKey,
+            BigInt(feeRaw), TOKEN_DECIMALS.PAWLY, [], pawlyProg
+          )
+        );
+      } catch (_) {
+        ixs.push(
+          createTransferInstruction(
+            userPawlyAta, treasPawlyAta, publicKey, feeRaw, [], pawlyProg
+          )
+        );
+      }
+      payerKey = sponsorPk;
+    } catch (eFee) {
+      console.warn("[PAWLY] sponsor quote/build skip:", eFee && eFee.message);
+      feePawlyUi = 0;
+      payerKey = publicKey;
+    }
+  }
+
   const latest = await connection.getLatestBlockhash("confirmed");
   const blockhash = latest.blockhash;
   const lastValidBlockHeight = latest.lastValidBlockHeight;
 
   const messageV0 = new TransactionMessage({
-    payerKey: publicKey,
+    payerKey: payerKey,
     recentBlockhash: blockhash,
     instructions: ixs,
   }).compileToV0Message();
@@ -682,13 +817,18 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, token, to
 
   let sig;
   try {
-    sig = await walletSignAndSend({
-      connection: connection,
-      transaction: vtx,
-      sendTransaction: sendTransaction,
-      wallet: wallet,
-      allowSkipPreflightFallback: true,
-    });
+    if (payerKey !== publicKey && feePawlyUi > 0) {
+      const signed = await userPartialSign(vtx, wallet, signTransaction);
+      sig = await sponsorBroadcast(signed, feePawlyUi);
+    } else {
+      sig = await walletSignAndSend({
+        connection: connection,
+        transaction: vtx,
+        sendTransaction: sendTransaction,
+        wallet: wallet,
+        allowSkipPreflightFallback: true,
+      });
+    }
   } catch (e) {
     const msg = String((e && e.message) || e);
     try {
@@ -1846,6 +1986,14 @@ function GasEstimateBox({ presetKey, refreshKey }) {
           · 建议钱包保留足够 SOL 作为手续费；余额过低时 Transfer / Swap 易失败。
           <br />
           · Keep enough SOL for fees; low SOL often causes Transfer/Swap failure.
+          <br />
+          {sponsorLive()
+            ? "· Payment / Charity 已开 PAWLY 代付 Gas：平台垫 SOL，手续费从您的 PAWLY 扣。"
+            : "· Payment / Charity 即将支持 PAWLY 代付 Gas；未配置热钱包前仍需少量 SOL。"}
+          <br />
+          {sponsorLive()
+            ? "· Payment / Charity can sponsor SOL; you pay the fee in PAWLY."
+            : "· PAWLY-paid gas is wired; it turns on when the sponsor wallet is set."}
         </div>
       ) : null}
     </div>
@@ -3322,7 +3470,7 @@ function ScanQrModal({ onDetected, onClose }) {
 }
 
 function PaymentPage() {
-  const { publicKey, connected, sendTransaction, wallet, activateEmailWallet } = usePawlyWallet();
+  const { publicKey, connected, sendTransaction, wallet, signTransaction, activateEmailWallet } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [payToken, setPayToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadPayDraft().toAddress || "");
@@ -3468,6 +3616,21 @@ function PaymentPage() {
       alert("余额不足\nInsufficient balance");
       return;
     }
+    if (sponsorLive() && payToken === "PAWLY") {
+      try {
+        const feeQ = await estimatePawlyGasFeeUi();
+        if (amt + (feeQ.ui || 0) > realBalance + 1e-12) {
+          alert(
+            "PAWLY 余额需覆盖货款 + 代付手续费约 " +
+              feeQ.ui +
+              " PAWLY\nNeed extra ~" +
+              feeQ.ui +
+              " PAWLY for sponsored gas"
+          );
+          return;
+        }
+      } catch (_) {}
+    }
     setTxLoading(true);
     setLastSig("");
     setTxError("");
@@ -3476,6 +3639,7 @@ function PaymentPage() {
         publicKey,
         sendTransaction,
         wallet,
+        signTransaction,
         token: payToken,
         toAddress,
         uiAmount: amt,
@@ -4865,7 +5029,7 @@ function BuyPage() {
 }
 
 function CharityPage() {
-  const { connected, publicKey, sendTransaction, wallet, activateEmailWallet } = usePawlyWallet();
+  const { connected, publicKey, sendTransaction, wallet, signTransaction, activateEmailWallet } = usePawlyWallet();
   const { pwaData } = useUserData();
   const [token, setToken] = useState("USDC");
   const [toAddress, setToAddress] = useState(() => loadCharityDraft().toAddress || "");
@@ -4979,6 +5143,7 @@ function CharityPage() {
         publicKey,
         sendTransaction,
         wallet,
+        signTransaction,
         token,
         toAddress,
         uiAmount: amt,
@@ -5857,6 +6022,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
