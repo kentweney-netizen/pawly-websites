@@ -598,6 +598,15 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, signTrans
 
   const connection = getConnection();
   const ixs = [];
+  const useSponsor = sponsorLive() && token !== "SOL";
+  let sponsorPkEarly = null;
+  if (useSponsor) {
+    try {
+      sponsorPkEarly = new PublicKey(PAWLY_GAS_SPONSOR);
+    } catch (_) {
+      sponsorPkEarly = null;
+    }
+  }
 
   if (token === "SOL") {
     ixs.push(
@@ -688,27 +697,40 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, signTrans
       );
     }
 
-    // 收款方无 ATA：同笔创建，并预检 SOL 租金（避免 iOS 静默失败）
+    // 收款方无 ATA：同笔创建。代付开启时租金由热钱包出，不检查用户 SOL。
     const toAtaInfo = await connection.getAccountInfo(toAta, "confirmed");
     if (!toAtaInfo) {
-      const solLamports = await connection.getBalance(publicKey, "confirmed");
-      const need = 2500000; // ~0.0025 SOL buffer — no numeric separator (iOS WebView)
-      if (solLamports < need) {
-        throw new Error(
-          "SOL 不足：对方首次接收 " + token + " 需新建代币账户（约 0.002 SOL 租金）+ 手续费。请至少保留 0.01 SOL。\n" +
-            "Not enough SOL: first-time " + token + " receive needs ~0.002 SOL rent + fees. Keep >= 0.01 SOL."
+      if (useSponsor && sponsorPkEarly) {
+        ixs.push(
+          createAssociatedTokenAccountInstruction(
+            sponsorPkEarly,
+            toAta,
+            toPubkey,
+            mint,
+            tokenProgramId,
+            ASSOCIATED_TOKEN_PROGRAM_ID
+          )
+        );
+      } else {
+        const solLamports = await connection.getBalance(publicKey, "confirmed");
+        const need = 2500000;
+        if (solLamports < need) {
+          throw new Error(
+            "SOL 不足：对方首次接收 " + token + " 需新建代币账户（约 0.002 SOL 租金）+ 手续费。请至少保留 0.01 SOL。\n" +
+              "Not enough SOL: first-time " + token + " receive needs ~0.002 SOL rent + fees. Keep >= 0.01 SOL."
+          );
+        }
+        ixs.push(
+          createAssociatedTokenAccountInstruction(
+            publicKey,
+            toAta,
+            toPubkey,
+            mint,
+            tokenProgramId,
+            ASSOCIATED_TOKEN_PROGRAM_ID
+          )
         );
       }
-      ixs.push(
-        createAssociatedTokenAccountInstruction(
-          publicKey,
-          toAta,
-          toPubkey,
-          mint,
-          tokenProgramId,
-          ASSOCIATED_TOKEN_PROGRAM_ID
-        )
-      );
     }
 
     // TransferChecked（decimals 明确，钱包模拟更稳）；失败回退普通 Transfer
@@ -1979,21 +2001,21 @@ function GasEstimateBox({ presetKey, refreshKey }) {
           <br />
           · Network & priority fees vary; trust the amount shown in your wallet.
           <br />
-          · 转 USDC/USDT 时若对方首次收款，可能需额外 SOL 用于新建代币账户（租金）。
+          · Payment / Charity 代付开启时：网络费和首次收款账户租金都由平台热钱包出，用户只扣 PAWLY。
           <br />
-          · First-time token receive may need extra SOL for account rent (ATA).
+          · With sponsor on, rent + network fee come from the hot wallet; you only spend PAWLY.
           <br />
-          · 建议钱包保留足够 SOL 作为手续费；余额过低时 Transfer / Swap 易失败。
+          · Swap 仍可能需要用户钱包里的 SOL。
           <br />
-          · Keep enough SOL for fees; low SOL often causes Transfer/Swap failure.
-          <br />
-          {sponsorLive()
-            ? "· Payment / Charity 已开 PAWLY 代付 Gas：平台垫 SOL，手续费从您的 PAWLY 扣。"
-            : "· Payment / Charity 即将支持 PAWLY 代付 Gas；未配置热钱包前仍需少量 SOL。"}
+          · Swap may still need SOL in the user wallet.
           <br />
           {sponsorLive()
-            ? "· Payment / Charity can sponsor SOL; you pay the fee in PAWLY."
-            : "· PAWLY-paid gas is wired; it turns on when the sponsor wallet is set."}
+            ? "· Payment / Charity 已开 PAWLY 代付（含 ATA 租金）。"
+            : "· 未配置热钱包时，首次收款仍可能提示保留少量 SOL。"}
+          <br />
+          {sponsorLive()
+            ? "· Payment / Charity sponsor includes ATA rent."
+            : "· Without a sponsor wallet, first-time receive may still ask for a little SOL."}
         </div>
       ) : null}
     </div>
@@ -6022,6 +6044,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
