@@ -428,15 +428,28 @@ async function sponsorBroadcast(signedTx, feePawly) {
     for (let i = 0; i < raw.length; i++) s += String.fromCharCode(raw[i]);
     b64 = btoa(s);
   }
-  const r = await fetch(base + SPONSOR_FN, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + SUPABASE_KEY,
-      apikey: SUPABASE_KEY,
-    },
-    body: JSON.stringify({ transaction: b64, feePawly: Number(feePawly) || 0 }),
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(function () { ctrl.abort(); }, 60000);
+  let r;
+  try {
+    r = await fetch(base + SPONSOR_FN, {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + SUPABASE_KEY,
+        apikey: SUPABASE_KEY,
+      },
+      body: JSON.stringify({ transaction: b64, feePawly: Number(feePawly) || 0 }),
+    });
+  } catch (e) {
+    throw new Error(
+      "Sponsor request dropped / 代付通道中断（EarlyDrop）。请等 3 秒再试一笔，勿连点。 " +
+        String((e && e.message) || e)
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.signature) {
     throw new Error(d.error || "sponsor broadcast failed / 代付广播失败");
@@ -853,6 +866,12 @@ async function sendTokenTransfer({ publicKey, sendTransaction, wallet, signTrans
     }
   } catch (e) {
     const msg = String((e && e.message) || e);
+    if (payerKey !== publicKey && feePawlyUi > 0) {
+      throw new Error(
+        msg +
+          "\n代付未上链，未改回用户自付 SOL（避免出现有签名但 Solscan 空白）。请稍后重试。"
+      );
+    }
     try {
       const legacy = new Transaction();
       legacy.recentBlockhash = blockhash;
