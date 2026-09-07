@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 31.08.2026 v7.7.25 no forced Privy login. Sign with adapter or local key only. PWA email/wallet for data. Built from v7.7.21 + live price.
+ * PAWLY DApp — 07.09.2026 v7.7.29 Swap PAWLY-paid gas (Jupiter swap-instructions + sponsor feePayer). From v7.7.28.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -97,6 +97,7 @@ import {
   Keypair,
   Transaction,
   TransactionMessage,
+  TransactionInstruction,
   SystemProgram,
   VersionedTransaction,
   LAMPORTS_PER_SOL as WEB3_LAMPORTS,
@@ -1053,9 +1054,160 @@ async function getBestSwapQuote(fromToken, toToken, uiAmount) {
   );
 }
 
+function jupJsonToIx(j) {
+  if (!j || !j.programId || !j.data) return null;
+  return new TransactionInstruction({
+    programId: new PublicKey(j.programId),
+    keys: (j.accounts || []).map(function (a) {
+      return {
+        pubkey: new PublicKey(a.pubkey),
+        isSigner: !!a.isSigner,
+        isWritable: !!a.isWritable,
+      };
+    }),
+    data: Uint8Array.from(atob(j.data), function (c) { return c.charCodeAt(0); }),
+  });
+}
+
+async function fetchJupiterSwapInstructions(quoteResponse, userPkStr) {
+  const body = JSON.stringify({
+    quoteResponse,
+    userPublicKey: userPkStr,
+    wrapAndUnwrapSol: true,
+    dynamicComputeUnitLimit: true,
+    prioritizationFeeLamports: 50000,
+  });
+  const urls = [
+    "https://lite-api.jup.ag/swap/v1/swap-instructions",
+    "https://quote-api.jup.ag/v6/swap-instructions",
+  ];
+  let lastErr = "";
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(function () { ctrl.abort(); }, 20000);
+      try {
+        const res = await fetch(urls[i], {
+          method: "POST",
+          signal: ctrl.signal,
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: body,
+        });
+        const t = await res.text();
+        if (!res.ok) {
+          lastErr = t.slice(0, 180);
+          continue;
+        }
+        const j = JSON.parse(t);
+        if (j && (j.swapInstruction || j.swapInstructionSimple)) return j;
+        lastErr = "no swapInstruction";
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch (e) {
+      lastErr = String((e && e.message) || e);
+    }
+  }
+  throw new Error("Jupiter swap-instructions failed: " + lastErr);
+}
+
+async function appendPawlySponsorFeeIxs(connection, ixs, publicKey, sponsorPk) {
+  const feeQuote = await estimatePawlyGasFeeUi();
+  const feePawlyUi = feeQuote.ui;
+  const pawlyMint = new PublicKey(TOKEN_MINTS.PAWLY);
+  const pawlyProg = await resolveTokenProgramId(connection, pawlyMint);
+  const userPawlyAta = await getAssociatedTokenAddress(
+    pawlyMint, publicKey, false, pawlyProg, ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+  const treasPawlyAta = await getAssociatedTokenAddress(
+    pawlyMint, sponsorPk, false, pawlyProg, ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+  const feeRaw = toRawAmount(feePawlyUi, "PAWLY");
+  if (feeRaw == null || feeRaw <= 0) throw new Error("fee quote invalid");
+  const treasInfo = await connection.getAccountInfo(treasPawlyAta, "confirmed");
+  if (!treasInfo) {
+    ixs.push(
+      createAssociatedTokenAccountInstruction(
+        sponsorPk, treasPawlyAta, sponsorPk, pawlyMint, pawlyProg, ASSOCIATED_TOKEN_PROGRAM_ID
+      )
+    );
+  }
+  try {
+    ixs.push(
+      createTransferCheckedInstruction(
+        userPawlyAta, pawlyMint, treasPawlyAta, publicKey,
+        BigInt(feeRaw), TOKEN_DECIMALS.PAWLY, [], pawlyProg
+      )
+    );
+  } catch (_) {
+    ixs.push(
+      createTransferInstruction(
+        userPawlyAta, treasPawlyAta, publicKey, feeRaw, [], pawlyProg
+      )
+    );
+  }
+  return feePawlyUi;
+}
+
+async function executeSponsoredJupiterSwap({ publicKey, wallet, signTransaction, quoteResponse }) {
+  const sponsorPk = new PublicKey(PAWLY_GAS_SPONSOR);
+  const pack = await fetchJupiterSwapInstructions(quoteResponse, publicKey.toString());
+  const ixs = [];
+  const buckets = []
+    .concat(pack.computeBudgetInstructions || [])
+    .concat(pack.setupInstructions || [])
+    .concat(pack.swapInstruction ? [pack.swapInstruction] : [])
+    .concat(pack.cleanupInstruction ? [pack.cleanupInstruction] : [])
+    .concat(pack.otherInstructions || []);
+  for (let i = 0; i < buckets.length; i++) {
+    const ix = jupJsonToIx(buckets[i]);
+    if (ix) ixs.push(ix);
+  }
+  if (!ixs.length) throw new Error("Jupiter returned no instructions");
+  const connection = getConnection();
+  const feePawlyUi = await appendPawlySponsorFeeIxs(connection, ixs, publicKey, sponsorPk);
+  const altAddrs = pack.addressLookupTableAddresses || [];
+  const alts = [];
+  for (let i = 0; i < altAddrs.length; i++) {
+    try {
+      const r = await connection.getAddressLookupTable(new PublicKey(altAddrs[i]));
+      if (r && r.value) alts.push(r.value);
+    } catch (_) {}
+  }
+  const latest = await connection.getLatestBlockhash("confirmed");
+  const messageV0 = new TransactionMessage({
+    payerKey: sponsorPk,
+    recentBlockhash: latest.blockhash,
+    instructions: ixs,
+  }).compileToV0Message(alts);
+  const vtx = new VersionedTransaction(messageV0);
+  const signed = await userPartialSign(vtx, wallet, signTransaction);
+  const sig = await sponsorBroadcast(signed, feePawlyUi);
+  try {
+    await connection.confirmTransaction(
+      { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+      "confirmed"
+    );
+  } catch (_) {}
+  return sig;
+}
+
 /** Jupiter 执行兑换 */
-async function executeJupiterSwap({ publicKey, sendTransaction, wallet, quoteResponse }) {
+async function executeJupiterSwap({ publicKey, sendTransaction, wallet, signTransaction, quoteResponse }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
+
+  if (sponsorLive()) {
+    try {
+      return await executeSponsoredJupiterSwap({
+        publicKey,
+        wallet,
+        signTransaction,
+        quoteResponse,
+      });
+    } catch (eSp) {
+      console.warn("[PAWLY] sponsored swap fallback to user-SOL:", eSp && eSp.message);
+    }
+  }
 
   let swapTransaction = null;
 
@@ -1205,7 +1357,7 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, computeD
  * 执行兑换：始终优先 Jupiter 真实交易（避免 Raydium 空 tx）
  * 若当前 best 不是 Jupiter，会重新拉 Jupiter 报价再执行
  */
-async function executeSwapRoute({ publicKey, sendTransaction, wallet, best, fromToken, toToken, uiAmount }) {
+async function executeSwapRoute({ publicKey, sendTransaction, wallet, signTransaction, best, fromToken, toToken, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   if (!best) throw new Error("No quote");
 
@@ -1223,6 +1375,7 @@ async function executeSwapRoute({ publicKey, sendTransaction, wallet, best, from
       publicKey,
       sendTransaction,
       wallet,
+      signTransaction,
       quoteResponse: jup,
     });
   } catch (e1) {
@@ -1233,6 +1386,7 @@ async function executeSwapRoute({ publicKey, sendTransaction, wallet, best, from
         publicKey,
         sendTransaction,
         wallet,
+        signTransaction,
         quoteResponse: q2.raw,
       });
     } catch (e2) {
@@ -2020,13 +2174,13 @@ function GasEstimateBox({ presetKey, refreshKey }) {
           <br />
           · Network & priority fees vary; trust the amount shown in your wallet.
           <br />
-          · Payment / Charity 代付开启时：网络费和首次收款账户租金都由平台热钱包出，用户只扣 PAWLY。
+          · Payment / Charity / Swap 代付开启时：网络费和 ATA 租金由热钱包出，用户手续费扣 PAWLY。
           <br />
-          · With sponsor on, rent + network fee come from the hot wallet; you only spend PAWLY.
+          · With sponsor on, rent + network fee come from the hot wallet; fee is PAWLY.
           <br />
-          · Swap 仍可能需要用户钱包里的 SOL。
+          · 用 SOL 当兑换本金时，本金仍从用户钱包扣 SOL（那是兑换资产，不是 Gas）。
           <br />
-          · Swap may still need SOL in the user wallet.
+          · Swapping FROM SOL still spends your SOL as the trade size, not as gas.
           <br />
           {sponsorLive()
             ? "· Payment / Charity 已开 PAWLY 代付（含 ATA 租金）。"
@@ -4345,7 +4499,7 @@ function PaymentPage() {
 }
 
 function SwapPage() {
-  const { connected, publicKey, sendTransaction, wallet } = usePawlyWallet();
+  const { connected, publicKey, sendTransaction, wallet, signTransaction } = usePawlyWallet();
   const [fromToken, setFromToken] = useState("SOL");
   const [toToken, setToToken] = useState("USDC");
   const [amount, setAmount] = useState("");
@@ -4572,6 +4726,7 @@ function SwapPage() {
         publicKey,
         sendTransaction,
         wallet,
+        signTransaction,
         best: bestQuote,
         fromToken,
         toToken,
@@ -6063,6 +6218,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
