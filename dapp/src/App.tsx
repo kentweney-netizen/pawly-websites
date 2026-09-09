@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.09.2026 v7.7.39 MAX SOL keep = live rent-exempt from RPC, not hardcoded gas. From v7.7.38.
+ * PAWLY DApp — 09.09.2026 v7.7.40 sponsor pays wrap-SOL account rent; Phantom sim retry. From v7.7.39.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -99,6 +99,7 @@ import {
   TransactionMessage,
   TransactionInstruction,
   SystemProgram,
+  SystemInstruction,
   VersionedTransaction,
   LAMPORTS_PER_SOL as WEB3_LAMPORTS,
 } from "@solana/web3.js";
@@ -483,12 +484,41 @@ async function sponsorBroadcast(signedTx, feePawly) {
 }
 
 async function userPartialSign(transaction, wallet, signTransaction) {
-  if (typeof signTransaction === "function") {
-    return await signTransaction(transaction);
-  }
   const adapter = wallet && (wallet.adapter || wallet);
+  const trySign = async function (fn, arg) {
+    return await fn(arg);
+  };
+  const tryAll = async function () {
+    if (adapter && typeof adapter.signAllTransactions === "function") {
+      const arr = await adapter.signAllTransactions([transaction]);
+      return (arr && arr[0]) || transaction;
+    }
+    return null;
+  };
+  const isSim = function (e) {
+    return /simulat/i.test(String((e && e.message) || e || ""));
+  };
+  if (typeof signTransaction === "function") {
+    try {
+      return await trySign(signTransaction, transaction);
+    } catch (e1) {
+      if (isSim(e1)) {
+        const alt = await tryAll();
+        if (alt) return alt;
+      }
+      throw e1;
+    }
+  }
   if (adapter && typeof adapter.signTransaction === "function") {
-    return await adapter.signTransaction(transaction);
+    try {
+      return await adapter.signTransaction(transaction);
+    } catch (e2) {
+      if (isSim(e2)) {
+        const alt = await tryAll();
+        if (alt) return alt;
+      }
+      throw e2;
+    }
   }
   throw new Error("Wallet cannot partial-sign / 钱包无法单独签名（代付需要 signTransaction）");
 }
@@ -1331,6 +1361,43 @@ function rewriteJupAtaPayerToSponsor(ixs, userPk, sponsorPk) {
   }
 }
 
+/** Wrap SOL / 开户：把租金出资人改成热钱包，不改用户货款 transfer */
+function rewriteSystemRentPayerToSponsor(ixs, userPk, sponsorPk, tradeLamports) {
+  if (!ixs || !userPk || !sponsorPk) return;
+  const trade = Number(tradeLamports) > 0 ? Number(tradeLamports) : 0;
+  for (let i = 0; i < ixs.length; i++) {
+    const ix = ixs[i];
+    if (!ix || !ix.programId || !ix.programId.equals || !ix.programId.equals(SystemProgram.programId)) continue;
+    if (!ix.keys || !ix.keys[0] || !ix.keys[0].pubkey || !ix.keys[0].pubkey.equals(userPk)) continue;
+    let kind = "";
+    try {
+      kind = SystemInstruction.decodeInstructionType(ix);
+    } catch (_) {
+      kind = "";
+    }
+    if (kind === "Create" || kind === "CreateWithSeed" || kind === "Allocate" || kind === "AllocateWithSeed") {
+      ix.keys[0].pubkey = sponsorPk;
+      ix.keys[0].isSigner = true;
+      ix.keys[0].isWritable = true;
+      continue;
+    }
+    if (kind === "Transfer") {
+      let lamports = 0;
+      try {
+        lamports = Number(SystemInstruction.decodeTransfer(ix).lamports) || 0;
+      } catch (_) {
+        lamports = 0;
+      }
+      const looksRent = lamports > 0 && lamports <= 4000000 && (trade <= 0 || Math.abs(lamports - trade) > 1000);
+      if (looksRent) {
+        ix.keys[0].pubkey = sponsorPk;
+        ix.keys[0].isSigner = true;
+        ix.keys[0].isWritable = true;
+      }
+    }
+  }
+}
+
 async function fetchJupiterSwapInstructions(quoteResponse, userPkStr) {
   const payload = {
     quoteResponse,
@@ -1584,7 +1651,7 @@ async function loadAltsFromMessage(connection, message) {
 }
 
 /** 任意已编译交易：改 fee payer=热钱包，ATA 租金热钱包出，可选附加 PAWLY 手续费 */
-async function sponsorizeAndSend({ connection, transaction, publicKey, wallet, signTransaction, attachFee }) {
+async function sponsorizeAndSend({ connection, transaction, publicKey, wallet, signTransaction, attachFee, tradeLamports }) {
   if (!sponsorLive()) throw new Error("sponsor offline");
   const sponsorPk = new PublicKey(PAWLY_GAS_SPONSOR);
   let ixs = [];
@@ -1603,6 +1670,7 @@ async function sponsorizeAndSend({ connection, transaction, publicKey, wallet, s
   }
   if (!ixs.length) throw new Error("sponsorize: no instructions");
   rewriteJupAtaPayerToSponsor(ixs, publicKey, sponsorPk);
+  rewriteSystemRentPayerToSponsor(ixs, publicKey, sponsorPk, tradeLamports);
   let feePawlyUi = 0;
   if (attachFee) {
     feePawlyUi = await appendPawlySponsorFeeIxs(connection, ixs, publicKey, sponsorPk);
@@ -1723,6 +1791,7 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, signTran
           wallet,
           signTransaction,
           attachFee,
+          tradeLamports: Number(computeData && (computeData.inputAmount || computeData.inAmount)) || 0,
         });
       } else {
         sig = await walletSignAndSend({
