@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 07.09.2026 v7.7.29 Swap PAWLY-paid gas (Jupiter swap-instructions + sponsor feePayer). From v7.7.28.
+ * PAWLY DApp — 09.09.2026 v7.7.31 SOL→token: sponsor pays ATA rent; trade SOL only as principal. From v7.7.30.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1069,14 +1069,37 @@ function jupJsonToIx(j) {
   });
 }
 
+function rewriteJupAtaPayerToSponsor(ixs, userPk, sponsorPk) {
+  if (!ixs || !userPk || !sponsorPk) return;
+  for (let i = 0; i < ixs.length; i++) {
+    const ix = ixs[i];
+    if (
+      ix &&
+      ix.programId &&
+      ix.programId.equals &&
+      ix.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID) &&
+      ix.keys &&
+      ix.keys[0] &&
+      ix.keys[0].pubkey &&
+      ix.keys[0].pubkey.equals(userPk)
+    ) {
+      ix.keys[0].pubkey = sponsorPk;
+      ix.keys[0].isSigner = true;
+      ix.keys[0].isWritable = true;
+    }
+  }
+}
+
 async function fetchJupiterSwapInstructions(quoteResponse, userPkStr) {
-  const body = JSON.stringify({
+  const payload = {
     quoteResponse,
     userPublicKey: userPkStr,
     wrapAndUnwrapSol: true,
     dynamicComputeUnitLimit: true,
     prioritizationFeeLamports: 50000,
-  });
+  };
+  if (sponsorLive()) payload.payer = PAWLY_GAS_SPONSOR;
+  const body = JSON.stringify(payload);
   const urls = [
     "https://lite-api.jup.ag/swap/v1/swap-instructions",
     "https://quote-api.jup.ag/v6/swap-instructions",
@@ -1164,6 +1187,7 @@ async function executeSponsoredJupiterSwap({ publicKey, wallet, signTransaction,
     if (ix) ixs.push(ix);
   }
   if (!ixs.length) throw new Error("Jupiter returned no instructions");
+  rewriteJupAtaPayerToSponsor(ixs, publicKey, sponsorPk);
   const connection = getConnection();
   const feePawlyUi = await appendPawlySponsorFeeIxs(connection, ixs, publicKey, sponsorPk);
   const altAddrs = pack.addressLookupTableAddresses || [];
@@ -1205,7 +1229,13 @@ async function executeJupiterSwap({ publicKey, sendTransaction, wallet, signTran
         quoteResponse,
       });
     } catch (eSp) {
-      console.warn("[PAWLY] sponsored swap fallback to user-SOL:", eSp && eSp.message);
+      const raw = (eSp && eSp.message) || String(eSp || "sponsored swap failed");
+      throw new Error(
+        "Swap sponsor failed — will not fall back to your SOL for gas. " +
+          "Use the official dApp; if you sell SOL that SOL is the trade size, not the fee. / " +
+          "代付失败，不会改回用你的 SOL 付手续费。" +
+          (raw ? " " + raw : "")
+      );
     }
   }
 
@@ -2178,9 +2208,9 @@ function GasEstimateBox({ presetKey, refreshKey }) {
           <br />
           · With sponsor on, rent + network fee come from the hot wallet; fee is PAWLY.
           <br />
-          · 用 SOL 当兑换本金时，本金仍从用户钱包扣 SOL（那是兑换资产，不是 Gas）。
+          · 用 SOL 当兑换本金时，本金仍从用户钱包扣 SOL（那是兑换资产，不是 Gas）。代付失败不会改回让你付 SOL 手续费。
           <br />
-          · Swapping FROM SOL still spends your SOL as the trade size, not as gas.
+          · Swapping FROM SOL still spends your SOL as the trade size, not as gas. Sponsor failure does not fall back to you paying SOL gas.
           <br />
           {sponsorLive()
             ? "· Payment / Charity 已开 PAWLY 代付（含 ATA 租金）。"
@@ -4718,6 +4748,11 @@ function SwapPage() {
     if (amt > realBalance + 1e-12) {
       return alert("余额不足\nInsufficient balance");
     }
+    if (fromToken === "SOL" && !sponsorLive() && amt > realBalance - 0.002) {
+      return alert(
+        "未开代付时，用 SOL 换币请不要把钱包几乎掏空（租金/Gas 仍从你的 SOL 扣）。\nWithout sponsor, leave a little SOL when selling SOL."
+      );
+    }
     setTxLoading(true);
     setLastSig("");
     setTxError("");
@@ -4890,6 +4925,14 @@ function SwapPage() {
             </p>
           )}
         </div>
+
+        {fromToken === "SOL" ? (
+          <p style={{ color: "#ffcc80", fontSize: 12, lineHeight: 1.5, margin: "8px 0 0" }}>
+            卖出 SOL 时，这笔 SOL 是货款。Gas 和开账户租金由热钱包出（扣 PAWLY）。只要货款够即可。
+            <br />
+            Selling SOL spends that SOL as the trade. Gas and ATA rent come from the hot wallet; fee is PAWLY.
+          </p>
+        ) : null}
 
         <GasEstimateBox presetKey="swap" refreshKey={gasKey} />
 
