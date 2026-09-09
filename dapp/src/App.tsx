@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.09.2026 v7.7.35 dApp quote: Raydium + official pool reserves; do not stall on Jupiter TOKEN_NOT_TRADABLE. From v7.7.34.
+ * PAWLY DApp — 09.09.2026 v7.7.37 execute only Jupiter/Raydium; parse Raydium object+array txs. From v7.7.36.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1033,7 +1033,7 @@ async function raydiumQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100)
     outUi,
     inAmount: String(raw),
     priceImpactPct: d.priceImpactPct ?? d.priceImpact,
-    raw: d,
+    raw: Object.assign({}, d, { _envelope: data }),
   };
 }
 
@@ -1594,32 +1594,83 @@ async function sponsorizeAndSend({ connection, transaction, publicKey, wallet, s
   return await sponsorBroadcast(signed, feePawlyUi);
 }
 
+function collectRaydiumTxB64(body) {
+  const out = [];
+  const push = function (x) {
+    if (!x) return;
+    if (typeof x === "string" && x.length > 40) out.push(x);
+    else if (x.transaction) push(x.transaction);
+    else if (x.tx) push(x.tx);
+  };
+  if (!body) return out;
+  if (typeof body === "string") push(body);
+  if (Array.isArray(body)) body.forEach(push);
+  if (body.transaction) push(body.transaction);
+  if (Array.isArray(body.transactions)) body.transactions.forEach(push);
+  if (Array.isArray(body.data)) body.data.forEach(push);
+  else if (body.data) push(body.data);
+  return out;
+}
+
+function raydiumSwapResponseOf(computeData) {
+  if (!computeData) return computeData;
+  if (computeData._envelope) return computeData._envelope;
+  if (computeData.success != null && computeData.data) return computeData;
+  return computeData;
+}
+
 /** Raydium 执行兑换（可能多笔）。代付开启时 fee payer 一律热钱包。 */
 async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, signTransaction, computeData }) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
-    const res = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
-      method: "POST",
-      signal: ctrl.signal,
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        computeUnitPriceMicroLamports: String(computeData?.computeUnitPriceMicroLamports || "100000"),
-        swapResponse: computeData,
-        txVersion: "V0",
-        wallet: publicKey.toString(),
-        wrapSol: true,
-        unwrapSol: true,
-      }),
-    });
-    if (!res.ok) {
+    const payloads = [
+      raydiumSwapResponseOf(computeData),
+      computeData && computeData._envelope ? computeData : null,
+      computeData,
+    ].filter(Boolean);
+    let body = null;
+    let lastTxErr = "";
+    for (let p = 0; p < payloads.length; p++) {
+      const res = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          computeUnitPriceMicroLamports: String(
+            (payloads[p] && payloads[p].computeUnitPriceMicroLamports) ||
+              (computeData && computeData.computeUnitPriceMicroLamports) ||
+              "100000"
+          ),
+          swapResponse: payloads[p],
+          txVersion: "V0",
+          wallet: publicKey.toString(),
+          wrapSol: true,
+          unwrapSol: true,
+        }),
+      });
       const t = await res.text();
-      throw new Error(`Raydium swap tx failed: ${t.slice(0, 220)}`);
+      if (!res.ok) {
+        lastTxErr = t.slice(0, 180);
+        continue;
+      }
+      try {
+        body = JSON.parse(t);
+      } catch (_) {
+        lastTxErr = t.slice(0, 180);
+        continue;
+      }
+      if (body && body.success === false) {
+        lastTxErr = body.msg || body.message || "success=false";
+        body = null;
+        continue;
+      }
+      if (collectRaydiumTxB64(body).length) break;
+      lastTxErr = "empty tx envelope";
+      body = null;
     }
-    const body = await res.json();
-    const list = body?.data || body?.transactions || [];
-    const txs = Array.isArray(list) ? list : [];
-    if (!txs.length) throw new Error("Raydium returned no transactions");
+    const txs = collectRaydiumTxB64(body);
+    if (!txs.length) throw new Error("Raydium returned no transactions" + (lastTxErr ? " (" + lastTxErr + ")" : ""));
     const connection = getConnection();
     const parsed = [];
     for (let i = 0; i < txs.length; i++) {
@@ -1715,12 +1766,8 @@ async function executeOnVenue(venueId, ctx) {
 async function executeSwapRoute({ publicKey, sendTransaction, wallet, signTransaction, best, fromToken, toToken, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   if (!best) throw new Error("No quote");
-  const primary = venueIdOfQuote(best);
-  const order = [];
-  if (primary) order.push(primary);
-  swapVenueOrder(fromToken, toToken).forEach(function (v) {
-    if (order.indexOf(v.id) < 0) order.push(v.id);
-  });
+  const primary = venueIdOfQuote(best) === "jupiter" ? "jupiter" : "raydium";
+  const order = primary === "jupiter" ? ["jupiter", "raydium"] : ["raydium", "jupiter"];
   const errors = [];
   const ctx = { publicKey, sendTransaction, wallet, signTransaction, quote: best, fromToken, toToken, uiAmount };
   for (let i = 0; i < order.length; i++) {
@@ -6567,8 +6614,6 @@ function App() {
 }
 
 export default App;
-
-
 
 
 
