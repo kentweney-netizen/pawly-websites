@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.09.2026 v7.7.31 SOL→token: sponsor pays ATA rent; trade SOL only as principal. From v7.7.30.
+ * PAWLY DApp — 09.09.2026 v7.7.35 dApp quote: Raydium + official pool reserves; do not stall on Jupiter TOKEN_NOT_TRADABLE. From v7.7.34.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -342,7 +342,7 @@ const HELIUS_RPC_GLOBAL =
   "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
 const LAMPORTS_PER_SOL = 1e9;
 const BASE_FEE_LAMPORTS = 5000;
-/** v7.7.26 代付：填热钱包公钥后 Payment/Charity 可由平台垫 SOL，用户用 PAWLY 付手续费 */
+/** v7.7.34 代付：任意已连接的 Solana 钱包（外部适配器 / 本机密钥）+ 任一活路由（Jupiter / Raydium）均可垫 SOL，用户扣 PAWLY */
 const PAWLY_GAS_SPONSOR = String(
   (typeof import.meta !== "undefined" &&
     import.meta.env &&
@@ -994,7 +994,11 @@ async function jupiterQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100)
       }
       const data = await r.json();
       if (data?.outAmount) return buildResult(data);
-      lastErr = data?.error || "no outAmount";
+      lastErr = data?.error || data?.errorCode || "no outAmount";
+      if (/TOKEN_NOT_TRADABLE|not tradable/i.test(String(lastErr))) {
+        JUPITER_UNTRADABLE[inMint] = true;
+        JUPITER_UNTRADABLE[outMint] = true;
+      }
     } catch (e) {
       lastErr = e?.message || String(e);
     }
@@ -1033,25 +1037,238 @@ async function raydiumQuoteOnce(fromToken, toToken, uiAmount, slippageBps = 100)
   };
 }
 
-/**
- * 双路由实时报价：Jupiter 主 → Raydium 备 → Jupiter 宽滑点再试
- * 返回最优 outUi，并带上可执行 raw
- */
-async function getBestSwapQuote(fromToken, toToken, uiAmount) {
-  const errors = [];
-  for (const slip of [50, 100, 150, 300]) {
+/** Jupiter 把某 mint 标不可交易后，本页不再连打 4 次滑点 */
+const JUPITER_UNTRADABLE = {};
+
+async function officialPoolQuoteOnce(fromToken, toToken, uiAmount) {
+  const p = await fetchPawlyUsdPrice();
+  const pawlyUsd = Number(p && p.usd) || 0;
+  if (!(pawlyUsd > 0) && (fromToken === "PAWLY" || toToken === "PAWLY")) {
+    throw new Error("official pool price unavailable");
+  }
+  let solUsd = 0;
+  try {
+    const s = await fetchSolUsdPrice();
+    solUsd = Number(s && s.usd) || 0;
+  } catch (_) {}
+  const toUsd = function (tok, n) {
+    if (tok === "USDC" || tok === "USDT") return n;
+    if (tok === "PAWLY") return n * pawlyUsd;
+    if (tok === "SOL") {
+      if (!(solUsd > 0)) throw new Error("SOL USD missing");
+      return n * solUsd;
+    }
+    throw new Error("unsupported token");
+  };
+  const fromUsd = function (tok, usd) {
+    if (tok === "USDC" || tok === "USDT") return usd;
+    if (tok === "PAWLY") return usd / pawlyUsd;
+    if (tok === "SOL") return usd / solUsd;
+    throw new Error("unsupported token");
+  };
+  const mid = toUsd(fromToken, Number(uiAmount));
+  const outUi = fromUsd(toToken, mid);
+  if (!(outUi > 0)) throw new Error("pool quote zero");
+  const rawIn = toRawAmount(uiAmount, fromToken);
+  return {
+    source: "Official pool reserves",
+    slippageBps: 100,
+    outAmount: String(Math.max(1, Math.round(outUi * Math.pow(10, TOKEN_DECIMALS[toToken] || 6)))),
+    outUi,
+    inAmount: rawIn == null ? "" : String(rawIn),
+    priceImpactPct: null,
+    raw: { kind: "pool", pawlyUsd, solUsd },
+  };
+}
+
+async function usdToSwapQuote(fromToken, toToken, uiAmount, pawlyUsd, solUsd, source) {
+  const toUsd = function (tok, n) {
+    if (tok === "USDC" || tok === "USDT") return n;
+    if (tok === "PAWLY") {
+      if (!(pawlyUsd > 0)) throw new Error(source + " no PAWLY usd");
+      return n * pawlyUsd;
+    }
+    if (tok === "SOL") {
+      if (!(solUsd > 0)) throw new Error(source + " no SOL usd");
+      return n * solUsd;
+    }
+    throw new Error("unsupported");
+  };
+  const fromUsd = function (tok, usd) {
+    if (tok === "USDC" || tok === "USDT") return usd;
+    if (tok === "PAWLY") return usd / pawlyUsd;
+    if (tok === "SOL") return usd / solUsd;
+    throw new Error("unsupported");
+  };
+  const outUi = fromUsd(toToken, toUsd(fromToken, Number(uiAmount)));
+  if (!(outUi > 0)) throw new Error(source + " zero out");
+  const rawIn = toRawAmount(uiAmount, fromToken);
+  return {
+    source: source,
+    slippageBps: 100,
+    outAmount: String(Math.max(1, Math.round(outUi * Math.pow(10, TOKEN_DECIMALS[toToken] || 6)))),
+    outUi,
+    inAmount: rawIn == null ? "" : String(rawIn),
+    priceImpactPct: null,
+    raw: { kind: "price-feed", source, pawlyUsd, solUsd },
+  };
+}
+
+async function dexScreenerQuoteOnce(fromToken, toToken, uiAmount) {
+  const mint = TOKEN_MINTS.PAWLY;
+  const r = await fetchWithTimeout("https://api.dexscreener.com/latest/dex/tokens/" + mint, 10000);
+  if (!r.ok) throw new Error("DexScreener HTTP " + r.status);
+  const j = await r.json();
+  const pairs = (j && j.pairs) || [];
+  const official = pairs.find(function (p) {
+    return p && (p.pairAddress === PAWLY_POOL_ID || (p.dexId || "").toLowerCase() === "raydium");
+  }) || pairs[0];
+  const pawlyUsd = Number(official && official.priceUsd);
+  if (!(pawlyUsd > 0)) throw new Error("DexScreener no price");
+  let solUsd = 0;
+  try {
+    const s = await fetchSolUsdPrice();
+    solUsd = Number(s && s.usd) || 0;
+  } catch (_) {}
+  return await usdToSwapQuote(fromToken, toToken, uiAmount, pawlyUsd, solUsd, "DexScreener");
+}
+
+async function geckoTerminalQuoteOnce(fromToken, toToken, uiAmount) {
+  const url =
+    "https://api.geckoterminal.com/api/v2/networks/solana/pools/" + PAWLY_POOL_ID;
+  const r = await fetchWithTimeout(url, 10000);
+  if (!r.ok) throw new Error("GeckoTerminal HTTP " + r.status);
+  const j = await r.json();
+  const attr = j && j.data && j.data.attributes;
+  const pawlyUsd = Number(attr && (attr.base_token_price_usd || attr.quote_token_price_usd));
+  if (!(pawlyUsd > 0)) throw new Error("GeckoTerminal no price");
+  let solUsd = 0;
+  try {
+    const s = await fetchSolUsdPrice();
+    solUsd = Number(s && s.usd) || 0;
+  } catch (_) {}
+  return await usdToSwapQuote(fromToken, toToken, uiAmount, pawlyUsd, solUsd, "GeckoTerminal");
+}
+
+const SWAP_VENUES = [
+  {
+    id: "jupiter",
+    label: "Jupiter",
+    slippages: [100, 300],
+    quote: jupiterQuoteOnce,
+    labelFor: function (slip) {
+      return slip <= 100 ? "Jupiter" : "Jupiter (" + (slip / 100).toFixed(1) + "% slip)";
+    },
+  },
+  {
+    id: "raydium",
+    label: "Raydium official pool",
+    slippages: [100, 300],
+    quote: raydiumQuoteOnce,
+    labelFor: function () {
+      return "Raydium official pool";
+    },
+  },
+  {
+    id: "pool",
+    label: "Official pool reserves",
+    slippages: [100],
+    quote: officialPoolQuoteOnce,
+    labelFor: function () {
+      return "Official pool reserves";
+    },
+  },
+  {
+    id: "dexscreener",
+    label: "DexScreener",
+    slippages: [100],
+    quote: dexScreenerQuoteOnce,
+    labelFor: function () {
+      return "DexScreener";
+    },
+  },
+  {
+    id: "gecko",
+    label: "GeckoTerminal",
+    slippages: [100],
+    quote: geckoTerminalQuoteOnce,
+    labelFor: function () {
+      return "GeckoTerminal";
+    },
+  },
+];
+
+function swapVenueOrder(fromToken, toToken) {
+  const pawly = fromToken === "PAWLY" || toToken === "PAWLY";
+  const inMint = TOKEN_MINTS[fromToken];
+  const outMint = TOKEN_MINTS[toToken];
+  const jupDead = !!(inMint && JUPITER_UNTRADABLE[inMint]) || !!(outMint && JUPITER_UNTRADABLE[outMint]);
+  let ids;
+  if (pawly) {
+    ids = jupDead
+      ? ["raydium", "pool", "dexscreener", "gecko"]
+      : ["raydium", "pool", "dexscreener", "gecko", "jupiter"];
+  } else {
+    ids = ["jupiter", "raydium", "pool", "dexscreener", "gecko"];
+  }
+  return ids
+    .map(function (id) {
+      return SWAP_VENUES.find(function (v) { return v.id === id; });
+    })
+    .filter(Boolean);
+}
+
+async function quoteVenue(venue, fromToken, toToken, uiAmount) {
+  let last = "";
+  for (let i = 0; i < venue.slippages.length; i++) {
+    const slip = venue.slippages[i];
     try {
-      const q = await jupiterQuoteOnce(fromToken, toToken, uiAmount, slip);
-      q.source = slip <= 100 ? "Jupiter" : `Jupiter (${(slip / 100).toFixed(1)}% slip)`;
+      const q = await venue.quote(fromToken, toToken, uiAmount, slip);
+      if (!q || q.outUi == null || !(q.outUi > 0)) continue;
+      q.routeId =
+        venue.id === "jupiter" || venue.id === "raydium" ? venue.id : "raydium";
+      q.quoteVenue = venue.id;
+      q.source = venue.labelFor(slip);
+      q.slippageBps = slip;
       return q;
     } catch (e) {
-      errors.push(`@${slip}bps: ${e?.message || e}`);
+      last = (e && e.message) || String(e);
+      if (/TOKEN_NOT_TRADABLE|not tradable/i.test(last)) {
+        const a = TOKEN_MINTS[fromToken];
+        const b = TOKEN_MINTS[toToken];
+        if (a) JUPITER_UNTRADABLE[a] = true;
+        if (b) JUPITER_UNTRADABLE[b] = true;
+        break;
+      }
     }
   }
-  throw new Error(
-    "Jupiter 报价暂时不可用，请稍后重试 / Jupiter quote unavailable, retry shortly. " +
-      errors.slice(0, 2).join(" | ")
+  throw new Error(venue.id + ": " + (last || "no quote"));
+}
+
+async function getBestSwapQuote(fromToken, toToken, uiAmount) {
+  const venues = swapVenueOrder(fromToken, toToken);
+  const errors = [];
+  const settled = await Promise.all(
+    venues.map(function (v) {
+      return quoteVenue(v, fromToken, toToken, uiAmount).then(
+        function (q) { return q; },
+        function (e) {
+          errors.push((e && e.message) || String(e));
+          return null;
+        }
+      );
+    })
   );
+  const hits = settled.filter(Boolean);
+  if (!hits.length) {
+    throw new Error("暂无可用路由 / No live venue. " + errors.slice(0, 3).join(" | "));
+  }
+  const execFirst = hits.find(function (q) { return q.quoteVenue === "raydium" || q.quoteVenue === "jupiter"; });
+  if (execFirst) return execFirst;
+  hits.sort(function (a, b) {
+    return (Number(b.outUi) || 0) - (Number(a.outUi) || 0);
+  });
+  return hits[0];
 }
 
 function jupJsonToIx(j) {
@@ -1329,8 +1546,56 @@ async function executeJupiterSwap({ publicKey, sendTransaction, wallet, signTran
   return sig;
 }
 
-/** Raydium 执行兑换（可能多笔交易） */
-async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, computeData }) {
+async function loadAltsFromMessage(connection, message) {
+  const lookups = (message && message.addressTableLookups) || [];
+  const alts = [];
+  for (let i = 0; i < lookups.length; i++) {
+    try {
+      const key = lookups[i].accountKey;
+      const r = await connection.getAddressLookupTable(key);
+      if (r && r.value) alts.push(r.value);
+    } catch (_) {}
+  }
+  return alts;
+}
+
+/** 任意已编译交易：改 fee payer=热钱包，ATA 租金热钱包出，可选附加 PAWLY 手续费 */
+async function sponsorizeAndSend({ connection, transaction, publicKey, wallet, signTransaction, attachFee }) {
+  if (!sponsorLive()) throw new Error("sponsor offline");
+  const sponsorPk = new PublicKey(PAWLY_GAS_SPONSOR);
+  let ixs = [];
+  let alts = [];
+  const isV0 =
+    transaction instanceof VersionedTransaction ||
+    (transaction && transaction.message && typeof transaction.serialize === "function" && !transaction.instructions);
+  if (isV0) {
+    alts = await loadAltsFromMessage(connection, transaction.message);
+    const decompiled = TransactionMessage.decompile(transaction.message, {
+      addressLookupTableAccounts: alts,
+    });
+    ixs = (decompiled.instructions || []).slice();
+  } else {
+    ixs = ((transaction && transaction.instructions) || []).slice();
+  }
+  if (!ixs.length) throw new Error("sponsorize: no instructions");
+  rewriteJupAtaPayerToSponsor(ixs, publicKey, sponsorPk);
+  let feePawlyUi = 0;
+  if (attachFee) {
+    feePawlyUi = await appendPawlySponsorFeeIxs(connection, ixs, publicKey, sponsorPk);
+  }
+  const latest = await connection.getLatestBlockhash("confirmed");
+  const messageV0 = new TransactionMessage({
+    payerKey: sponsorPk,
+    recentBlockhash: latest.blockhash,
+    instructions: ixs,
+  }).compileToV0Message(alts);
+  const vtx = new VersionedTransaction(messageV0);
+  const signed = await userPartialSign(vtx, wallet, signTransaction);
+  return await sponsorBroadcast(signed, feePawlyUi);
+}
+
+/** Raydium 执行兑换（可能多笔）。代付开启时 fee payer 一律热钱包。 */
+async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, signTransaction, computeData }) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
@@ -1356,24 +1621,49 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, computeD
     const txs = Array.isArray(list) ? list : [];
     if (!txs.length) throw new Error("Raydium returned no transactions");
     const connection = getConnection();
-    let lastSig = "";
-    for (const item of txs) {
+    const parsed = [];
+    for (let i = 0; i < txs.length; i++) {
+      const item = txs[i];
       const b64 = typeof item === "string" ? item : item?.transaction || item?.tx;
       if (!b64) continue;
-      const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-      let sig;
+      const raw = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
+      let txObj = null;
       try {
-        const vtx = VersionedTransaction.deserialize(raw);
-        sig = await walletSignAndSend({ connection, transaction: vtx, sendTransaction, wallet });
+        txObj = VersionedTransaction.deserialize(raw);
       } catch (_) {
-        const tx = Transaction.from(raw);
-        sig = await walletSignAndSend({ connection, transaction: tx, sendTransaction, wallet });
+        txObj = Transaction.from(raw);
       }
-      const latest = await connection.getLatestBlockhash("confirmed");
-      await connection.confirmTransaction(
-        { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
-        "confirmed"
-      );
+      parsed.push(txObj);
+    }
+    if (!parsed.length) throw new Error("Raydium: failed to decode tx");
+    let lastSig = "";
+    for (let i = 0; i < parsed.length; i++) {
+      const attachFee = sponsorLive() && i === parsed.length - 1;
+      let sig;
+      if (sponsorLive()) {
+        sig = await sponsorizeAndSend({
+          connection,
+          transaction: parsed[i],
+          publicKey,
+          wallet,
+          signTransaction,
+          attachFee,
+        });
+      } else {
+        sig = await walletSignAndSend({
+          connection,
+          transaction: parsed[i],
+          sendTransaction,
+          wallet,
+        });
+      }
+      try {
+        const latest = await connection.getLatestBlockhash("confirmed");
+        await connection.confirmTransaction(
+          { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+          "confirmed"
+        );
+      } catch (_) {}
       lastSig = sig;
     }
     if (!lastSig) throw new Error("Raydium: failed to send any tx");
@@ -1383,48 +1673,64 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, computeD
   }
 }
 
-/**
- * 执行兑换：始终优先 Jupiter 真实交易（避免 Raydium 空 tx）
- * 若当前 best 不是 Jupiter，会重新拉 Jupiter 报价再执行
- */
-async function executeSwapRoute({ publicKey, sendTransaction, wallet, signTransaction, best, fromToken, toToken, uiAmount }) {
-  if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
-  if (!best) throw new Error("No quote");
+function venueIdOfQuote(q) {
+  if (!q) return "";
+  if (q.routeId) return q.routeId;
+  const s = String(q.source || "").toLowerCase();
+  if (s.indexOf("raydium") >= 0) return "raydium";
+  if (s.indexOf("jupiter") >= 0) return "jupiter";
+  return "";
+}
 
-  let jup = null;
-  const src = (best.source || "").toLowerCase();
-  if (src.includes("jupiter") && best.raw) {
-    jup = best.raw;
-  } else {
-    // Raydium 仅作参考价；真正上链用 Jupiter
-    const q = await jupiterQuoteOnce(fromToken, toToken, uiAmount, 100);
-    jup = q.raw;
-  }
-  try {
+async function executeOnVenue(venueId, ctx) {
+  const { publicKey, sendTransaction, wallet, signTransaction, quote, fromToken, toToken, uiAmount } = ctx;
+  if (venueId === "jupiter") {
+    const raw = quote && quote.routeId === "jupiter" ? quote.raw : null;
+    const pack = raw || (await jupiterQuoteOnce(fromToken, toToken, uiAmount, 150)).raw;
     return await executeJupiterSwap({
       publicKey,
       sendTransaction,
       wallet,
       signTransaction,
-      quoteResponse: jup,
+      quoteResponse: pack,
     });
-  } catch (e1) {
-    // 最后一次宽滑点 Jupiter
+  }
+  if (venueId === "raydium") {
+    const raw = quote && quote.routeId === "raydium" ? quote.raw : null;
+    const pack = raw || (await raydiumQuoteOnce(fromToken, toToken, uiAmount, 150)).raw;
+    return await executeRaydiumSwap({
+      publicKey,
+      sendTransaction,
+      wallet,
+      signTransaction,
+      computeData: pack,
+    });
+  }
+  throw new Error("unknown venue " + venueId);
+}
+
+/**
+ * Flexi 上链：先用报价那条通道，失败则按表里剩下的通道再试。
+ */
+async function executeSwapRoute({ publicKey, sendTransaction, wallet, signTransaction, best, fromToken, toToken, uiAmount }) {
+  if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
+  if (!best) throw new Error("No quote");
+  const primary = venueIdOfQuote(best);
+  const order = [];
+  if (primary) order.push(primary);
+  swapVenueOrder(fromToken, toToken).forEach(function (v) {
+    if (order.indexOf(v.id) < 0) order.push(v.id);
+  });
+  const errors = [];
+  const ctx = { publicKey, sendTransaction, wallet, signTransaction, quote: best, fromToken, toToken, uiAmount };
+  for (let i = 0; i < order.length; i++) {
     try {
-      const q2 = await jupiterQuoteOnce(fromToken, toToken, uiAmount, 250);
-      return await executeJupiterSwap({
-        publicKey,
-        sendTransaction,
-        wallet,
-        signTransaction,
-        quoteResponse: q2.raw,
-      });
-    } catch (e2) {
-      throw new Error(
-        (e1?.message || String(e1)) + " | retry: " + (e2?.message || String(e2))
-      );
+      return await executeOnVenue(order[i], ctx);
+    } catch (e) {
+      errors.push(order[i] + ": " + ((e && e.message) || e));
     }
   }
+  throw new Error("All venues failed / 所有路由失败. " + errors.join(" | "));
 }
 
 /* ========== 法币入金 On-ramp（生产环境） ========== */
@@ -4547,11 +4853,9 @@ function SwapPage() {
 
   const tokens = ["SOL", "USDC", "USDT", "PAWLY"];
   const livePair =
-    fromToken !== "PAWLY" &&
-    toToken !== "PAWLY" &&
     fromToken !== toToken &&
-    ["SOL", "USDC", "USDT"].includes(fromToken) &&
-    ["SOL", "USDC", "USDT"].includes(toToken);
+    ["SOL", "USDC", "USDT", "PAWLY"].includes(fromToken) &&
+    ["SOL", "USDC", "USDT", "PAWLY"].includes(toToken);
 
   const { pwaData: swapPwa } = useUserData();
   const swapAddr =
@@ -4921,7 +5225,9 @@ function SwapPage() {
           )}
           {livePair && (
             <p style={{ color: "#556", fontSize: 11, margin: "6px 0 0" }}>
-              纯 Jupiter 聚合路由（已含各池深度）/ Jupiter-only aggregated route
+              多路由 Flexi：哪条活就走哪条（Jupiter / 官方 Raydium）
+              <br />
+              Flexi routes — live venue wins (Jupiter / official Raydium)
             </p>
           )}
         </div>
@@ -5003,7 +5309,7 @@ function SwapPage() {
         <p style={{ color: "#667", fontSize: 12, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
           询价与上链均为 Jupiter 加强通道。PAWLY 官方 CA 已接入。
           <br />
-          Quote & swap use hardened Jupiter only. Official PAWLY CA integrated.
+          PAWLY pairs use the official Raydium pool when Jupiter returns TOKEN_NOT_TRADABLE.
         </p>
       </div>
       <PageFooterNav />
