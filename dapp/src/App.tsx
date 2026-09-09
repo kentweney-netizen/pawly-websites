@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.09.2026 v7.7.37 execute only Jupiter/Raydium; parse Raydium object+array txs. From v7.7.36.
+ * PAWLY DApp — 09.09.2026 v7.7.39 MAX SOL keep = live rent-exempt from RPC, not hardcoded gas. From v7.7.38.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -353,6 +353,7 @@ const SPONSOR_FN = "/functions/v1/sponsor-dapp-tx";
 function sponsorLive() {
   return PAWLY_GAS_SPONSOR.length >= 32;
 }
+/** 卖 SOL 保活额改由 fetchNativeSolKeepUi() 链上读取，不再写死平台 Gas。 */
 
 /** 读取钱包某代币余额（主网，有地址即可） */
 async function fetchTokenBalance(owner, token) {
@@ -395,6 +396,29 @@ function toRawAmount(uiAmount, token) {
 
 function getConnection() {
   return new Connection(HELIUS_RPC_GLOBAL, "confirmed");
+}
+
+async function fetchNativeSolKeepUi() {
+  const connection = getConnection();
+  let rentLamports = 890880;
+  try {
+    const n = await connection.getMinimumBalanceForRentExemption(0);
+    if (Number(n) > 0) rentLamports = Number(n);
+  } catch (_) {}
+  if (sponsorLive()) return rentLamports / LAMPORTS_PER_SOL;
+  let extra = 5000;
+  try {
+    const fees = await connection.getRecentPrioritizationFees();
+    if (fees && fees.length) {
+      let max = 0;
+      for (let i = 0; i < fees.length; i++) {
+        const p = Number(fees[i].prioritizationFee) || 0;
+        if (p > max) max = p;
+      }
+      extra += Math.min(max, 100000);
+    }
+  } catch (_) {}
+  return (rentLamports + extra) / LAMPORTS_PER_SOL;
 }
 
 async function estimatePawlyGasFeeUi() {
@@ -5099,10 +5123,18 @@ function SwapPage() {
     if (amt > realBalance + 1e-12) {
       return alert("余额不足\nInsufficient balance");
     }
-    if (fromToken === "SOL" && !sponsorLive() && amt > realBalance - 0.002) {
-      return alert(
-        "未开代付时，用 SOL 换币请不要把钱包几乎掏空（租金/Gas 仍从你的 SOL 扣）。\nWithout sponsor, leave a little SOL when selling SOL."
-      );
+    if (fromToken === "SOL") {
+      const keep = await fetchNativeSolKeepUi();
+      if (amt > realBalance - keep + 1e-12) {
+        return alert(
+          "卖 SOL 不能把地址卖空。本机按链上租金实时保留 " +
+            keep.toFixed(6) +
+            " SOL（保活，不是手续费）。Gas 由热钱包垫，手续费扣 PAWLY。\n" +
+            "Cannot empty the native account. Live rent-exempt keep is " +
+            keep.toFixed(6) +
+            " SOL — not a fee. Gas sponsored, fee is PAWLY."
+        );
+      }
     }
     setTxLoading(true);
     setLastSig("");
@@ -5198,7 +5230,14 @@ function SwapPage() {
             </span>
             <button
               type="button"
-              onClick={() => setAmount(String(realBalance || 0))}
+              onClick={async () => {
+                if (fromToken !== "SOL") {
+                  setAmount(String(realBalance || 0));
+                  return;
+                }
+                const keep = await fetchNativeSolKeepUi();
+                setAmount(String(Math.max(0, Number((realBalance - keep).toFixed(9)))));
+              }}
               style={{ ...ghostBtn, padding: "4px 12px", fontSize: 12 }}
             >
               MAX
@@ -5281,11 +5320,17 @@ function SwapPage() {
 
         {fromToken === "SOL" ? (
           <p style={{ color: "#ffcc80", fontSize: 12, lineHeight: 1.5, margin: "8px 0 0" }}>
-            卖出 SOL 时，这笔 SOL 是货款。Gas 和开账户租金由热钱包出（扣 PAWLY）。只要货款够即可。
+            手续费仍扣 PAWLY，Gas / 开户由热钱包垫。MAX 按当前链上租金实时留保活额（不是写死某家钱包的 Gas）。
             <br />
-            Selling SOL spends that SOL as the trade. Gas and ATA rent come from the hot wallet; fee is PAWLY.
+            Fee is PAWLY; hot wallet pays gas and ATA. MAX keeps live rent-exempt SOL from RPC — not a hardcoded wallet gas fee.
           </p>
-        ) : null}
+        ) : (
+          <p style={{ color: "#8fa", fontSize: 12, lineHeight: 1.5, margin: "8px 0 0" }}>
+            USDC / USDT / PAWLY 兑换：不必为 Gas 留 SOL。网络费和开户租金由热钱包垫，手续费扣 PAWLY。
+            <br />
+            USDC / USDT / PAWLY swaps do not need spare SOL for gas. Sponsor pays network + rent; fee is PAWLY.
+          </p>
+        )}
 
         <GasEstimateBox presetKey="swap" refreshKey={gasKey} />
 
