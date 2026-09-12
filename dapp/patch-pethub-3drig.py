@@ -8,35 +8,16 @@ if 'from "./petAvatar"' not in t:
         'import { usePawlyWallet } from "./localWallet";\nimport { PetRig, PET_RIG_CSS } from "./petAvatar";',
         1,
     )
-if "PET_RIG_CSS" in t and t.count("PET_RIG_CSS") == 1:
-    # imported but not injected
-    pass
-if "{PET_RIG_CSS}" not in t:
+if "{PET_RIG_CSS}" not in t and "PET_RIG_CSS +" not in t:
     if "<style>{`" in t:
         t = t.replace("<style>{`", "<style>{PET_RIG_CSS + `", 1)
-    elif "<style>{`" not in t and "export function PetHubPage" in t:
+    elif "</div>\n  );\n}" in t:
         t = t.replace(
             "    </div>\n  );\n}",
             "      <style>{PET_RIG_CSS}</style>\n    </div>\n  );\n}",
             1,
         )
-# hide companion catalog on street: only render when scene==shop
-# v0.9.3 renders COMPANIONS always after shop buttons. Wrap if not already.
-if "scene === \"shop\" && COMPANIONS" not in t and "{COMPANIONS.map" in t:
-    t = t.replace(
-        "{COMPANIONS.map",
-        '{scene === "shop" ? COMPANIONS.map',
-        1,
-    )
-    # close the ternary after companions block — fragile; add : null before RESCUES map
-    if '{scene === "shelter" && RESCUES.map' in t and "COMPANIONS.map" in t:
-        # find first RESCUES usage after shop wrap
-        pass
-    # better: the original is `) : (`  no
-# After companions map there is typically `)}` then RESCUES or hospital.
-# Insert street roster before shop row if missing.
-marker = '{scene === "street" && ('
-if marker not in t and "Your pets · tap" not in t:
+if "<PetRig" not in t:
     inject = '''        {scene === "street" && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "6px 0 10px" }}>
             {pets.length ? pets.map((p) => (
@@ -52,4 +33,4 @@ if marker not in t and "Your pets · tap" not in t:
     if key in t:
         t = t.replace(key, inject + "        " + key, 1)
 p.write_text(t)
-print("ok", "petAvatar" in t, "PetRig" in t, "PET_RIG_CSS" in t)
+print("ok", "PetRig" in t, "petAvatar" in t)
