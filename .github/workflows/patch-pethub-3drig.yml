@@ -1,0 +1,22 @@
+name: patch-pethub-3drig
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - dapp/patch-pethub-3drig.py
+      - dapp/src/petAvatar.tsx
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 dapp/patch-pethub-3drig.py
+      - run: |
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHub.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "v0.9.4 street 3D PetRig avatars"
+          git push origin HEAD:main
