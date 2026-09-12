@@ -1,0 +1,29 @@
+name: patch-swap-flexi
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/patch-swap-flexi.yml"
+      - "dapp/patch-swap-flexi.py"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch App.tsx
+        run: python3 dapp/patch-swap-flexi.py
+      - name: Commit and push
+        run: |
+          git config user.name "kentweney-netizen"
+          git config user.email "kentweney@gmail.com"
+          git add dapp/src/App.tsx
+          if git diff --cached --quiet; then
+            echo "App.tsx unchanged"
+            exit 0
+          fi
+          git commit -m "fix swap: feePawly min 1 + flexi Jupiter/Raydium"
+          git push origin HEAD:main
