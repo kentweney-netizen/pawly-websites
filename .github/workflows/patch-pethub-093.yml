@@ -1,0 +1,24 @@
+name: patch-pethub-093
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/patch-pethub-093.yml"
+      - "dapp/patch-pethub-093.py"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python3 dapp/patch-pethub-093.py
+      - run: |
+          git config user.name "kentweney-netizen"
+          git config user.email "kentweney@gmail.com"
+          git add dapp/src/petHub.tsx
+          if git diff --cached --quiet; then echo unchanged; exit 0; fi
+          git commit -m "v0.9.3 Pet Hub: lower BGM tap + generated cert/photo + layered BGM"
+          git push origin HEAD:main
