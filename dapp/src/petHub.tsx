@@ -1,6 +1,6 @@
 /**
  * PAWLY Pet Hub v0.7 compact — dapp/src/petHub.tsx
- * One screen. Scene box always painted. Video overlays if public mp4 exists.
+ * Clips live at site root: /pet-hub-street.mp4 (not /dapp/public).
  */
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -78,8 +78,7 @@ function loadPets(w: string): PetRec[] {
 }
 
 function asset(name: string) {
-  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || "/dapp/";
-  return (base.endsWith("/") ? base : base + "/") + name;
+  return "/" + name.replace(/^\//, "");
 }
 
 const ghost: React.CSSProperties = {
@@ -160,23 +159,6 @@ export function PetHubPage() {
           @keyframes phWalk { from { transform: translateX(-30px); } to { transform: translateX(110%); } }
           .phw { position:absolute; bottom:18%; font-size:22px; animation: phWalk 8s linear infinite; }
         `}</style>
-        {scene === "street" ? (
-          <>
-            <div style={{ position: "absolute", left: 6, right: 6, top: "22%", display: "flex", gap: 4 }}>
-              {["SHOP", "HOSP", "RESC", "HOTEL", "GROOM"].map((t) => (
-                <div key={t} style={{ flex: 1, height: 54, border: "1px solid #00ff9d", borderRadius: 6, background: "#0c1c16", color: "#9ff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {t}
-                </div>
-              ))}
-            </div>
-            <div className="phw">🚶🐕</div>
-            <div className="phw" style={{ animationDelay: "-3s", bottom: "10%", fontSize: 18 }}>🚶🐈</div>
-          </>
-        ) : (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>
-            {scene === "hospital" ? "🏥🐶🐱" : scene === "park" ? "🌅🐕" : scene === "shop" ? "🛒🐾" : scene === "shelter" ? "🏠🐕" : scene === "hotel" ? "🌙🐾" : "✂️🐶"}
-          </div>
-        )}
         <video
           key={scene}
           src={asset(CLIP[scene])}
@@ -248,4 +230,3 @@ export function PetHubPage() {
     </div>
   );
 }
-
