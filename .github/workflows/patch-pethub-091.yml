@@ -1,0 +1,29 @@
+name: patch-pethub-091
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/patch-pethub-091.yml"
+      - "dapp/patch-pethub-091.py"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch petHub.tsx
+        run: python3 dapp/patch-pethub-091.py
+      - name: Commit and push
+        run: |
+          git config user.name "kentweney-netizen"
+          git config user.email "kentweney@gmail.com"
+          git add dapp/src/petHub.tsx
+          if git diff --cached --quiet; then
+            echo "petHub.tsx unchanged"
+            exit 0
+          fi
+          git commit -m "v0.9.1 Pet Hub: cert email popup + hug/snack greet"
+          git push origin HEAD:main
