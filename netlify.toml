@@ -1,6 +1,9 @@
 [build]
-  command = "cd dapp && npm install --legacy-peer-deps && npm run build"
+  command = "cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
   publish = "."
+
+[build.environment]
+  NODE_OPTIONS = "--max-old-space-size=4096"
 
 # —— 域名统一 ——
 [[redirects]]
@@ -49,6 +52,24 @@
 [[redirects]]
   from = "/dapp/pawly-token-helps-180.png"
   to = "/dapp/dist/pawly-token-helps-180.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-street.jpg"
+  to = "/dapp/dist/pet-hub-street.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-hospital.jpg"
+  to = "/dapp/dist/pet-hub-hospital.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-park.jpg"
+  to = "/dapp/dist/pet-hub-park.jpg"
   status = 200
   force = true
 
