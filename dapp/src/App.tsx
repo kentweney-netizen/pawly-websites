@@ -467,7 +467,7 @@ async function sponsorBroadcast(signedTx, feePawly) {
         Authorization: "Bearer " + SUPABASE_KEY,
         apikey: SUPABASE_KEY,
       },
-      body: JSON.stringify({ transaction: b64, feePawly: Number(feePawly) || 0 }),
+      body: JSON.stringify({ transaction: b64, feePawly: Math.max(1, Number(feePawly) || 1) }),
     });
   } catch (e) {
     throw new Error(
@@ -1436,7 +1436,7 @@ async function ensureUserWsolSponsored({ publicKey, wallet, signTransaction, lam
   }).compileToV0Message();
   const vtx = new VersionedTransaction(messageV0);
   const signed = await userPartialSign(vtx, wallet, signTransaction);
-  const sig = await sponsorBroadcast(signed, 0);
+  const sig = await sponsorBroadcast(signed, 1);
   try {
     await connection.confirmTransaction(
       { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
@@ -1906,13 +1906,8 @@ async function executeOnVenue(venueId, ctx) {
 async function executeSwapRoute({ publicKey, sendTransaction, wallet, signTransaction, best, fromToken, toToken, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   if (!best) throw new Error("No quote");
-  const pawlyPair = fromToken === "PAWLY" || toToken === "PAWLY";
-  const primary = !pawlyPair && venueIdOfQuote(best) === "jupiter" ? "jupiter" : "raydium";
-  const order = pawlyPair
-    ? ["raydium"]
-    : primary === "jupiter"
-      ? ["jupiter", "raydium"]
-      : ["raydium", "jupiter"];
+  const primary = venueIdOfQuote(best) === "jupiter" ? "jupiter" : "raydium";
+  const order = primary === "jupiter" ? ["jupiter", "raydium"] : ["raydium", "jupiter"];
   const errors = [];
   const ctx = { publicKey, sendTransaction, wallet, signTransaction, quote: best, fromToken, toToken, uiAmount };
   for (let i = 0; i < order.length; i++) {
