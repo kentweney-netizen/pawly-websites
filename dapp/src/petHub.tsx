@@ -12,6 +12,31 @@ import { usePawlyWallet } from "./localWallet";
 export const PET_SLOT_CAP = 10;
 const STORE_PREFIX = "pawly_pet_hub_v1_";
 
+type PetRec = {
+  id: string;
+  kind: string;
+  species: string;
+  name: string;
+  emoji: string;
+  hunger: number;
+  health: number;
+  streak: number;
+  minted?: boolean;
+  skin?: string;
+  pricePawly?: number;
+};
+type SkinItem = { id: string; label: string; pawly: number };
+type Svc = { id: string; label: string; pawly: number; hunger?: number; health?: number };
+type PayNote = {
+  title: string;
+  pawly?: number;
+  needPet?: boolean;
+  email?: string;
+  award?: boolean;
+};
+type ShelterCause = { id: string; label: string; emoji: string; pawly: number; kind: string };
+
+
 const COMPANIONS = [
   { species: "cat", label: "Cat", emoji: "🐱", pricePawly: 800 },
   { species: "dog", label: "Dog", emoji: "🐶", pricePawly: 1000 },
@@ -108,21 +133,21 @@ const PLACES = [
   },
 ];
 
-function walletKey(w) {
+function walletKey(w: string) {
   return (w && String(w)) || "guest";
 }
 
-function loadPets(w) {
+function loadPets(w: string): PetRec[] {
   try {
     const raw = localStorage.getItem(STORE_PREFIX + walletKey(w));
     const list = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list : [];
+    return Array.isArray(list) ? (list as PetRec[]) : [];
   } catch {
     return [];
   }
 }
 
-function savePets(w, list) {
+function savePets(w: string, list: PetRec[]) {
   localStorage.setItem(STORE_PREFIX + walletKey(w), JSON.stringify(list.slice(0, PET_SLOT_CAP)));
 }
 
@@ -167,7 +192,7 @@ const MOTION = `
 @keyframes pawPop { 0%{ transform: scale(.6); opacity:0 } 40%{ transform: scale(1.12); opacity:1 } 100%{ transform: scale(1); opacity:1 } }
 `;
 
-function AnimPet({ emoji, delay = 0, size = 36 }) {
+function AnimPet({ emoji, delay = 0, size = 36 }: { emoji: string; delay?: number; size?: number }) {
   return (
     <span
       style={{
@@ -183,7 +208,7 @@ function AnimPet({ emoji, delay = 0, size = 36 }) {
   );
 }
 
-function GreetingYard({ pets, onSnack, onHug }) {
+function GreetingYard({ pets, onSnack, onHug }: { pets: PetRec[]; onSnack: () => void; onHug: () => void }) {
   const list = (pets && pets.length ? pets : [{ id: "guest", emoji: "🐾", name: "Paw" }]).slice(0, 6);
   const lines = ["Wag wag!", "Pick me up!", "Snack please!", "Missed you!", "Treat?"];
   return (
@@ -196,7 +221,7 @@ function GreetingYard({ pets, onSnack, onHug }) {
       <style>{MOTION}</style>
       <div style={{ fontSize: 12, color: "#9ad7c2", marginBottom: 8 }}>They saw you come in</div>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-end", minHeight: 64, flexWrap: "wrap" }}>
-        {list.map((p, i) => (
+        {list.map((p: PetRec, i: number) => (
           <div key={p.id || i} style={{ textAlign: "center", position: "relative" }}>
             <AnimPet emoji={p.emoji || "🐾"} delay={i * 0.12} size={40} />
             <div style={{
@@ -218,7 +243,7 @@ function GreetingYard({ pets, onSnack, onHug }) {
   );
 }
 
-function Bar({ label, value, color }) {
+function Bar({ label, value, color }: { label: string; value: number; color: string }) {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
   return (
     <div style={{ marginTop: 6 }}>
@@ -237,32 +262,32 @@ export function PetHubPage() {
   const navigate = useNavigate();
   const wallet = usePawlyWallet();
   const addr = (wallet.publicKey && wallet.publicKey.toString()) || "";
-  const [tab, setTab] = useState("map");
-  const [pets, setPets] = useState(() => loadPets(addr));
-  const [sel, setSel] = useState(null);
+  const [tab, setTab] = useState<string>("map");
+  const [pets, setPets] = useState<PetRec[]>(() => loadPets(addr));
+  const [sel, setSel] = useState<string | null>(null);
   const [placeId, setPlaceId] = useState("shop");
-  const [panel, setPanel] = useState(null);
+  const [panel, setPanel] = useState<string | null>(null);
   const [pick, setPick] = useState(COMPANIONS[1].species);
-  const [payNote, setPayNote] = useState(null);
+  const [payNote, setPayNote] = useState<PayNote | null>(null);
   const [cause, setCause] = useState(SHELTER_CAUSES[0].id);
-  const [emailModal, setEmailModal] = useState(null);
+  const [emailModal, setEmailModal] = useState<ShelterCause | null>(null);
   const [emailDraft, setEmailDraft] = useState("");
   const [skinName, setSkinName] = useState("My neon coat");
   const [yardKey, setYardKey] = useState(0);
-  useEffect(() => { setYardKey((n) => n + 1); }, [addr]);
+  useEffect(() => { setYardKey((n: number) => n + 1); }, [addr]);
 
-  const persist = (next) => {
+  const persist = (next: PetRec[]) => {
     setPets(next);
     savePets(addr, next);
   };
 
-  const selected = pets.find((p) => p.id === sel) || pets[0] || null;
+  const selected = pets.find((p: PetRec) => p.id === sel) || pets[0] || null;
   const place = PLACES.find((p) => p.id === placeId) || PLACES[0];
   const full = pets.length >= PET_SLOT_CAP;
   const hint = useMemo(() => (addr ? addr.slice(0, 4) + "…" + addr.slice(-4) : "any wallet"), [addr]);
   const causeObj = SHELTER_CAUSES.find((c) => c.id === cause) || SHELTER_CAUSES[0];
 
-  const addPet = (kind) => {
+  const addPet = (_kind: string) => {
     if (full) return;
     const spec = COMPANIONS.find((s) => s.species === pick) || COMPANIONS[1];
     persist([
@@ -285,22 +310,22 @@ export function PetHubPage() {
     setPanel(null);
   };
 
-  const wearSkin = (skin) => {
+  const wearSkin = (skin: SkinItem) => {
     if (!selected) {
       setPayNote({ title: skin.label, pawly: skin.pawly, needPet: true });
       return;
     }
-    persist(pets.map((p) => (p.id === selected.id ? { ...p, skin: skin.label } : p)));
+    persist(pets.map((p: PetRec) => (p.id === selected.id ? { ...p, skin: skin.label } : p)));
     setPayNote({ title: "Skin " + skin.label + " · " + selected.name, pawly: skin.pawly });
   };
 
-  const applyService = (svc) => {
+  const applyService = (svc: Svc) => {
     if (!selected) {
       setPayNote({ title: svc.label, pawly: svc.pawly, needPet: true });
       return;
     }
     persist(
-      pets.map((p) =>
+      pets.map((p: PetRec) =>
         p.id === selected.id
           ? {
               ...p,
@@ -333,10 +358,10 @@ export function PetHubPage() {
   const hug = () => {
     if (!pets.length) return;
     const id = (selected && selected.id) || pets[0].id;
-    persist(pets.map((p) => p.id === id
+    persist(pets.map((p: PetRec) => p.id === id
       ? { ...p, health: Math.min(100, (p.health || 0) + 4) }
       : p));
-    setYardKey((n) => n + 1);
+    setYardKey((n: number) => n + 1);
   };
   const snack = () => {
     if (!pets.length) {
@@ -345,10 +370,10 @@ export function PetHubPage() {
       return;
     }
     const id = (selected && selected.id) || pets[0].id;
-    persist(pets.map((p) => p.id === id
+    persist(pets.map((p: PetRec) => p.id === id
       ? { ...p, hunger: Math.min(100, (p.hunger || 0) + 10), streak: (p.streak || 0) + 1 }
       : p));
-    setYardKey((n) => n + 1);
+    setYardKey((n: number) => n + 1);
   };
 
   return (
@@ -421,7 +446,7 @@ export function PetHubPage() {
                     {pets.length === 0 ? (
                       <span style={{ color: "#fbbf24", fontSize: 13 }}>Adopt first</span>
                     ) : (
-                      pets.map((p) => (
+                      pets.map((p: PetRec) => (
                         <button
                           key={p.id}
                           type="button"
@@ -521,7 +546,7 @@ export function PetHubPage() {
         ) : (
           <>
             <div style={{ display: "grid", gap: 10 }}>
-              {pets.map((p) => (
+              {pets.map((p: PetRec) => (
                 <div key={p.id} style={card}>
                   <div style={{ display: "flex", gap: 12 }}>
                     <div style={{ fontSize: 36 }}><AnimPet emoji={p.emoji} /></div>
