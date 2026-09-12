@@ -1,0 +1,21 @@
+name: apply-pethub-v010
+on:
+  workflow_dispatch:
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+      - name: Write v0.10 from secret file in repo parts
+        run: python3 dapp/assemble-pethub-v010.py
+      - run: |
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHub.tsx
+          git diff --cached --quiet && echo nochange && exit 0
+          git commit -m "v0.10 Pet Hub: street pets feed/level + shop foods + mail errors"
+          git push origin HEAD:main
