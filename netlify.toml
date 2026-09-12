@@ -60,6 +60,42 @@
   force = true
 
 [[redirects]]
+  from = "/dapp/pet-hub-hospital.mp4"
+  to = "/dapp/dist/pet-hub-hospital.mp4"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-shop.mp4"
+  to = "/dapp/dist/pet-hub-shop.mp4"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-park.mp4"
+  to = "/dapp/dist/pet-hub-park.mp4"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-shelter.mp4"
+  to = "/dapp/dist/pet-hub-shelter.mp4"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-hotel.mp4"
+  to = "/dapp/dist/pet-hub-hotel.mp4"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-groom.mp4"
+  to = "/dapp/dist/pet-hub-groom.mp4"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/dapp/pet-hub-street.jpg"
   to = "/dapp/dist/pet-hub-street.jpg"
   status = 200
@@ -74,6 +110,30 @@
 [[redirects]]
   from = "/dapp/pet-hub-park.jpg"
   to = "/dapp/dist/pet-hub-park.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-shop.jpg"
+  to = "/dapp/dist/pet-hub-shop.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-shelter.jpg"
+  to = "/dapp/dist/pet-hub-shelter.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-hotel.jpg"
+  to = "/dapp/dist/pet-hub-hotel.jpg"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pet-hub-groom.jpg"
+  to = "/dapp/dist/pet-hub-groom.jpg"
   status = 200
   force = true
 
