@@ -1,6 +1,6 @@
 /**
- * PAWLY Pet Hub v0.6 video street — dapp/src/petHub.tsx
- * Street scene plays pet-hub-street.mp4 on loop (reference clip).
+ * PAWLY Pet Hub v0.7 compact — dapp/src/petHub.tsx
+ * One screen. Scene box always painted. Video overlays if public mp4 exists.
  */
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -31,20 +31,41 @@ const COMPANIONS = [
 const TITLE: Record<SceneId, string> = {
   street: "Tampines pet street",
   hospital: "Novena Pet Hospital",
-  park: "East Coast dog park",
+  park: "East Coast park",
   shop: "Pet Shop",
-  shelter: "Rescue Shelter",
+  shelter: "Rescue",
   hotel: "Pet Hotel",
-  groom: "Grooming Salon",
+  groom: "Grooming",
 };
 
-const SHOPS: { id: SceneId; label: string; emoji: string }[] = [
-  { id: "shop", label: "Shop", emoji: "🛒" },
-  { id: "hospital", label: "Hospital", emoji: "🏥" },
-  { id: "shelter", label: "Rescue", emoji: "🏠" },
-  { id: "hotel", label: "Hotel", emoji: "🌙" },
-  { id: "groom", label: "Groom", emoji: "✂️" },
+const SHOPS: { id: SceneId; label: string }[] = [
+  { id: "shop", label: "Shop" },
+  { id: "hospital", label: "Hospital" },
+  { id: "shelter", label: "Rescue" },
+  { id: "hotel", label: "Hotel" },
+  { id: "groom", label: "Groom" },
+  { id: "park", label: "Park" },
 ];
+
+const CLIP: Record<SceneId, string> = {
+  street: "pet-hub-street.mp4",
+  hospital: "pet-hub-hospital.mp4",
+  park: "pet-hub-park.mp4",
+  shop: "pet-hub-shop.mp4",
+  shelter: "pet-hub-shelter.mp4",
+  hotel: "pet-hub-hotel.mp4",
+  groom: "pet-hub-groom.mp4",
+};
+
+const SKY: Record<SceneId, string> = {
+  street: "linear-gradient(#2a1248 0%,#6b2d6e 38%,#12161e 70%)",
+  hospital: "linear-gradient(#06141c,#0b2430)",
+  park: "linear-gradient(#3a1548 0%,#e07a3a 50%,#2d7a3a 80%)",
+  shop: "linear-gradient(#1a1030,#2a1848)",
+  shelter: "linear-gradient(#0c1418,#152028)",
+  hotel: "linear-gradient(#1a1230,#2a1840)",
+  groom: "linear-gradient(#142028,#1c2a30)",
+};
 
 function loadPets(w: string): PetRec[] {
   try {
@@ -56,66 +77,29 @@ function loadPets(w: string): PetRec[] {
   }
 }
 
-const wrap: React.CSSProperties = { minHeight: "100vh", background: "#070b10", color: "#e8eef7" };
+function asset(name: string) {
+  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || "/dapp/";
+  return (base.endsWith("/") ? base : base + "/") + name;
+}
+
 const ghost: React.CSSProperties = {
-  background: "transparent",
-  color: "#9ad7c2",
-  border: "1px solid rgba(0,255,157,0.35)",
-  borderRadius: 12,
-  padding: "8px 12px",
+  background: "rgba(0,0,0,0.45)",
+  color: "#c8ffe8",
+  border: "1px solid rgba(0,255,157,0.4)",
+  borderRadius: 10,
+  padding: "6px 8px",
   cursor: "pointer",
   fontWeight: 700,
+  fontSize: 11,
 };
 const primary: React.CSSProperties = {
   ...ghost,
   background: "linear-gradient(90deg,#00ff9d,#7cffc8)",
   color: "#052015",
   border: "none",
+  fontSize: 13,
+  padding: "10px 12px",
 };
-
-function asset(name: string) {
-  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || "/dapp/";
-  return (base.endsWith("/") ? base : base + "/") + name;
-}
-
-const SCENE_CLIP: Record<SceneId, string> = {
-  street: "pet-hub-street.mp4",
-  hospital: "pet-hub-hospital.mp4",
-  park: "pet-hub-park.mp4",
-  shop: "pet-hub-shop.mp4",
-  shelter: "pet-hub-shelter.mp4",
-  hotel: "pet-hub-hotel.mp4",
-  groom: "pet-hub-groom.mp4",
-};
-
-function LivingStreet({ scene, onEnter }: { scene: SceneId; onEnter: (id: SceneId) => void }) {
-  return (
-    <div style={{ position: "relative", background: "#070b10" }}>
-      <video
-        key={scene}
-        src={asset(SCENE_CLIP[scene])}
-        autoPlay
-        muted
-        loop
-        playsInline
-        controls={false}
-        style={{ width: "100%", height: "auto", display: "block", background: "#070b10" }}
-      />
-      <div style={{ display: "flex", gap: 6, padding: 8, overflowX: "auto" }}>
-        {SHOPS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => onEnter(s.id)}
-            style={{ ...ghost, flex: "0 0 auto", fontSize: 12, opacity: scene === s.id ? 1 : 0.75 }}
-          >
-            {s.emoji} {s.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function PetHubPage() {
   const navigate = useNavigate();
@@ -124,12 +108,11 @@ export function PetHubPage() {
   const [scene, setScene] = useState<SceneId>("street");
   const [pets, setPets] = useState<PetRec[]>(() => loadPets(addr));
   const [pick, setPick] = useState("dog");
-  const hint = useMemo(() => (addr ? addr.slice(0, 4) + "…" + addr.slice(-4) : "connect wallet"), [addr]);
   const spec = COMPANIONS.find((c) => c.species === pick) || COMPANIONS[0];
+  const hint = useMemo(() => (addr ? addr.slice(0, 4) + "…" + addr.slice(-4) : "wallet"), [addr]);
 
   const pay = (title: string, amount: number) => {
-    const q = new URLSearchParams({ to: addr || "", token: "PAWLY", amount: String(amount), note: title });
-    navigate("/payment?" + q.toString());
+    navigate("/payment?" + new URLSearchParams({ to: addr || "", token: "PAWLY", amount: String(amount), note: title }).toString());
   };
 
   const adoptPay = () => {
@@ -154,60 +137,113 @@ export function PetHubPage() {
   };
 
   return (
-    <div style={wrap}>
-      <div style={{ maxWidth: 430, margin: "0 auto" }}>
-        <div style={{ padding: "10px 12px 6px" }}>
-          <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene]}</div>
-          <div style={{ color: "#89a", fontSize: 12 }}>Living street · tap a shop · {hint}</div>
-        </div>
-        <LivingStreet scene={scene} onEnter={setScene} />
-        <div style={{ padding: 12 }}>
-          {scene !== "street" ? (
-            <button type="button" style={{ ...ghost, marginBottom: 10 }} onClick={() => setScene("street")}>
-              Back to street
-            </button>
-          ) : (
-            <button type="button" style={{ ...ghost, marginBottom: 10 }} onClick={() => setScene("park")}>
-              Walk to park
-            </button>
-          )}
-          {pets.length ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-              {pets.map((p) => (
-                <span key={p.id} style={ghost}>
-                  {p.emoji} {p.name}
-                </span>
+    <div
+      style={{
+        minHeight: "100dvh",
+        maxHeight: "100dvh",
+        overflow: "hidden",
+        background: "#070b10",
+        color: "#e8eef7",
+        display: "flex",
+        flexDirection: "column",
+        maxWidth: 430,
+        margin: "0 auto",
+      }}
+    >
+      <div style={{ padding: "8px 10px 4px", flex: "0 0 auto" }}>
+        <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 16 }}>{TITLE[scene]}</div>
+        <div style={{ color: "#7a8a99", fontSize: 11 }}>{hint}</div>
+      </div>
+
+      <div style={{ position: "relative", flex: "1 1 auto", minHeight: 210, maxHeight: 280, background: SKY[scene], overflow: "hidden" }}>
+        <style>{`
+          @keyframes phWalk { from { transform: translateX(-30px); } to { transform: translateX(110%); } }
+          .phw { position:absolute; bottom:18%; font-size:22px; animation: phWalk 8s linear infinite; }
+        `}</style>
+        {scene === "street" ? (
+          <>
+            <div style={{ position: "absolute", left: 6, right: 6, top: "22%", display: "flex", gap: 4 }}>
+              {["SHOP", "HOSP", "RESC", "HOTEL", "GROOM"].map((t) => (
+                <div key={t} style={{ flex: 1, height: 54, border: "1px solid #00ff9d", borderRadius: 6, background: "#0c1c16", color: "#9ff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {t}
+                </div>
               ))}
             </div>
-          ) : null}
-          {scene === "shop" || scene === "street" ? (
-            <div style={{ marginBottom: 12 }}>
-              {COMPANIONS.map((c) => (
-                <button key={c.species} type="button" style={{ ...ghost, margin: 4 }} onClick={() => setPick(c.species)}>
-                  {c.emoji} {c.label} · {c.pricePawly}
-                </button>
-              ))}
-              <button type="button" style={{ ...primary, display: "block", marginTop: 8 }} onClick={adoptPay}>
-                Pay {spec.pricePawly} PAWLY to adopt {spec.label}
-              </button>
-            </div>
-          ) : null}
-          {scene === "hospital" ? (
-            <button type="button" style={primary} onClick={() => pay("Hospital checkup", 120)}>
-              Pay 120 PAWLY · checkup
-            </button>
-          ) : null}
-          {scene === "park" ? (
-            <button type="button" style={primary} onClick={() => pay("Walk the dog", 40)}>
-              Pay 40 PAWLY · walk
-            </button>
-          ) : null}
-          <div style={{ textAlign: "center", padding: "28px 0 32px" }}>
-            <button type="button" style={{ ...ghost, minWidth: 220 }} onClick={() => navigate("/")}>
-              ← Home / back to DApp
-            </button>
+            <div className="phw">🚶🐕</div>
+            <div className="phw" style={{ animationDelay: "-3s", bottom: "10%", fontSize: 18 }}>🚶🐈</div>
+          </>
+        ) : (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>
+            {scene === "hospital" ? "🏥🐶🐱" : scene === "park" ? "🌅🐕" : scene === "shop" ? "🛒🐾" : scene === "shelter" ? "🏠🐕" : scene === "hotel" ? "🌙🐾" : "✂️🐶"}
           </div>
+        )}
+        <video
+          key={scene}
+          src={asset(CLIP[scene])}
+          autoPlay
+          muted
+          loop
+          playsInline
+          onError={(e) => {
+            (e.currentTarget as HTMLVideoElement).style.display = "none";
+          }}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 6, display: "flex", gap: 4, padding: "0 6px", overflowX: "auto" }}>
+          {SHOPS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setScene(s.id)}
+              style={{ ...ghost, flex: "0 0 auto", background: scene === s.id ? "rgba(0,255,157,0.25)" : ghost.background }}
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
+      </div>
+
+      <div style={{ flex: "0 0 auto", padding: "8px 10px 10px" }}>
+        {pets.length ? (
+          <div style={{ fontSize: 12, marginBottom: 6 }}>{pets.map((p) => p.emoji + p.name).join("  ")}</div>
+        ) : null}
+        {(scene === "street" || scene === "shop") && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            {COMPANIONS.map((c) => (
+              <button key={c.species} type="button" style={{ ...ghost, flex: 1 }} onClick={() => setPick(c.species)}>
+                {c.emoji} {c.pricePawly}
+              </button>
+            ))}
+          </div>
+        )}
+        {(scene === "street" || scene === "shop") && (
+          <button type="button" style={{ ...primary, width: "100%" }} onClick={adoptPay}>
+            Pay {spec.pricePawly} PAWLY · adopt {spec.label}
+          </button>
+        )}
+        {scene === "hospital" && (
+          <button type="button" style={{ ...primary, width: "100%" }} onClick={() => pay("Hospital checkup", 120)}>
+            Pay 120 PAWLY · checkup
+          </button>
+        )}
+        {scene === "park" && (
+          <button type="button" style={{ ...primary, width: "100%" }} onClick={() => pay("Walk the dog", 40)}>
+            Pay 40 PAWLY · walk
+          </button>
+        )}
+        {scene === "shelter" && (
+          <button type="button" style={{ ...primary, width: "100%" }} onClick={() => pay("Rescue donate", 200)}>
+            Pay 200 PAWLY · rescue
+          </button>
+        )}
+        {(scene === "hotel" || scene === "groom") && (
+          <button type="button" style={{ ...primary, width: "100%" }} onClick={() => pay(TITLE[scene], scene === "hotel" ? 180 : 90)}>
+            Pay {scene === "hotel" ? 180 : 90} PAWLY
+          </button>
+        )}
+        <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => navigate("/")}>
+          ← Home
+        </button>
       </div>
     </div>
   );
