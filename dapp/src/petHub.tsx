@@ -1,6 +1,6 @@
 /**
- * PAWLY Pet Hub v0.4 map — dapp/src/petHub.tsx
- * No Phaser. Pixel scenes + tap doors. Pay goes to existing /payment.
+ * PAWLY Pet Hub v0.5 live street — dapp/src/petHub.tsx
+ * CSS motion always on. JPG is optional overlay if public files exist.
  */
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -28,38 +28,23 @@ const COMPANIONS = [
   { species: "rabbit", label: "Rabbit", emoji: "🐰", pricePawly: 600 },
 ];
 
-const BG: Record<SceneId, string> = {
-  street: "pet-hub-street.jpg",
-  hospital: "pet-hub-hospital.jpg",
-  park: "pet-hub-park.jpg",
-  shop: "pet-hub-street.jpg",
-  shelter: "pet-hub-street.jpg",
-  hotel: "pet-hub-street.jpg",
-  groom: "pet-hub-street.jpg",
-};
-
 const TITLE: Record<SceneId, string> = {
   street: "Tampines pet street",
   hospital: "Novena Pet Hospital",
   park: "East Coast dog park",
-  shop: "Pet Supplies",
-  shelter: "Rescue",
+  shop: "Pet Shop",
+  shelter: "Rescue Shelter",
   hotel: "Pet Hotel",
-  groom: "Grooming",
+  groom: "Grooming Salon",
 };
 
-const DOORS: { id: SceneId; left: string; top: string; w: string; h: string; label: string }[] = [
-  { id: "shop", left: "2%", top: "18%", w: "18%", h: "28%", label: "Shop" },
-  { id: "hospital", left: "20%", top: "16%", w: "16%", h: "30%", label: "Hospital" },
-  { id: "shelter", left: "37%", top: "18%", w: "16%", h: "28%", label: "Rescue" },
-  { id: "hotel", left: "54%", top: "16%", w: "16%", h: "30%", label: "Hotel" },
-  { id: "groom", left: "72%", top: "18%", w: "24%", h: "28%", label: "Groom" },
+const SHOPS: { id: SceneId; label: string; emoji: string }[] = [
+  { id: "shop", label: "Shop", emoji: "🛒" },
+  { id: "hospital", label: "Hospital", emoji: "🏥" },
+  { id: "shelter", label: "Rescue", emoji: "🏠" },
+  { id: "hotel", label: "Hotel", emoji: "🌙" },
+  { id: "groom", label: "Groom", emoji: "✂️" },
 ];
-
-function asset(name: string) {
-  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || "/dapp/";
-  return (base.endsWith("/") ? base : base + "/") + name;
-}
 
 function loadPets(w: string): PetRec[] {
   try {
@@ -88,6 +73,84 @@ const primary: React.CSSProperties = {
   border: "none",
 };
 
+function LivingStreet({ scene, onEnter }: { scene: SceneId; onEnter: (id: SceneId) => void }) {
+  const sky =
+    scene === "park"
+      ? "linear-gradient(#3a1548 0%, #e07a3a 45%, #5aa0c8 70%)"
+      : scene === "hospital"
+      ? "linear-gradient(#06141c,#0b2430)"
+      : "linear-gradient(#1a1038 0%, #6b2d6e 40%, #0b1220 70%)";
+  return (
+    <div style={{ position: "relative", height: 320, overflow: "hidden", background: sky }}>
+      <style>{`
+        @keyframes pawlyWalk { from { transform: translateX(-40px); } to { transform: translateX(360px); } }
+        @keyframes pawlyWalkBack { from { transform: translateX(360px) scaleX(-1); } to { transform: translateX(-40px) scaleX(-1); } }
+        @keyframes pawlyBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes pawlyRunIn { from { transform: translate(140px, 40px) scale(.4); opacity: 0; } to { transform: translate(0,0) scale(1); opacity: 1; } }
+        @keyframes pawlyWag { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
+        @keyframes pawlyBlink { 0%,20%,100% { opacity: 1; } 10% { opacity: .35; } }
+        .ph-actor { position:absolute; font-size:26px; line-height:1; animation: pawlyWalk 9s linear infinite; }
+        .ph-actor.rev { animation: pawlyWalkBack 11s linear infinite; }
+        .ph-pet { display:inline-block; animation: pawlyBounce .6s ease-in-out infinite; }
+        .ph-run { animation: pawlyRunIn .7s ease-out both; }
+        .ph-shop { animation: pawlyBlink 3.4s ease-in-out infinite; }
+      `}</style>
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(#fff6 1px, transparent 1px)", backgroundSize: "18px 18px", opacity: 0.12 }} />
+      {scene === "street" || scene === "shop" || scene === "shelter" || scene === "hotel" || scene === "groom" ? (
+        <>
+          <div style={{ position: "absolute", left: 0, right: 0, top: 78, display: "flex", gap: 6, padding: "0 6px" }}>
+            {SHOPS.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
+                className="ph-shop"
+                onClick={() => onEnter(s.id)}
+                style={{
+                  flex: 1,
+                  height: 88,
+                  border: "1px solid #00ff9d",
+                  borderRadius: 8,
+                  background: "linear-gradient(#123,#0a1c16)",
+                  color: "#9fffd6",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  animationDelay: i * 0.4 + "s",
+                }}
+              >
+                {s.emoji}
+                <br />
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ position: "absolute", left: 0, right: 0, top: 168, height: 36, background: "#2a3142" }} />
+          <div style={{ position: "absolute", left: 0, right: 0, top: 204, height: 70, background: "#151920" }} />
+          <div className="ph-actor" style={{ top: 176 }}>🚶‍♂️<span className="ph-pet">🐕</span></div>
+          <div className="ph-actor rev" style={{ top: 188, animationDelay: "-4s" }}>🚶‍♀️<span className="ph-pet">🐈</span></div>
+          <div className="ph-actor" style={{ top: 230, animationDuration: "13s", fontSize: 22 }}>🚶‍♀️<span className="ph-pet">🐩</span></div>
+        </>
+      ) : null}
+      {scene === "hospital" ? (
+        <>
+          <div style={{ position: "absolute", left: 12, top: 70, width: 120, height: 90, background: "#0d2a32", border: "1px solid #3ee0c0", borderRadius: 8, color: "#9ff", padding: 8, fontSize: 12 }}>👩‍⚕️ Dr.Tan</div>
+          <div className="ph-run" style={{ position: "absolute", left: 150, top: 120, fontSize: 42 }}>🐶</div>
+          <div className="ph-run" style={{ position: "absolute", left: 210, top: 128, fontSize: 36, animationDelay: ".15s" }}>🐱</div>
+        </>
+      ) : null}
+      {scene === "park" ? (
+        <>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 120, background: "linear-gradient(#2d7a3a,#16351c)" }} />
+          <div className="ph-actor" style={{ top: 180, fontSize: 34 }}>🧑‍🦱<span className="ph-pet">🐕</span></div>
+          <div style={{ position: "absolute", right: 24, top: 90, fontSize: 22 }}>🦆🦆🦆</div>
+        </>
+      ) : null}
+      <div className="ph-run" style={{ position: "absolute", left: "42%", bottom: 18, fontSize: 40 }}>
+        <span style={{ display: "inline-block", animation: "pawlyWag .35s ease-in-out infinite" }}>🐾</span>
+      </div>
+    </div>
+  );
+}
+
 export function PetHubPage() {
   const navigate = useNavigate();
   const wallet = usePawlyWallet();
@@ -99,12 +162,7 @@ export function PetHubPage() {
   const spec = COMPANIONS.find((c) => c.species === pick) || COMPANIONS[0];
 
   const pay = (title: string, amount: number) => {
-    const q = new URLSearchParams({
-      to: addr || "",
-      token: "PAWLY",
-      amount: String(amount),
-      note: title,
-    });
+    const q = new URLSearchParams({ to: addr || "", token: "PAWLY", amount: String(amount), note: title });
     navigate("/payment?" + q.toString());
   };
 
@@ -134,63 +192,28 @@ export function PetHubPage() {
       <div style={{ maxWidth: 430, margin: "0 auto" }}>
         <div style={{ padding: "10px 12px 6px" }}>
           <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene]}</div>
-          <div style={{ color: "#89a", fontSize: 12 }}>Tap a shop on the map · {hint}</div>
+          <div style={{ color: "#89a", fontSize: 12 }}>Living street · tap a shop · {hint}</div>
         </div>
-
-        <div style={{ position: "relative", width: "100%", background: "#0b1020" }}>
-          <img
-            src={asset(BG[scene])}
-            alt={TITLE[scene]}
-            style={{ width: "100%", height: "auto", display: "block" }}
-          />
-          {scene === "street"
-            ? DOORS.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => setScene(d.id)}
-                  style={{
-                    position: "absolute",
-                    left: d.left,
-                    top: d.top,
-                    width: d.w,
-                    height: d.h,
-                    background: "transparent",
-                    border: "1px solid transparent",
-                    cursor: "pointer",
-                  }}
-                  aria-label={d.label}
-                />
-              ))
-            : null}
-          {scene === "street" ? (
-            <button
-              type="button"
-              onClick={() => setScene("park")}
-              style={{ position: "absolute", right: 8, bottom: 12, ...ghost, fontSize: 12 }}
-            >
-              Park
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setScene("street")}
-              style={{ position: "absolute", left: 8, bottom: 12, ...ghost, fontSize: 12 }}
-            >
+        <LivingStreet scene={scene} onEnter={setScene} />
+        <div style={{ padding: 12 }}>
+          {scene !== "street" ? (
+            <button type="button" style={{ ...ghost, marginBottom: 10 }} onClick={() => setScene("street")}>
               Back to street
             </button>
+          ) : (
+            <button type="button" style={{ ...ghost, marginBottom: 10 }} onClick={() => setScene("park")}>
+              Walk to park
+            </button>
           )}
-        </div>
-
-        <div style={{ padding: 12 }}>
           {pets.length ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               {pets.map((p) => (
-                <span key={p.id} style={ghost}>{p.emoji} {p.name}</span>
+                <span key={p.id} style={ghost}>
+                  {p.emoji} {p.name}
+                </span>
               ))}
             </div>
           ) : null}
-
           {scene === "shop" || scene === "street" ? (
             <div style={{ marginBottom: 12 }}>
               {COMPANIONS.map((c) => (
@@ -201,10 +224,8 @@ export function PetHubPage() {
               <button type="button" style={{ ...primary, display: "block", marginTop: 8 }} onClick={adoptPay}>
                 Pay {spec.pricePawly} PAWLY to adopt {spec.label}
               </button>
-              <p style={{ color: "#89a", fontSize: 12 }}>Opens Payment. Token leaves the wallet only after you confirm the tx.</p>
             </div>
           ) : null}
-
           {scene === "hospital" ? (
             <button type="button" style={primary} onClick={() => pay("Hospital checkup", 120)}>
               Pay 120 PAWLY · checkup
@@ -215,9 +236,7 @@ export function PetHubPage() {
               Pay 40 PAWLY · walk
             </button>
           ) : null}
-
-          <div style={{ height: 36 }} />
-          <div style={{ textAlign: "center", padding: "18px 0 28px" }}>
+          <div style={{ textAlign: "center", padding: "28px 0 32px" }}>
             <button type="button" style={{ ...ghost, minWidth: 220 }} onClick={() => navigate("/")}>
               ← Home / back to DApp
             </button>
