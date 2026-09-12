@@ -1,6 +1,6 @@
 /**
- * PAWLY Pet Hub v0.5 live street — dapp/src/petHub.tsx
- * CSS motion always on. JPG is optional overlay if public files exist.
+ * PAWLY Pet Hub v0.6 video street — dapp/src/petHub.tsx
+ * Street scene plays pet-hub-street.mp4 on loop (reference clip).
  */
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -73,79 +73,45 @@ const primary: React.CSSProperties = {
   border: "none",
 };
 
+function asset(name: string) {
+  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || "/dapp/";
+  return (base.endsWith("/") ? base : base + "/") + name;
+}
+
+const SCENE_CLIP: Record<SceneId, string> = {
+  street: "pet-hub-street.mp4",
+  hospital: "pet-hub-hospital.mp4",
+  park: "pet-hub-park.mp4",
+  shop: "pet-hub-shop.mp4",
+  shelter: "pet-hub-shelter.mp4",
+  hotel: "pet-hub-hotel.mp4",
+  groom: "pet-hub-groom.mp4",
+};
+
 function LivingStreet({ scene, onEnter }: { scene: SceneId; onEnter: (id: SceneId) => void }) {
-  const sky =
-    scene === "park"
-      ? "linear-gradient(#3a1548 0%, #e07a3a 45%, #5aa0c8 70%)"
-      : scene === "hospital"
-      ? "linear-gradient(#06141c,#0b2430)"
-      : "linear-gradient(#1a1038 0%, #6b2d6e 40%, #0b1220 70%)";
   return (
-    <div style={{ position: "relative", height: 320, overflow: "hidden", background: sky }}>
-      <style>{`
-        @keyframes pawlyWalk { from { transform: translateX(-40px); } to { transform: translateX(360px); } }
-        @keyframes pawlyWalkBack { from { transform: translateX(360px) scaleX(-1); } to { transform: translateX(-40px) scaleX(-1); } }
-        @keyframes pawlyBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-        @keyframes pawlyRunIn { from { transform: translate(140px, 40px) scale(.4); opacity: 0; } to { transform: translate(0,0) scale(1); opacity: 1; } }
-        @keyframes pawlyWag { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
-        @keyframes pawlyBlink { 0%,20%,100% { opacity: 1; } 10% { opacity: .35; } }
-        .ph-actor { position:absolute; font-size:26px; line-height:1; animation: pawlyWalk 9s linear infinite; }
-        .ph-actor.rev { animation: pawlyWalkBack 11s linear infinite; }
-        .ph-pet { display:inline-block; animation: pawlyBounce .6s ease-in-out infinite; }
-        .ph-run { animation: pawlyRunIn .7s ease-out both; }
-        .ph-shop { animation: pawlyBlink 3.4s ease-in-out infinite; }
-      `}</style>
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(#fff6 1px, transparent 1px)", backgroundSize: "18px 18px", opacity: 0.12 }} />
-      {scene === "street" || scene === "shop" || scene === "shelter" || scene === "hotel" || scene === "groom" ? (
-        <>
-          <div style={{ position: "absolute", left: 0, right: 0, top: 78, display: "flex", gap: 6, padding: "0 6px" }}>
-            {SHOPS.map((s, i) => (
-              <button
-                key={s.id}
-                type="button"
-                className="ph-shop"
-                onClick={() => onEnter(s.id)}
-                style={{
-                  flex: 1,
-                  height: 88,
-                  border: "1px solid #00ff9d",
-                  borderRadius: 8,
-                  background: "linear-gradient(#123,#0a1c16)",
-                  color: "#9fffd6",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  animationDelay: i * 0.4 + "s",
-                }}
-              >
-                {s.emoji}
-                <br />
-                {s.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ position: "absolute", left: 0, right: 0, top: 168, height: 36, background: "#2a3142" }} />
-          <div style={{ position: "absolute", left: 0, right: 0, top: 204, height: 70, background: "#151920" }} />
-          <div className="ph-actor" style={{ top: 176 }}>🚶‍♂️<span className="ph-pet">🐕</span></div>
-          <div className="ph-actor rev" style={{ top: 188, animationDelay: "-4s" }}>🚶‍♀️<span className="ph-pet">🐈</span></div>
-          <div className="ph-actor" style={{ top: 230, animationDuration: "13s", fontSize: 22 }}>🚶‍♀️<span className="ph-pet">🐩</span></div>
-        </>
-      ) : null}
-      {scene === "hospital" ? (
-        <>
-          <div style={{ position: "absolute", left: 12, top: 70, width: 120, height: 90, background: "#0d2a32", border: "1px solid #3ee0c0", borderRadius: 8, color: "#9ff", padding: 8, fontSize: 12 }}>👩‍⚕️ Dr.Tan</div>
-          <div className="ph-run" style={{ position: "absolute", left: 150, top: 120, fontSize: 42 }}>🐶</div>
-          <div className="ph-run" style={{ position: "absolute", left: 210, top: 128, fontSize: 36, animationDelay: ".15s" }}>🐱</div>
-        </>
-      ) : null}
-      {scene === "park" ? (
-        <>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 120, background: "linear-gradient(#2d7a3a,#16351c)" }} />
-          <div className="ph-actor" style={{ top: 180, fontSize: 34 }}>🧑‍🦱<span className="ph-pet">🐕</span></div>
-          <div style={{ position: "absolute", right: 24, top: 90, fontSize: 22 }}>🦆🦆🦆</div>
-        </>
-      ) : null}
-      <div className="ph-run" style={{ position: "absolute", left: "42%", bottom: 18, fontSize: 40 }}>
-        <span style={{ display: "inline-block", animation: "pawlyWag .35s ease-in-out infinite" }}>🐾</span>
+    <div style={{ position: "relative", background: "#070b10" }}>
+      <video
+        key={scene}
+        src={asset(SCENE_CLIP[scene])}
+        autoPlay
+        muted
+        loop
+        playsInline
+        controls={false}
+        style={{ width: "100%", height: "auto", display: "block", background: "#070b10" }}
+      />
+      <div style={{ display: "flex", gap: 6, padding: 8, overflowX: "auto" }}>
+        {SHOPS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onEnter(s.id)}
+            style={{ ...ghost, flex: "0 0 auto", fontSize: 12, opacity: scene === s.id ? 1 : 0.75 }}
+          >
+            {s.emoji} {s.label}
+          </button>
+        ))}
       </div>
     </div>
   );
