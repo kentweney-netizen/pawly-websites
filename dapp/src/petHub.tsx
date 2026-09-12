@@ -209,7 +209,17 @@ function AnimPet({ emoji, delay = 0, size = 36 }: { emoji: string; delay?: numbe
 }
 
 function GreetingYard({ pets, onSnack, onHug }: { pets: PetRec[]; onSnack: () => void; onHug: () => void }) {
-  const list = (pets && pets.length ? pets : [{ id: "guest", emoji: "🐾", name: "Paw" }]).slice(0, 6);
+  const placeholder: PetRec = {
+    id: "guest",
+    kind: "guest",
+    species: "paw",
+    name: "Paw",
+    emoji: "🐾",
+    hunger: 0,
+    health: 0,
+    streak: 0,
+  };
+  const list: PetRec[] = (pets && pets.length ? pets : [placeholder]).slice(0, 6);
   const lines = ["Wag wag!", "Pick me up!", "Snack please!", "Missed you!", "Treat?"];
   return (
     <div style={{
@@ -659,3 +669,4 @@ export function PetHubPage() {
     </div>
   );
 }
+
