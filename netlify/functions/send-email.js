@@ -1,8 +1,14 @@
-// PAWLY Pets email — Resend. Pet Hub certificate + photo card.
+// PAWLY Pets email — Resend. Pet Hub certificate + generated pet photo attachments.
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.RESEND_FROM || "PAWLY Pets <onboarding@resend.dev>";
+
+function stripDataUrl(s) {
+  const v = String(s || "");
+  const i = v.indexOf("base64,");
+  return i >= 0 ? v.slice(i + 7) : v.replace(/\s+/g, "");
+}
 
 function certHtml(body) {
   const emoji = body.emoji || "🐾";
@@ -18,6 +24,7 @@ function certHtml(body) {
       <p style="margin:0 0 8px;font-size:16px">${title}</p>
       <p style="margin:0 0 12px;color:#c8ffe8">${amount} PAWLY · on-chain</p>
       <p style="word-break:break-all;font-size:11px;color:#9aa">${sig}</p>
+      <p style="margin-top:16px;font-size:13px;color:#c8ffe8">Certificate PNG and pet photo are attached.</p>
       <p style="margin-top:16px"><a href="${site}" style="color:#00ff9d">Open Pet Hub</a></p>
     </div>
     <p style="font-size:12px;color:#8aa;text-align:center">Official CA 88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87</p>
@@ -43,13 +50,19 @@ export default async (req) => {
     const html = body.html || certHtml(body);
     const text =
       body.message ||
-      [body.title || "PAWLY certificate", (body.amount || "") + " PAWLY", body.sig || ""].join("\n");
+      [body.title || "PAWLY certificate", (body.amount || "") + " PAWLY", body.sig || "", "See attached PNG certificate and pet photo."].join("\n");
+    const attachments = [];
+    const cert = stripDataUrl(body.certPng || body.certificate);
+    const photo = stripDataUrl(body.photoPng || body.photo);
+    if (cert && cert.length > 80) attachments.push({ filename: "pawly-certificate.png", content: cert });
+    if (photo && photo.length > 80) attachments.push({ filename: "pawly-pet-photo.png", content: photo });
     const { data, error } = await resend.emails.send({
       from: FROM,
       to: [email],
       subject,
       text,
       html,
+      attachments,
     });
     if (error) {
       return new Response(JSON.stringify({ error: error.message || "Resend failed" }), {
@@ -57,7 +70,7 @@ export default async (req) => {
         headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ success: true, messageId: data?.id || null }), {
+    return new Response(JSON.stringify({ success: true, messageId: data?.id || null, attached: attachments.length }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
