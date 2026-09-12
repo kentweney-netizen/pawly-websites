@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.09.2026 v7.7.40 sponsor pays wrap-SOL account rent; Phantom sim retry. From v7.7.39.
+ * PAWLY DApp — 09.09.2026 v7.7.41 pre-wrap SOL sponsored + SW-safe fetch. From v7.7.40.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -115,6 +115,7 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import WalletConnect from "./components/WalletConnect";
 import ExportPawlyWallet from "./components/ExportPawlyWallet";
+import { PetHubPage } from "./petHub";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const endpoint = clusterApiUrl("mainnet-beta");
@@ -1398,6 +1399,53 @@ function rewriteSystemRentPayerToSponsor(ixs, userPk, sponsorPk, tradeLamports) 
   }
 }
 
+async function ensureUserWsolSponsored({ publicKey, wallet, signTransaction, lamports }) {
+  if (!sponsorLive()) return;
+  const n = Number(lamports);
+  if (!n || n <= 0) return;
+  const connection = getConnection();
+  const sponsorPk = new PublicKey(PAWLY_GAS_SPONSOR);
+  const nativeMint = new PublicKey(TOKEN_MINTS.SOL);
+  const wsolAta = await getAssociatedTokenAddress(nativeMint, publicKey);
+  const ixs = [];
+  const info = await connection.getAccountInfo(wsolAta);
+  if (!info) {
+    ixs.push(
+      createAssociatedTokenAccountInstruction(sponsorPk, wsolAta, publicKey, nativeMint)
+    );
+  }
+  ixs.push(
+    SystemProgram.transfer({
+      fromPubkey: publicKey,
+      toPubkey: wsolAta,
+      lamports: n,
+    })
+  );
+  ixs.push(
+    new TransactionInstruction({
+      programId: TOKEN_PROGRAM_ID,
+      keys: [{ pubkey: wsolAta, isSigner: false, isWritable: true }],
+      data: Uint8Array.from([17]),
+    })
+  );
+  const latest = await connection.getLatestBlockhash("confirmed");
+  const messageV0 = new TransactionMessage({
+    payerKey: sponsorPk,
+    recentBlockhash: latest.blockhash,
+    instructions: ixs,
+  }).compileToV0Message();
+  const vtx = new VersionedTransaction(messageV0);
+  const signed = await userPartialSign(vtx, wallet, signTransaction);
+  const sig = await sponsorBroadcast(signed, 0);
+  try {
+    await connection.confirmTransaction(
+      { signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+      "confirmed"
+    );
+  } catch (_) {}
+  return sig;
+}
+
 async function fetchJupiterSwapInstructions(quoteResponse, userPkStr) {
   const payload = {
     quoteResponse,
@@ -1415,26 +1463,15 @@ async function fetchJupiterSwapInstructions(quoteResponse, userPkStr) {
   let lastErr = "";
   for (let i = 0; i < urls.length; i++) {
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(function () { ctrl.abort(); }, 20000);
-      try {
-        const res = await fetch(urls[i], {
-          method: "POST",
-          signal: ctrl.signal,
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: body,
-        });
-        const t = await res.text();
-        if (!res.ok) {
-          lastErr = t.slice(0, 180);
-          continue;
-        }
-        const j = JSON.parse(t);
-        if (j && (j.swapInstruction || j.swapInstructionSimple)) return j;
-        lastErr = "no swapInstruction";
-      } finally {
-        clearTimeout(timer);
+      const res = await postJsonBypassSw(urls[i], payload, 20000);
+      const t = res.text || "";
+      if (!res.ok) {
+        lastErr = t.slice(0, 180);
+        continue;
       }
+      const j = JSON.parse(t);
+      if (j && (j.swapInstruction || j.swapInstructionSimple)) return j;
+      lastErr = "no swapInstruction";
     } catch (e) {
       lastErr = String((e && e.message) || e);
     }
@@ -1737,7 +1774,7 @@ async function executeRaydiumSwap({ publicKey, sendTransaction, wallet, signTran
           swapResponse: payloads[p],
           txVersion: "V0",
           wallet: publicKey.toString(),
-          wrapSol: true,
+          wrapSol: computeData && computeData._prewrappedSol ? false : true,
           unwrapSol: true,
         }),
       });
@@ -1842,6 +1879,16 @@ async function executeOnVenue(venueId, ctx) {
   if (venueId === "raydium") {
     const raw = quote && quote.routeId === "raydium" ? quote.raw : null;
     const pack = raw || (await raydiumQuoteOnce(fromToken, toToken, uiAmount, 150)).raw;
+    if (fromToken === "SOL" && sponsorLive()) {
+      const lamports = Number((pack && (pack.inputAmount || pack.inAmount)) || toRawAmount(uiAmount, "SOL"));
+      await ensureUserWsolSponsored({
+        publicKey,
+        wallet,
+        signTransaction,
+        lamports: lamports,
+      });
+      if (pack) pack._prewrappedSol = true;
+    }
     return await executeRaydiumSwap({
       publicKey,
       sendTransaction,
@@ -1859,8 +1906,13 @@ async function executeOnVenue(venueId, ctx) {
 async function executeSwapRoute({ publicKey, sendTransaction, wallet, signTransaction, best, fromToken, toToken, uiAmount }) {
   if (!publicKey || !sendTransaction) throw new Error("Wallet not connected");
   if (!best) throw new Error("No quote");
-  const primary = venueIdOfQuote(best) === "jupiter" ? "jupiter" : "raydium";
-  const order = primary === "jupiter" ? ["jupiter", "raydium"] : ["raydium", "jupiter"];
+  const pawlyPair = fromToken === "PAWLY" || toToken === "PAWLY";
+  const primary = !pawlyPair && venueIdOfQuote(best) === "jupiter" ? "jupiter" : "raydium";
+  const order = pawlyPair
+    ? ["raydium"]
+    : primary === "jupiter"
+      ? ["jupiter", "raydium"]
+      : ["raydium", "jupiter"];
   const errors = [];
   const ctx = { publicKey, sendTransaction, wallet, signTransaction, quote: best, fromToken, toToken, uiAmount };
   for (let i = 0; i < order.length; i++) {
@@ -2073,17 +2125,83 @@ function openOfframpPlatform(platform, walletAddress, crypto, amount, fiatCode) 
 }
 
 /** 带超时的 fetch，避免一直 Loading */
+function xhrResponse(url, method, headers, body, ms) {
+  return new Promise(function (resolve, reject) {
+    try {
+      const x = new XMLHttpRequest();
+      x.open(method || "GET", url, true);
+      x.timeout = ms || 12000;
+      const h = headers || {};
+      Object.keys(h).forEach(function (k) {
+        try { x.setRequestHeader(k, h[k]); } catch (_) {}
+      });
+      x.onload = function () {
+        resolve({
+          ok: x.status >= 200 && x.status < 300,
+          status: x.status,
+          text: function () { return Promise.resolve(x.responseText || ""); },
+          json: function () { return Promise.resolve(JSON.parse(x.responseText || "{}")); },
+        });
+      };
+      x.onerror = function () { reject(new Error("XHR Load failed")); };
+      x.ontimeout = function () { reject(new Error("XHR timeout")); };
+      x.send(body || null);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 async function fetchWithTimeout(url, ms = 8000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
+  const headers = { Accept: "application/json" };
   try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { Accept: "application/json" },
-    });
-    return res;
-  } finally {
-    clearTimeout(timer);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+      return await fetch(url, {
+        signal: ctrl.signal,
+        cache: "no-store",
+        headers: headers,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (/Load failed|FetchEvent|Failed to fetch|NetworkError/i.test(msg)) {
+      return await xhrResponse(url, "GET", headers, null, ms);
+    }
+    throw e;
+  }
+}
+
+async function postJsonBypassSw(url, bodyObj, ms = 20000) {
+  const headers = { "Content-Type": "application/json", Accept: "application/json" };
+  const body = JSON.stringify(bodyObj);
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(function () { ctrl.abort(); }, ms);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        signal: ctrl.signal,
+        cache: "no-store",
+        headers: headers,
+        body: body,
+      });
+      const t = await res.text();
+      return { ok: res.ok, status: res.status, text: t };
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (/Load failed|FetchEvent|Failed to fetch|NetworkError/i.test(msg)) {
+      const res = await xhrResponse(url, "POST", headers, body, ms);
+      const t = await res.text();
+      return { ok: res.ok, status: res.status, text: t };
+    }
+    throw e;
   }
 }
 
@@ -2997,6 +3115,10 @@ function HomePage() {
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate("/pet")}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate("/pet"); }}
             style={{
               margin: "0 auto 16px",
               maxWidth: 420,
@@ -3004,13 +3126,33 @@ function HomePage() {
               overflow: "hidden",
               border: "3px solid rgba(255,158,205,0.55)",
               boxShadow: "0 12px 36px rgba(255,158,205,0.25)",
+              position: "relative",
+              cursor: "pointer",
             }}
           >
             <img
               src={HERO_IMG}
-              alt="PAWLY"
+              alt="PAWLY Pet Hub"
               style={{ width: "100%", height: "auto", display: "block", verticalAlign: "middle" }}
             />
+            <span
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                background: "rgba(5,32,21,0.82)",
+                color: "#00ff9d",
+                border: "1px solid rgba(0,255,157,0.55)",
+                borderRadius: 999,
+                padding: "6px 12px",
+                fontSize: 13,
+                fontWeight: 800,
+                letterSpacing: 0.3,
+                pointerEvents: "none",
+              }}
+            >
+              Pet Hub
+            </span>
           </div>
           <h1 style={{ margin: 0, fontSize: "1.85rem", color: "#00ff9d", fontWeight: 800 }}>PAWLY DApp</h1>
           <p style={{ margin: "8px 0 0", color: "#8a9", fontSize: "0.95rem" }}>
@@ -6686,6 +6828,7 @@ function AppRoutes() {
         <Route path="/cashout" element={<CashOutPage />} />
         <Route path="/charity" element={<CharityPage />} />
         <Route path="/chart" element={<ChartPage />} />
+        <Route path="/pet" element={<PetHubPage />} />
       </Routes>
     </>
   );
@@ -6728,6 +6871,8 @@ function App() {
 }
 
 export default App;
+
+
 
 
 
