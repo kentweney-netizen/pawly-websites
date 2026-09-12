@@ -17,6 +17,7 @@ import {
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
 import { usePawlyWallet } from "./localWallet";
+import { PetRig, PET_RIG_CSS } from "./petAvatar";
 
 export const PET_SLOT_CAP = 10;
 const STORE = "pawly_pet_hub_v1_";
@@ -610,7 +611,7 @@ export function PetHubPage() {
           </div>
         ) : null}
       </div>
-      <style>{`
+      <style>{PET_RIG_CSS + `
         .pawly-pet { font-size: 42px; line-height: 1; animation: pawly-wiggle 0.5s ease-in-out infinite alternate; }
         .pawly-bubble { background: #fff; color: #102018; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 4px 8px; margin-bottom: 4px; width: max-content; }
         .pawly-run { animation: pawly-in 1.1s ease-out both; }
@@ -620,6 +621,16 @@ export function PetHubPage() {
         @keyframes pawly-wiggle { from { transform: rotate(-8deg) translateY(0); } to { transform: rotate(8deg) translateY(-6px); } }
       `}</style>
       <div style={{ flex: "0 0 auto", zIndex: 2, padding: "8px 8px 10px", background: "#070b10", maxHeight: "46dvh", overflowY: "auto" }}>
+                {scene === "street" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "6px 0 10px" }}>
+            {pets.length ? pets.map((p) => (
+              <div key={p.id} style={{ textAlign: "center" }}>
+                <PetRig pet={{ species: p.species, level: Number((p as { level?: number }).level || 0), emoji: p.emoji }} size={88} />
+                <div style={{ fontSize: 11, fontWeight: 800 }}>{p.name}</div>
+              </div>
+            )) : <div style={{ color: "#8aa", fontSize: 12 }}>Adopt in Shop to see your 3D pet here.</div>}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 4, overflowX: "auto", marginBottom: 8 }}>
           {SHOPS.map((s) => (
             <button key={s.id} type="button" onClick={() => { setScene(s.id); setNote(""); }} style={{ ...ghost, flex: "0 0 auto", background: scene === s.id ? "rgba(0,255,157,0.28)" : ghost.background }}>
