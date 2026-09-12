@@ -1,6 +1,5 @@
 /**
- * PAWLY Pet Hub v0.8.1 — dapp/src/petHub.tsx
- * Scene fits remaining viewport. Full on-chain signature stays visible.
+ * PAWLY Pet Hub v0.9 — confirmed-only adopt + shop/rescue catalogs.
  */
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -46,13 +45,46 @@ type PetRec = {
   health: number;
   streak: number;
   pricePawly?: number;
+  sig?: string;
 };
-type CartItem = { title: string; amount: number; kind: "adopt" | "service"; species?: string; emoji?: string };
+type CartKind = "adopt" | "rescue" | "service";
+type CartItem = {
+  title: string;
+  amount: number;
+  kind: CartKind;
+  species?: string;
+  emoji?: string;
+};
 
 const COMPANIONS = [
   { species: "dog", label: "Dog", emoji: "🐶", pricePawly: 1000 },
   { species: "cat", label: "Cat", emoji: "🐱", pricePawly: 800 },
   { species: "rabbit", label: "Rabbit", emoji: "🐰", pricePawly: 600 },
+  { species: "hamster", label: "Hamster", emoji: "🐹", pricePawly: 280 },
+  { species: "parrot", label: "Parrot", emoji: "🦜", pricePawly: 520 },
+  { species: "chicken", label: "Chicken", emoji: "🐔", pricePawly: 180 },
+  { species: "duck", label: "Duck", emoji: "🦆", pricePawly: 180 },
+  { species: "minipig", label: "Mini pig", emoji: "🐷", pricePawly: 420 },
+  { species: "alpaca", label: "Alpaca", emoji: "🦙", pricePawly: 700 },
+  { species: "lizard", label: "Lizard", emoji: "🦎", pricePawly: 220 },
+  { species: "snake", label: "Snake", emoji: "🐍", pricePawly: 260 },
+  { species: "gecko", label: "Gecko", emoji: "🦎", pricePawly: 200 },
+  { species: "beetle", label: "Beetle", emoji: "🪲", pricePawly: 80 },
+  { species: "tarantula", label: "Tarantula", emoji: "🕷", pricePawly: 90 },
+  { species: "mantis", label: "Mantis", emoji: "🦗", pricePawly: 70 },
+];
+
+const RESCUES = [
+  { species: "stray-cat", label: "Stray cat", emoji: "🐱", pricePawly: 10 },
+  { species: "stray-dog", label: "Stray dog", emoji: "🐶", pricePawly: 10 },
+  { species: "orangutan", label: "Orangutan", emoji: "🦧", pricePawly: 25 },
+  { species: "sunbear", label: "Sun bear", emoji: "🐻", pricePawly: 25 },
+  { species: "malayan-tiger", label: "Malayan tiger", emoji: "🐯", pricePawly: 30 },
+  { species: "seaturtle", label: "Sea turtle", emoji: "🐢", pricePawly: 20 },
+  { species: "hornbill", label: "Hornbill", emoji: "🦅", pricePawly: 20 },
+  { species: "asian-elephant", label: "Asian elephant", emoji: "🐘", pricePawly: 30 },
+  { species: "pangolin", label: "Pangolin", emoji: "🦔", pricePawly: 20 },
+  { species: "gibbon", label: "Gibbon", emoji: "🐒", pricePawly: 20 },
 ];
 
 const TITLE: Record<SceneId, string> = {
@@ -88,7 +120,8 @@ function loadPets(w: string): PetRec[] {
   try {
     const raw = localStorage.getItem(STORE + (w || "guest"));
     const list = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? (list as PetRec[]) : [];
+    if (!Array.isArray(list)) return [];
+    return (list as PetRec[]).filter((p) => p && typeof p.sig === "string" && p.sig.length > 40);
   } catch {
     return [];
   }
@@ -110,6 +143,28 @@ function saveLedger(w: string, row: Record<string, string | number>) {
 }
 function asset(name: string) {
   return "/" + name.replace(/^\//, "");
+}
+
+async function assertOnchainSuccess(conn: Connection, sig: string) {
+  const s = String(sig || "").trim();
+  if (s.length < 64) throw new Error("No on-chain signature / 没有链上签名");
+  let last = "";
+  for (let i = 0; i < 10; i++) {
+    const res = await conn.getSignatureStatuses([s], { searchTransactionHistory: true });
+    const st = res?.value?.[0];
+    if (st) {
+      if (st.err) throw new Error("Transaction failed on-chain / 链上失败");
+      if (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized") return;
+    }
+    last = st ? String(st.confirmationStatus || "") : "pending";
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  const tx = await conn.getTransaction(s, {
+    commitment: "confirmed",
+    maxSupportedTransactionVersion: 0,
+  });
+  if (tx?.meta?.err) throw new Error("Transaction failed on-chain / 链上失败");
+  if (!tx) throw new Error("Signature not confirmed / 签名未上链 " + last);
 }
 
 async function payPawlyInHub(opts: {
@@ -134,6 +189,7 @@ async function payPawlyInHub(opts: {
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const msg = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
   const tx = new VersionedTransaction(msg);
+  let sig = "";
   if (typeof opts.signTransaction === "function") {
     const signed = await opts.signTransaction(tx);
     const rawBytes = signed.serialize();
@@ -155,9 +211,12 @@ async function payPawlyInHub(opts: {
       body: JSON.stringify({ transaction: b64, feePawly: 1 }),
     });
     const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
-    if (r.ok && d.signature) return String(d.signature);
+    if (r.ok && d.signature) sig = String(d.signature);
+    else if (d.error) throw new Error(String(d.error));
   }
-  return await opts.sendTransaction(tx, conn);
+  if (!sig) sig = await opts.sendTransaction(tx, conn);
+  await assertOnchainSuccess(conn, sig);
+  return sig;
 }
 
 const ghost: React.CSSProperties = {
@@ -178,6 +237,16 @@ const primary: React.CSSProperties = {
   fontSize: 13,
   padding: "10px 12px",
 };
+const rowBtn: React.CSSProperties = {
+  ...ghost,
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  width: "100%",
+  marginBottom: 4,
+  fontSize: 12,
+  padding: "8px 10px",
+};
 
 export function PetHubPage() {
   const navigate = useNavigate();
@@ -189,13 +258,12 @@ export function PetHubPage() {
   const addr = (wallet.publicKey && wallet.publicKey.toString()) || "";
   const [scene, setScene] = useState<SceneId>("street");
   const [pets, setPets] = useState<PetRec[]>(() => loadPets(addr));
-  const [pick, setPick] = useState("dog");
   const [cart, setCart] = useState<CartItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [lastSig, setLastSig] = useState("");
   const [lastPaid, setLastPaid] = useState(0);
-  const spec = COMPANIONS.find((c) => c.species === pick) || COMPANIONS[0];
+  const [lastTitle, setLastTitle] = useState("");
   const hint = useMemo(() => (addr ? addr.slice(0, 4) + "…" + addr.slice(-4) : "connect wallet"), [addr]);
 
   const openCart = (item: CartItem) => {
@@ -203,21 +271,22 @@ export function PetHubPage() {
     setCart(item);
   };
 
-  const grant = (item: CartItem) => {
+  const grantAdopt = (item: CartItem, sig: string) => {
     if (item.kind !== "adopt") return;
-    if (pets.length >= PET_SLOT_CAP) return;
+    if (pets.length >= PET_SLOT_CAP) throw new Error("Max 10 pets / 最多 10 只");
     const next: PetRec[] = [
       ...pets,
       {
         id: "pet_" + Date.now(),
         kind: "adopted",
-        species: item.species || spec.species,
-        name: item.title.replace(/^Adopt\s+/i, "") || spec.label,
-        emoji: item.emoji || spec.emoji,
+        species: item.species || "dog",
+        name: item.title.replace(/^Adopt\s+/i, ""),
+        emoji: item.emoji || "🐶",
         hunger: 70,
         health: 80,
         streak: 0,
         pricePawly: item.amount,
+        sig,
       },
     ];
     setPets(next);
@@ -230,6 +299,14 @@ export function PetHubPage() {
       setNote("Connect wallet in dApp first / 先在 dApp 连接钱包");
       return;
     }
+    if (cart.kind === "adopt" && pets.length >= PET_SLOT_CAP) {
+      setNote("Max 10 pets / 最多 10 只");
+      return;
+    }
+    if (cart.kind === "rescue" && cart.amount < 10) {
+      setNote("Rescue starts at 10 PAWLY");
+      return;
+    }
     setBusy(true);
     setNote("Paying in Pet Hub…");
     try {
@@ -239,10 +316,11 @@ export function PetHubPage() {
         sendTransaction: wallet.sendTransaction,
         signTransaction: wallet.signTransaction,
       });
-      saveLedger(addr, { t: Date.now(), title: cart.title, amount: cart.amount, sig, scene });
-      grant(cart);
+      saveLedger(addr, { t: Date.now(), title: cart.title, amount: cart.amount, sig, scene, kind: cart.kind });
+      grantAdopt(cart, sig);
       setLastPaid(cart.amount);
       setLastSig(sig);
+      setLastTitle(cart.title);
       setNote("");
       setCart(null);
     } catch (e) {
@@ -261,29 +339,50 @@ export function PetHubPage() {
       <div style={{ flex: "1 1 auto", minHeight: 0, position: "relative", background: "#0a1016" }}>
         <video key={scene} src={asset(CLIP[scene])} autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
-      <div style={{ flex: "0 0 auto", zIndex: 2, padding: "8px 8px 10px", background: "#070b10" }}>
+      <div style={{ flex: "0 0 auto", zIndex: 2, padding: "8px 8px 10px", background: "#070b10", maxHeight: "46dvh", overflowY: "auto" }}>
         <div style={{ display: "flex", gap: 4, overflowX: "auto", marginBottom: 8 }}>
           {SHOPS.map((s) => (
-            <button key={s.id} type="button" onClick={() => setScene(s.id)} style={{ ...ghost, flex: "0 0 auto", background: scene === s.id ? "rgba(0,255,157,0.28)" : ghost.background }}>
+            <button key={s.id} type="button" onClick={() => { setScene(s.id); setNote(""); }} style={{ ...ghost, flex: "0 0 auto", background: scene === s.id ? "rgba(0,255,157,0.28)" : ghost.background }}>
               {s.label}
             </button>
           ))}
         </div>
         {pets.length ? <div style={{ fontSize: 12, marginBottom: 6 }}>{pets.map((p) => p.emoji + p.name).join("  ")}</div> : null}
+
         {(scene === "street" || scene === "shop") && (
-          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+          <div>
+            <div style={{ color: "#9aa", fontSize: 11, marginBottom: 4 }}>Pick a pet · pay PAWLY · max 10</div>
             {COMPANIONS.map((c) => (
-              <button key={c.species} type="button" style={{ ...ghost, flex: 1 }} onClick={() => setPick(c.species)}>
-                {c.emoji} {c.pricePawly}
+              <button
+                key={c.species}
+                type="button"
+                style={rowBtn}
+                onClick={() => openCart({ title: "Adopt " + c.label, amount: c.pricePawly, kind: "adopt", species: c.species, emoji: c.emoji })}
+              >
+                <span>{c.emoji + " " + c.label}</span>
+                <span>{c.pricePawly} PAWLY</span>
               </button>
             ))}
           </div>
         )}
-        {(scene === "street" || scene === "shop") && (
-          <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Adopt " + spec.label, amount: spec.pricePawly, kind: "adopt", species: spec.species, emoji: spec.emoji })}>
-            Pay {spec.pricePawly} PAWLY · adopt {spec.label}
-          </button>
+
+        {scene === "shelter" && (
+          <div>
+            <div style={{ color: "#9aa", fontSize: 11, marginBottom: 4 }}>Pick who to rescue · from 10 PAWLY</div>
+            {RESCUES.map((c) => (
+              <button
+                key={c.species}
+                type="button"
+                style={rowBtn}
+                onClick={() => openCart({ title: "Rescue " + c.label, amount: c.pricePawly, kind: "rescue", species: c.species, emoji: c.emoji })}
+              >
+                <span>{c.emoji + " " + c.label}</span>
+                <span>{c.pricePawly} PAWLY</span>
+              </button>
+            ))}
+          </div>
         )}
+
         {scene === "hospital" && (
           <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Hospital checkup", amount: 120, kind: "service" })}>
             Pay 120 PAWLY · checkup
@@ -294,20 +393,15 @@ export function PetHubPage() {
             Pay 40 PAWLY · walk
           </button>
         )}
-        {scene === "shelter" && (
-          <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Rescue donate", amount: 200, kind: "service" })}>
-            Pay 200 PAWLY · rescue
-          </button>
-        )}
         {(scene === "hotel" || scene === "groom") && (
           <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: TITLE[scene], amount: scene === "hotel" ? 180 : 90, kind: "service" })}>
             Pay {scene === "hotel" ? 180 : 90} PAWLY
           </button>
         )}
-        {note ? <div style={{ color: "#ffb4b4", fontSize: 11, marginTop: 6 }}>{note}</div> : null}
+        {note ? <div style={{ color: "#ffb4b4", fontSize: 11, marginTop: 6, wordBreak: "break-word" }}>{note}</div> : null}
         {lastSig ? (
           <div style={{ marginTop: 8, padding: "8px 8px 6px", border: "1px solid rgba(0,255,157,0.35)", borderRadius: 10, background: "#0c1410" }}>
-            <div style={{ color: "#00ff9d", fontSize: 12, fontWeight: 800 }}>Paid {lastPaid} PAWLY</div>
+            <div style={{ color: "#00ff9d", fontSize: 12, fontWeight: 800 }}>Paid {lastPaid} PAWLY · {lastTitle}</div>
             <div style={{ color: "#c8ffe8", fontSize: 10, lineHeight: 1.35, wordBreak: "break-all", margin: "4px 0 6px" }}>{lastSig}</div>
             <div style={{ display: "flex", gap: 6 }}>
               <button type="button" style={{ ...ghost, flex: 1 }} onClick={() => { try { navigator.clipboard.writeText(lastSig); } catch { /* ignore */ } }}>Copy sig</button>
@@ -323,9 +417,12 @@ export function PetHubPage() {
         <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => !busy && setCart(null)}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: "#101820", borderTop: "1px solid rgba(0,255,157,0.4)", borderRadius: "16px 16px 0 0", padding: "16px 14px 18px" }}>
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 16 }}>Pet Hub checkout</div>
-            <div style={{ margin: "8px 0 4px", fontSize: 14 }}>{cart.title}</div>
+            <div style={{ margin: "8px 0 4px", fontSize: 14 }}>{cart.emoji ? cart.emoji + " " : ""}{cart.title}</div>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
-            <div style={{ fontSize: 11, color: "#9aa", margin: "6px 0 12px" }}>Stays in Pet Hub. PAWLY goes to the shop till.<br />不离开本页。货款进店。</div>
+            <div style={{ fontSize: 11, color: "#9aa", margin: "6px 0 12px" }}>
+              Avatar unlocks only after Solscan success.<br />
+              没链上成功签名，不会出现宠物头像。
+            </div>
             <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={confirmPay}>
               {busy ? "Paying…" : "Confirm · pay " + cart.amount + " PAWLY"}
             </button>
