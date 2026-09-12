@@ -1,10 +1,10 @@
 /**
- * PAWLY Pet Hub v0.4 map — dapp/src/components/petHub.tsx
+ * PAWLY Pet Hub v0.4 map — dapp/src/petHub.tsx
  * No Phaser. Pixel scenes + tap doors. Pay goes to existing /payment.
  */
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePawlyWallet } from "../localWallet";
+import { usePawlyWallet } from "./localWallet";
 
 export const PET_SLOT_CAP = 10;
 const STORE = "pawly_pet_hub_v1_";
@@ -227,5 +227,3 @@ export function PetHubPage() {
     </div>
   );
 }
-
-
