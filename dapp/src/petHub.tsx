@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.10.2 — cert/photo in-app download, no email send.
+ * PAWLY Pet Hub v0.10.3 — 3 feeds/day hard cap per pet.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,17 @@ import { usePawlyWallet } from "./localWallet";
 import { PetRig, PET_RIG_CSS } from "./petAvatar";
 
 export const PET_SLOT_CAP = 10;
+export const FEED_DAY_MAX = 3;
+function sgDay() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
+}
+function feedsTodayOf(p?: { feedDay?: string; feedsToday?: number } | null) {
+  if (!p) return 0;
+  return String(p.feedDay || "") === sgDay() ? Number(p.feedsToday || 0) : 0;
+}
+function pickFeedPet(list: PetRec[], id?: string) {
+  return list.find((x) => x.id === id) || list[0];
+}
 const STORE = "pawly_pet_hub_v1_";
 const LEDGER = "pawly_pet_hub_ledger_v1_";
 const EMAIL_KEY = "pawly_pet_hub_email_v1";
@@ -527,6 +538,12 @@ export function PetHubPage() {
 
   const openCart = (item: CartItem) => {
     setNote("");
+    if (item.kind === "food" || item.kind === "feed") {
+      const pet = pickFeedPet(pets, item.petId || focusId);
+      if (!pet) { setNote("Adopt a pet first / 先领养"); return; }
+      const n = feedsTodayOf(pet);
+      if (n >= FEED_DAY_MAX) { setNote(pet.name + " already fed " + FEED_DAY_MAX + "/" + FEED_DAY_MAX + " today. Come back tomorrow / 今日已喂满 3 次"); return; }
+    }
     setCart(item);
   };
 
@@ -565,6 +582,11 @@ export function PetHubPage() {
     if (cart.kind === "rescue" && cart.amount < 10) {
       setNote("Rescue starts at 10 PAWLY");
       return;
+    }
+    if (cart.kind === "food" || cart.kind === "feed") {
+      const pet = pickFeedPet(pets, cart.petId || focusId);
+      if (!pet) { setNote("Adopt a pet first / 先领养"); return; }
+      if (feedsTodayOf(pet) >= FEED_DAY_MAX) { setNote(pet.name + " already fed " + FEED_DAY_MAX + "/" + FEED_DAY_MAX + " today. Come back tomorrow / 今日已喂满 3 次"); setCart(null); return; }
     }
     setBusy(true);
     setNote("Paying in Pet Hub…");
@@ -705,7 +727,7 @@ export function PetHubPage() {
         {scene === "shop" && shopView === "food" && (
           <div>
             <button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>← Shop</button>
-            <div style={{ color: "#9aa", fontSize: 11, marginBottom: 4 }}>Pets food · 10–30 PAWLY · auto feed after pay</div>
+            <div style={{ color: "#9aa", fontSize: 11, marginBottom: 4 }}>Pets food · 10–30 PAWLY · today {feedsTodayOf(pickFeedPet(pets, focusId))}/{FEED_DAY_MAX}</div>
             {FOODS.map((c) => (
               <button key={c.id} type="button" style={rowBtn} onClick={() => openCart({ title: c.label, amount: c.pricePawly, kind: "food", emoji: c.emoji, petId: focusId || (pets[0] && pets[0].id) || undefined })}>
                 <span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span>
@@ -766,7 +788,7 @@ export function PetHubPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: "#101820", borderRadius: "16px 16px 0 0", padding: 16 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800 }}>Feed this pet</div>
             <div style={{ fontSize: 13, margin: "8px 0 12px" }}>Max 3 feeds per day. Each feed 10–30 PAWLY. 10 feeds = 1 level.</div>
-            <button type="button" style={{ ...primary, width: "100%" }} onClick={() => { setFeedWarn(false); setScene("shop"); setShopView("food"); }}>Go to Pets food</button>
+            <button type="button" style={{ ...primary, width: "100%" }} onClick={() => { const pet = pickFeedPet(pets, focusId); const n = feedsTodayOf(pet); if (!pet) { setFeedWarn(false); setNote("Adopt a pet first / 先领养"); return; } if (n >= FEED_DAY_MAX) { setFeedWarn(false); setNote(pet.name + " already fed " + n + "/" + FEED_DAY_MAX + " today. Come back tomorrow / 今日已喂满 3 次"); return; } setFeedWarn(false); setScene("shop"); setShopView("food"); }}>Go to Pets food</button>
             <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setFeedWarn(false)}>Cancel</button>
           </div>
         </div>
