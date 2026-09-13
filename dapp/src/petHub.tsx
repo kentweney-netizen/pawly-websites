@@ -605,7 +605,7 @@ export function PetHubPage() {
           const next = pets.map((p) => {
             if (p.id !== id) return p;
             const total = Number(p.feedsTotal || 0) + 1;
-            const today = new Date().toISOString().slice(0, 10);
+            const today = sgDay();
             const same = String(p.feedDay || "") === today;
             const todayN = same ? Number(p.feedsToday || 0) + 1 : 1;
             return { ...p, feedsTotal: total, feedsToday: todayN, feedDay: today, level: Math.floor(total / 10) };
