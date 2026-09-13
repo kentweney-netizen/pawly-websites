@@ -262,10 +262,16 @@ function drawCertPng(job: CertJob) {
   g.fillText("www.pawlypets.online", 600, 680);
   return c.toDataURL("image/png");
 }
+function downloadDataUrl(name: string, url: string) {
+  if (!url) return;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+}
 async function queueCertMail(opts: { email: string; job: CertJob; wallet: string }) {
-  const body = {
+  const light = {
     email: opts.email.trim(),
-    wallet: opts.wallet,
     title: opts.job.title,
     amount: opts.job.amount,
     kind: opts.job.kind,
@@ -273,37 +279,29 @@ async function queueCertMail(opts: { email: string; job: CertJob; wallet: string
     emoji: opts.job.emoji || "",
     sig: opts.job.sig,
     site: "https://www.pawlypets.online/dapp/pet",
-    certPng: opts.job.certPng || "",
-    photoPng: opts.job.photoPng || "",
+  };
+  const full = { ...light, certPng: opts.job.certPng || "", photoPng: opts.job.photoPng || "" };
+  const post = async (body: Record<string, string | number>) => {
+    const r = await fetch("/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = (await r.json().catch(() => ({}))) as { error?: string };
+    if (r.ok) return "sent";
+    throw new Error(d.error || ("Mail HTTP " + r.status));
   };
   try {
-    let r = await fetch("/.netlify/functions/send-email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + SUPABASE_KEY,
-        apikey: SUPABASE_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-    if (r.ok) return "sent";
-    r = await fetch(SUPABASE_URL + "/functions/v1/send-pet-hub-mail", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + SUPABASE_KEY,
-        apikey: SUPABASE_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-    if (r.ok) return "sent";
-  } catch {
-    /* mail backend not live */
+    return await post(full);
+  } catch (e1) {
+    try {
+      return await post(light);
+    } catch (e2) {
+      saveLedger(opts.wallet, { t: Date.now(), title: "cert-queue " + opts.job.title, email: light.email, sig: opts.job.sig });
+      throw (e2 instanceof Error ? e2 : e1);
+    }
   }
-  saveLedger(opts.wallet, { t: Date.now(), title: "cert-queue " + opts.job.title, email: body.email, sig: opts.job.sig });
-  return "queued";
 }
-
 
 const BGM: Record<SceneId, { bpm: number; notes: number[]; wave: OscillatorType; vol: number }> = {
   street: { bpm: 108, notes: [523, 659, 784, 659], wave: "triangle", vol: 0.05 },
@@ -831,8 +829,8 @@ export function PetHubPage() {
                   return;
                 }
                 saveEmail(email.trim());
-                const st = await queueCertMail({ email: email.trim(), job: cert, wallet: addr });
-                setMailNote(st === "sent" ? "Sent to " + email.trim() : "Mail backend did not send yet. Check Resend domain / RESEND_API_KEY.");
+                try { const st = await queueCertMail({ email: email.trim(), job: cert, wallet: addr }); setMailNote(st === "sent" ? "Sent to " + email.trim() : String(st)); } catch (err) { setMailNote(String((err as { message?: string })?.message || err)); return; }
+                setMailNote(st === "sent" ? "Sent to " + email.trim() : String(st));
                 if (st === "sent") setTimeout(() => setCert(null), 900);
               }}
             >
