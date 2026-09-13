@@ -3,6 +3,8 @@ from pathlib import Path
 p = Path("dapp/src/petHub.tsx")
 t = p.read_text()
 start = t.find("async function sponsorOrSend")
+if start < 0:
+    start = t.find("async function txToB64")
 end = t.find("async function payPawlyInHub")
 if start < 0 or end < 0:
     raise SystemExit("anchors missing %s %s" % (start, end))
@@ -39,24 +41,12 @@ async function payHubToken(opts: {
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
-  const buildIxs = (ataPayer: PublicKey) => {
-    if (opts.coin === "SOL") {
-      const lamports = Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL));
-      return [SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: till, lamports })];
-    }
-    const mintStr = opts.coin === "USDC" ? USDC_MINT : opts.coin === "USDT" ? USDT_MINT : PAWLY_MINT;
-    const mint = new PublicKey(mintStr);
-    const rawAmt = Math.round(opts.coinAmount * Math.pow(10, 6));
-    if (rawAmt <= 0) throw new Error("Amount too small / 金额太小");
-    const fromAta = PublicKey.default;
-    return { mint, rawAmt, ataPayer };
-  };
-  const mintStr = opts.coin === "SOL" ? "" : opts.coin === "USDC" ? USDC_MINT : opts.coin === "USDT" ? USDT_MINT : PAWLY_MINT;
   const ixsFor = async (ataPayer: PublicKey) => {
     if (opts.coin === "SOL") {
       const lamports = Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL));
       return [SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: till, lamports })];
     }
+    const mintStr = opts.coin === "USDC" ? USDC_MINT : opts.coin === "USDT" ? USDT_MINT : PAWLY_MINT;
     const mint = new PublicKey(mintStr);
     const rawAmt = Math.round(opts.coinAmount * Math.pow(10, 6));
     if (rawAmt <= 0) throw new Error("Amount too small / 金额太小");
@@ -79,7 +69,7 @@ async function payHubToken(opts: {
     const sig = await postSponsor(signed, 1);
     await assertOnchainSuccess(conn, sig);
     return sig;
-  } catch (e1) {
+  } catch {
     const tx = await compile(opts.from);
     const sig = await opts.sendTransaction(tx, conn);
     await assertOnchainSuccess(conn, sig);
@@ -88,9 +78,10 @@ async function payHubToken(opts: {
 }
 '''
 t = t[:start] + NEW + t[end:]
-t = t.replace(
-    " * PAWLY Pet Hub v0.2.1 — multi RPC fallback for checkout.",
-    " * PAWLY Pet Hub v0.2.2 — USDC/USDT/SOL sponsor+user fallback.",
-)
+for old, new in [
+    (" * PAWLY Pet Hub v0.2.1 — multi RPC fallback for checkout.", " * PAWLY Pet Hub v0.2.2 — USDC/USDT/SOL sponsor then user gas."),
+    (" * PAWLY Pet Hub v0.2.2 — USDC/USDT/SOL sponsor+user fallback.", " * PAWLY Pet Hub v0.2.2 — USDC/USDT/SOL sponsor then user gas."),
+]:
+    t = t.replace(old, new)
 p.write_text(t)
-print("ok", "v0.2.2" in t, "postSponsor" in t, "sponsorOrSend" not in t)
+print("ok", "postSponsor" in t, "sponsorOrSend" not in t, t.splitlines()[1])
