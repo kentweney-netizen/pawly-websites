@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.10.1 — street pets only + shop buttons + food feed.
+ * PAWLY Pet Hub v0.10.2 — cert/photo in-app download, no email send.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -804,41 +804,16 @@ export function PetHubPage() {
           <div style={{ width: "100%", background: "#101820", borderTop: "1px solid rgba(0,255,157,0.4)", borderRadius: "16px 16px 0 0", padding: "16px 14px 18px" }}>
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 16 }}>Certificate + photo</div>
             <div style={{ margin: "10px 0", padding: 10, borderRadius: 12, background: "#0b1610", border: "1px solid rgba(0,255,157,0.35)", textAlign: "center" }}>
-              {cert.photoPng ? <img alt="pet" src={cert.photoPng} style={{ width: "46%", borderRadius: 10, marginRight: 6 }} /> : <div style={{ fontSize: 52 }}>{cert.emoji}</div>}
-              {cert.certPng ? <img alt="certificate" src={cert.certPng} style={{ width: "46%", borderRadius: 10 }} /> : null}
+              {cert.photoPng ? <img alt="pet" src={cert.photoPng} onClick={() => downloadDataUrl("pawly-pet.jpg", cert.photoPng || "")} style={{ width: "46%", borderRadius: 10, marginRight: 6, cursor: "pointer" }} /> : <div style={{ fontSize: 52 }}>{cert.emoji}</div>}
+              {cert.certPng ? <img alt="certificate" src={cert.certPng} onClick={() => downloadDataUrl("pawly-certificate.jpg", cert.certPng || "")} style={{ width: "46%", borderRadius: 10, cursor: "pointer" }} /> : null}
               <div style={{ fontWeight: 800, marginTop: 8 }}>{cert.title}</div>
               <div style={{ fontSize: 12, color: "#c8ffe8" }}>{cert.amount} PAWLY · generated certificate + photo</div>
               <div style={{ fontSize: 10, color: "#8aa", marginTop: 6, wordBreak: "break-all" }}>{cert.sig}</div>
             </div>
-            <div style={{ fontSize: 12, color: "#c8ffe8", marginBottom: 8 }}>
-              Enter email for the certificate and this pet photo. No PWA register needed.
-            </div>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@email.com"
-              inputMode="email"
-              style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,255,157,0.35)", background: "#0b1218", color: "#e8eef7", marginBottom: 8 }}
-            />
-            <button
-              type="button"
-              style={{ ...primary, width: "100%" }}
-              onClick={async () => {
-                if (!validEmail(email)) {
-                  setMailNote("Need a real email / 请填有效邮箱");
-                  return;
-                }
-                saveEmail(email.trim());
-                try { const st = await queueCertMail({ email: email.trim(), job: cert, wallet: addr }); setMailNote(st === "sent" ? "Sent to " + email.trim() : String(st)); } catch (err) { setMailNote(String((err as { message?: string })?.message || err)); return; }
-                setMailNote(st === "sent" ? "Sent to " + email.trim() : String(st));
-                if (st === "sent") setTimeout(() => setCert(null), 900);
-              }}
-            >
-              Send certificate + photo
-            </button>
-            <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setCert(null)}>
-              Later
-            </button>
+            <div style={{ fontSize: 12, color: "#c8ffe8", margin: "0 0 8px" }}>Tap a picture to save. Long-press also works on phone.</div>
+            <button type="button" style={{ ...primary, width: "100%" }} onClick={() => downloadDataUrl("pawly-pet.jpg", cert.photoPng || "")}>Download pet photo</button>
+            <button type="button" style={{ ...primary, width: "100%", marginTop: 8 }} onClick={() => downloadDataUrl("pawly-certificate.jpg", cert.certPng || "")}>Download certificate</button>
+            <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setCert(null)}>Done</button>
             {mailNote ? <div style={{ color: "#9f8", fontSize: 11, marginTop: 8 }}>{mailNote}</div> : null}
           </div>
         </div>
