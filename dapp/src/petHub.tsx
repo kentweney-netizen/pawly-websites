@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.10.3 — 3 feeds/day hard cap per pet.
+ * PAWLY Pet Hub v0.10.4 — growing body rig + street Lv label.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -684,7 +684,8 @@ export function PetHubPage() {
               <button key={p.id} type="button" onClick={() => { setFocusId(p.id); setFeedWarn(true); }} style={{ background: "transparent", border: "none", color: "#e8eef7" }}>
                 <PetRig pet={{ species: p.species, level: Number((p as { level?: number }).level || 0), emoji: p.emoji }} size={96} />
                 <div style={{ fontSize: 11, fontWeight: 800 }}>{p.name}</div>
-                <div style={{ fontSize: 10, color: "#9f8" }}>tap to feed</div>
+                <div style={{ fontSize: 10, color: "#9f8" }}>{"Lv" + Number(p.level || 0) + " · " + Number(p.feedsTotal || 0) + " feeds"}</div>
+                <div style={{ fontSize: 10, color: "#8aa" }}>{10 - (Number(p.feedsTotal || 0) % 10) + " to next body"}</div>
               </button>
             )) : <div style={{ color: "#8aa", fontSize: 12 }}>Adopt in Shop to see your pet here.</div>}
           </div>
