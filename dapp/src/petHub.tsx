@@ -1,13 +1,15 @@
 /**
- * PAWLY Pet Hub v0.10.4 — growing body rig + street Lv label.
+ * PAWLY Pet Hub v0.2 — checkout PAWLY / USDC / USDT / SOL.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Connection,
   PublicKey,
+  SystemProgram,
   TransactionMessage,
   VersionedTransaction,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -36,6 +38,10 @@ const LEDGER = "pawly_pet_hub_ledger_v1_";
 const EMAIL_KEY = "pawly_pet_hub_email_v1";
 const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
 const PAWLY_DECIMALS = 6;
+type PayCoin = "PAWLY" | "USDC" | "USDT" | "SOL";
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
+const OFFICIAL_POOL = "6n8wjFK3mLxrw25q2k6oejt8oYupzWoBPdZqrcHDVwJ";
 const SHOP_TILL = "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3VR4C7Z";
 const RPC =
   "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
@@ -418,6 +424,98 @@ async function assertOnchainSuccess(conn: Connection, sig: string) {
   if (!tx) throw new Error("Signature not confirmed / 签名未上链 " + last);
 }
 
+
+async function fetchHubPx(): Promise<{ pawlyUsd: number; solUsd: number }> {
+  let pawlyUsd = 0;
+  let solUsd = 0;
+  try {
+    const r = await fetch("https://api.dexscreener.com/latest/dex/pairs/solana/" + OFFICIAL_POOL);
+    const d = (await r.json()) as { pair?: { priceUsd?: string } };
+    pawlyUsd = Number(d.pair?.priceUsd || 0);
+  } catch { /* ignore */ }
+  try {
+    const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112");
+    const d = (await r.json()) as { pairs?: { chainId?: string; priceUsd?: string; quoteToken?: { symbol?: string } }[] };
+    const p = (d.pairs || []).find((x) => x.chainId === "solana" && String(x.quoteToken?.symbol || "").includes("USD"));
+    solUsd = Number(p?.priceUsd || 0);
+  } catch { /* ignore */ }
+  return { pawlyUsd, solUsd };
+}
+function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: number; solUsd: number }) {
+  const usd = pawlyAmt * (px.pawlyUsd > 0 ? px.pawlyUsd : 0);
+  if (coin === "PAWLY") return { amount: pawlyAmt, label: pawlyAmt.toFixed(2) + " PAWLY", usd };
+  if (coin === "SOL") {
+    const v = px.solUsd > 0 && usd > 0 ? usd / px.solUsd : 0;
+    return { amount: v, label: v.toFixed(6) + " SOL", usd };
+  }
+  return { amount: usd, label: usd.toFixed(4) + " " + coin, usd };
+}
+async function sponsorOrSend(opts: {
+  tx: VersionedTransaction;
+  conn: Connection;
+  feePawly: number;
+  signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+  sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
+}) {
+  let sig = "";
+  if (typeof opts.signTransaction === "function") {
+    const signed = await opts.signTransaction(opts.tx);
+    const rawBytes = signed.serialize();
+    let b64 = "";
+    try { b64 = btoa(String.fromCharCode.apply(null, Array.from(rawBytes))); }
+    catch {
+      let s = "";
+      for (let i = 0; i < rawBytes.length; i++) s += String.fromCharCode(rawBytes[i]);
+      b64 = btoa(s);
+    }
+    const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
+      body: JSON.stringify({ transaction: b64, feePawly: opts.feePawly }),
+    });
+    const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
+    if (r.ok && d.signature) sig = String(d.signature);
+    else if (d.error && !String(d.error).toLowerCase().includes("below minimum")) throw new Error(String(d.error));
+  }
+  if (!sig) sig = await opts.sendTransaction(opts.tx, opts.conn);
+  await assertOnchainSuccess(opts.conn, sig);
+  return sig;
+}
+async function payHubToken(opts: {
+  from: PublicKey;
+  pawlyList: number;
+  coin: PayCoin;
+  coinAmount: number;
+  sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
+  signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+}): Promise<string> {
+  const till = new PublicKey(SHOP_TILL);
+  const payer = new PublicKey(SPONSOR);
+  if (opts.from.equals(till)) throw new Error("Shop till is this wallet / 不能付给自己");
+  if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
+  const conn = new Connection(RPC, "confirmed");
+  const { blockhash } = await conn.getLatestBlockhash("confirmed");
+  const feePawly = opts.coin === "PAWLY" ? 1 : 0;
+  if (opts.coin === "SOL") {
+    const lamports = Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL));
+    const ix = SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: till, lamports });
+    const msg = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash, instructions: [ix] }).compileToV0Message();
+    return sponsorOrSend({ tx: new VersionedTransaction(msg), conn, feePawly, signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction });
+  }
+  const mintStr = opts.coin === "USDC" ? USDC_MINT : opts.coin === "USDT" ? USDT_MINT : PAWLY_MINT;
+  const decimals = opts.coin === "PAWLY" || opts.coin === "USDC" || opts.coin === "USDT" ? 6 : 6;
+  const mint = new PublicKey(mintStr);
+  const rawAmt = Math.round(opts.coinAmount * Math.pow(10, decimals));
+  if (rawAmt <= 0) throw new Error("Amount too small / 金额太小");
+  const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const ixs = [
+    createAssociatedTokenAccountIdempotentInstruction(payer, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
+    createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, decimals, [], TOKEN_PROGRAM_ID),
+  ];
+  const msg = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
+  return sponsorOrSend({ tx: new VersionedTransaction(msg), conn, feePawly, signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction });
+}
 async function payPawlyInHub(opts: {
   from: PublicKey;
   amount: number;
@@ -514,6 +612,8 @@ export function PetHubPage() {
   const [congrats, setCongrats] = useState("");
   const [pets, setPets] = useState<PetRec[]>(() => loadPets(addr));
   const [cart, setCart] = useState<CartItem | null>(null);
+  const [payCoin, setPayCoin] = useState<PayCoin>("PAWLY");
+  const [px, setPx] = useState({ pawlyUsd: 0, solUsd: 0 });
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [lastSig, setLastSig] = useState("");
@@ -525,6 +625,7 @@ export function PetHubPage() {
   const [greet, setGreet] = useState(true);
   const [music, setMusic] = useState(false);
   const hint = useMemo(() => (addr ? addr.slice(0, 4) + "…" + addr.slice(-4) : "connect wallet"), [addr]);
+  useEffect(() => { void fetchHubPx().then(setPx); const id = window.setInterval(() => { void fetchHubPx().then(setPx); }, 60000); return () => window.clearInterval(id); }, []);
   useEffect(() => {
     setGreet(true);
     const id = window.setTimeout(() => setGreet(false), 9000);
@@ -591,9 +692,13 @@ export function PetHubPage() {
     setBusy(true);
     setNote("Paying in Pet Hub…");
     try {
-      const sig = await payPawlyInHub({
+      const q = quoteCoin(cart.amount, payCoin, px);
+      if (payCoin !== "PAWLY" && q.amount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
+      const sig = await payHubToken({
         from: wallet.publicKey,
-        amount: cart.amount,
+        pawlyList: cart.amount,
+        coin: payCoin,
+        coinAmount: q.amount,
         sendTransaction: wallet.sendTransaction,
         signTransaction: wallet.signTransaction,
       });
@@ -809,12 +914,18 @@ export function PetHubPage() {
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 16 }}>Pet Hub checkout</div>
             <div style={{ margin: "8px 0 4px", fontSize: 14 }}>{cart.emoji ? cart.emoji + " " : ""}{cart.title}</div>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>
+              {(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (
+                <button key={c} type="button" onClick={() => setPayCoin(c)} style={{ ...ghost, padding: "6px 10px", borderColor: payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>
+              ))}
+            </div>
+            <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 6 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? " · PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
             <div style={{ fontSize: 11, color: "#9aa", margin: "6px 0 12px" }}>
-              Avatar unlocks only after Solscan success.<br />
-              没链上成功签名，不会出现宠物头像。
+              Pays the shop till on-chain. Live pool price. No price = use PAWLY.<br />
+              按官方池现价折算，拉不到价请用 PAWLY。
             </div>
             <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={confirmPay}>
-              {busy ? "Paying…" : "Confirm · pay " + cart.amount + " PAWLY"}
+              {busy ? "Paying…" : "Confirm · " + quoteCoin(cart.amount, payCoin, px).label}
             </button>
             <button type="button" disabled={busy} style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setCart(null)}>Cancel</button>
             {note ? <div style={{ color: "#ffb4b4", fontSize: 11, marginTop: 8 }}>{note}</div> : null}
