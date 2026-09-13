@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2 — checkout PAWLY / USDC / USDT / SOL.
+ * PAWLY Pet Hub v0.2.1 — multi RPC fallback for checkout.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -45,6 +45,24 @@ const OFFICIAL_POOL = "6n8wjFK3mLxrw25q2k6oejt8oYupzWoBPdZqrcHDVwJ";
 const SHOP_TILL = "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3VR4C7Z";
 const RPC =
   "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
+const RPCS = [
+  RPC,
+  "https://solana-rpc.publicnode.com",
+  "https://api.mainnet-beta.solana.com",
+];
+async function openHubConn() {
+  let last = "";
+  for (const url of RPCS) {
+    try {
+      const conn = new Connection(url, "confirmed");
+      await conn.getLatestBlockhash("confirmed");
+      return conn;
+    } catch (e) {
+      last = String((e as { message?: string })?.message || e);
+    }
+  }
+  throw new Error("RPC failed / 节点连不上 " + last);
+}
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
 const SUPABASE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
@@ -493,7 +511,7 @@ async function payHubToken(opts: {
   const payer = new PublicKey(SPONSOR);
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet / 不能付给自己");
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
-  const conn = new Connection(RPC, "confirmed");
+  const conn = await openHubConn();
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const feePawly = opts.coin === "PAWLY" ? 1 : 0;
   if (opts.coin === "SOL") {
@@ -528,7 +546,7 @@ async function payPawlyInHub(opts: {
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet / 不能付给自己");
   const rawAmt = Math.round(opts.amount * Math.pow(10, PAWLY_DECIMALS));
   if (rawAmt <= 0) throw new Error("Invalid amount");
-  const conn = new Connection(RPC, "confirmed");
+  const conn = await openHubConn();
   const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
   const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
   const ixs = [
