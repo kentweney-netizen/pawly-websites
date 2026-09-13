@@ -1,0 +1,21 @@
+name: patch-pethub-v010-shop
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - dapp/patch-pethub-v010-shop.py
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 dapp/patch-pethub-v010-shop.py
+      - run: |
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHub.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "v0.10.1 street no catalog, shop Choose/Food, tap pet to feed"
+          git push origin HEAD:main
