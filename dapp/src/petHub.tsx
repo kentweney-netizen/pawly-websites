@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.1 — multi RPC fallback for checkout.
+ * PAWLY Pet Hub v0.2.2 — USDC/USDT/SOL sponsor then user gas.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -468,36 +468,24 @@ function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: number; solU
   }
   return { amount: usd, label: usd.toFixed(4) + " " + coin, usd };
 }
-async function sponsorOrSend(opts: {
-  tx: VersionedTransaction;
-  conn: Connection;
-  feePawly: number;
-  signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
-  sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
-}) {
-  let sig = "";
-  if (typeof opts.signTransaction === "function") {
-    const signed = await opts.signTransaction(opts.tx);
-    const rawBytes = signed.serialize();
-    let b64 = "";
-    try { b64 = btoa(String.fromCharCode.apply(null, Array.from(rawBytes))); }
-    catch {
-      let s = "";
-      for (let i = 0; i < rawBytes.length; i++) s += String.fromCharCode(rawBytes[i]);
-      b64 = btoa(s);
-    }
-    const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-      body: JSON.stringify({ transaction: b64, feePawly: opts.feePawly }),
-    });
-    const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
-    if (r.ok && d.signature) sig = String(d.signature);
-    else if (d.error && !String(d.error).toLowerCase().includes("below minimum")) throw new Error(String(d.error));
+async function txToB64(tx: VersionedTransaction) {
+  const rawBytes = tx.serialize();
+  try { return btoa(String.fromCharCode.apply(null, Array.from(rawBytes))); }
+  catch {
+    let s = "";
+    for (let i = 0; i < rawBytes.length; i++) s += String.fromCharCode(rawBytes[i]);
+    return btoa(s);
   }
-  if (!sig) sig = await opts.sendTransaction(opts.tx, opts.conn);
-  await assertOnchainSuccess(opts.conn, sig);
-  return sig;
+}
+async function postSponsor(signed: VersionedTransaction, feePawly: number) {
+  const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
+    body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1) }),
+  });
+  const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
+  if (r.ok && d.signature) return String(d.signature);
+  throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
 }
 async function payHubToken(opts: {
   from: PublicKey;
@@ -508,31 +496,45 @@ async function payHubToken(opts: {
   signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
 }): Promise<string> {
   const till = new PublicKey(SHOP_TILL);
-  const payer = new PublicKey(SPONSOR);
+  const sponsor = new PublicKey(SPONSOR);
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet / 不能付给自己");
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
-  const feePawly = opts.coin === "PAWLY" ? 1 : 0;
-  if (opts.coin === "SOL") {
-    const lamports = Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL));
-    const ix = SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: till, lamports });
-    const msg = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash, instructions: [ix] }).compileToV0Message();
-    return sponsorOrSend({ tx: new VersionedTransaction(msg), conn, feePawly, signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction });
+  const ixsFor = async (ataPayer: PublicKey) => {
+    if (opts.coin === "SOL") {
+      const lamports = Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL));
+      return [SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: till, lamports })];
+    }
+    const mintStr = opts.coin === "USDC" ? USDC_MINT : opts.coin === "USDT" ? USDT_MINT : PAWLY_MINT;
+    const mint = new PublicKey(mintStr);
+    const rawAmt = Math.round(opts.coinAmount * Math.pow(10, 6));
+    if (rawAmt <= 0) throw new Error("Amount too small / 金额太小");
+    const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    return [
+      createAssociatedTokenAccountIdempotentInstruction(ataPayer, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
+      createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID),
+    ];
+  };
+  const compile = async (payerKey: PublicKey) => {
+    const ixs = await ixsFor(payerKey);
+    const msg = new TransactionMessage({ payerKey, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
+    return new VersionedTransaction(msg);
+  };
+  try {
+    const tx = await compile(sponsor);
+    if (typeof opts.signTransaction !== "function") throw new Error("Wallet cannot sign / 钱包无法签名");
+    const signed = await opts.signTransaction(tx);
+    const sig = await postSponsor(signed, 1);
+    await assertOnchainSuccess(conn, sig);
+    return sig;
+  } catch {
+    const tx = await compile(opts.from);
+    const sig = await opts.sendTransaction(tx, conn);
+    await assertOnchainSuccess(conn, sig);
+    return sig;
   }
-  const mintStr = opts.coin === "USDC" ? USDC_MINT : opts.coin === "USDT" ? USDT_MINT : PAWLY_MINT;
-  const decimals = opts.coin === "PAWLY" || opts.coin === "USDC" || opts.coin === "USDT" ? 6 : 6;
-  const mint = new PublicKey(mintStr);
-  const rawAmt = Math.round(opts.coinAmount * Math.pow(10, decimals));
-  if (rawAmt <= 0) throw new Error("Amount too small / 金额太小");
-  const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const ixs = [
-    createAssociatedTokenAccountIdempotentInstruction(payer, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
-    createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, decimals, [], TOKEN_PROGRAM_ID),
-  ];
-  const msg = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
-  return sponsorOrSend({ tx: new VersionedTransaction(msg), conn, feePawly, signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction });
 }
 async function payPawlyInHub(opts: {
   from: PublicKey;
