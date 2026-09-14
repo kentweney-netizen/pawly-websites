@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.8 — in-hub USDC/USDT/SOL -> Raydium PAWLY -> till.
+ * PAWLY Pet Hub v0.2.9 — Raydium inputAccount + user-signed swap then till.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -536,6 +536,12 @@ async function swapCoinToTillPawly(opts: {
   if (!qr.ok || !quote || quote.success === false || !quote.data) {
     throw new Error(String(quote && (quote.msg || quote.message) || "Raydium no quote / 无法报价"));
   }
+  const inMint = new PublicKey(inputMint);
+  const pawlyMint = new PublicKey(PAWLY_MINT);
+  const inputAccount = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const outputAccount = await getAssociatedTokenAddress(pawlyMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const inInfo = await opts.conn.getAccountInfo(inputAccount, "confirmed");
+  if (!inInfo) throw new Error("No " + opts.coin + " token account / 没有" + opts.coin + "账户");
   const sr = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -546,6 +552,8 @@ async function swapCoinToTillPawly(opts: {
       wallet: opts.from.toBase58(),
       wrapSol: false,
       unwrapSol: false,
+      inputAccount: inputAccount.toBase58(),
+      outputAccount: outputAccount.toBase58(),
     }),
   });
   const pack = await sr.json() as { success?: boolean; msg?: string; message?: string; data?: unknown; transaction?: string; transactions?: unknown[] };
@@ -562,10 +570,19 @@ async function swapCoinToTillPawly(opts: {
   if (!sr.ok || !bag[0]) throw new Error(String((pack && (pack.msg || pack.message)) || "Raydium build failed / 兑换构造失败"));
   const tx = VersionedTransaction.deserialize(b64ToBytes(bag[0]));
   let sig = "";
-  if (typeof opts.signTransaction === "function") {
-    try { sig = await postSponsor(await opts.signTransaction(tx), 1); } catch { sig = ""; }
+  try {
+    sig = await opts.sendTransaction(tx, opts.conn);
+  } catch (e1) {
+    if (typeof opts.signTransaction === "function") {
+      const signed = await opts.signTransaction(tx);
+      try {
+        sig = await opts.conn.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 3 });
+      } catch {
+        try { sig = await postSponsor(signed, 1); } catch { sig = ""; }
+      }
+    }
+    if (!sig) throw e1;
   }
-  if (!sig) sig = await opts.sendTransaction(tx, opts.conn);
   await assertOnchainSuccess(opts.conn, sig);
   const outUi = Number(quote.data.otherAmountThreshold || quote.data.outputAmount || 0) / 1e6;
   const list = Number(opts.pawlyList || 0);
