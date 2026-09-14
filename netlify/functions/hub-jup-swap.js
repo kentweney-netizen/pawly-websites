@@ -51,7 +51,7 @@ exports.handler = async (event) => {
       encodeURIComponent(outputMint) +
       "&amount=" +
       encodeURIComponent(amount) +
-      "&slippageBps=150&txVersion=V0";
+      "&slippageBps=400&txVersion=V0";
     const qr = await fetch(qUrl, { headers: UA });
     const quote = await qr.json();
     if (!qr.ok || !quote || quote.success === false || !quote.data) {
@@ -72,7 +72,7 @@ exports.handler = async (event) => {
           method: "POST",
           headers: UA,
           body: JSON.stringify({
-            computeUnitPriceMicroLamports: "100000",
+            computeUnitPriceMicroLamports: "400000",
             swapResponse,
             txVersion: "V0",
             wallet: userPublicKey,
