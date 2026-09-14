@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.3 — stables/SOL swap to PAWLY till in-hub.
+ * PAWLY Pet Hub v0.2.4 — in-hub swap, fallback direct till if SW blocks Jupiter.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -560,7 +560,11 @@ async function payHubToken(opts: {
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
   if (opts.coin !== "PAWLY") {
-    return swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
+    try {
+      return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
+    } catch {
+      /* PWA SW often blocks quote-api.jup.ag — pay the till directly so checkout still works */
+    }
   }
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const ixsFor = async (ataPayer: PublicKey) => {
