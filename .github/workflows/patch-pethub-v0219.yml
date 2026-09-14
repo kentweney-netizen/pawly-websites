@@ -1,0 +1,21 @@
+name: patch-pethub-v0219
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - dapp/patch-pethub-v0219-fast-load.py
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 dapp/patch-pethub-v0219-fast-load.py
+      - run: |
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHub.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "v0.2.19 faster Pet Hub load: cache RPC and skip full chain scan"
+          git push origin HEAD:main
