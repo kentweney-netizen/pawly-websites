@@ -1,0 +1,21 @@
+name: patch-pethub-v0212
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - dapp/patch-pethub-v0212-sponsor-first.py
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 dapp/patch-pethub-v0212-sponsor-first.py
+      - run: |
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHub.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "v0.2.12 Hub swap sponsor-first like Payment"
+          git push origin HEAD:main
