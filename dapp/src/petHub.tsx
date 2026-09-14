@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.2 — USDC/USDT/SOL sponsor then user gas.
+ * PAWLY Pet Hub v0.2.3 — stables/SOL swap to PAWLY till in-hub.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -487,6 +487,65 @@ async function postSponsor(signed: VersionedTransaction, feePawly: number) {
   if (r.ok && d.signature) return String(d.signature);
   throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
 }
+
+const WSOL_MINT = "So11111111111111111111111111111111111111112";
+function b64ToBytes(b64: string) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function swapCoinToTillPawly(opts: {
+  from: PublicKey;
+  coin: PayCoin;
+  coinAmount: number;
+  conn: Connection;
+  sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
+  signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+}) {
+  const inputMint = opts.coin === "SOL" ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
+  const rawIn = opts.coin === "SOL"
+    ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL))
+    : Math.max(1, Math.round(opts.coinAmount * 1e6));
+  const qs = new URLSearchParams({
+    inputMint,
+    outputMint: PAWLY_MINT,
+    amount: String(rawIn),
+    slippageBps: "150",
+    onlyDirectRoutes: "false",
+  });
+  const qr = await fetch("https://quote-api.jup.ag/v6/quote?" + qs.toString());
+  const quote = await qr.json() as { outAmount?: string; error?: string };
+  if (!qr.ok || !quote.outAmount) throw new Error(String(quote.error || "No swap quote / 无法兑换，请用 PAWLY"));
+  const till = new PublicKey(SHOP_TILL);
+  const tillAta = await getAssociatedTokenAddress(new PublicKey(PAWLY_MINT), till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const sr = await fetch("https://quote-api.jup.ag/v6/swap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      quoteResponse: quote,
+      userPublicKey: opts.from.toBase58(),
+      destinationTokenAccount: tillAta.toBase58(),
+      wrapAndUnwrapSol: true,
+      dynamicComputeUnitLimit: true,
+    }),
+  });
+  const pack = await sr.json() as { swapTransaction?: string; error?: string };
+  if (!sr.ok || !pack.swapTransaction) throw new Error(String(pack.error || "Swap build failed / 兑换构造失败"));
+  const tx = VersionedTransaction.deserialize(b64ToBytes(pack.swapTransaction));
+  let sig = "";
+  if (typeof opts.signTransaction === "function") {
+    try {
+      const signed = await opts.signTransaction(tx);
+      sig = await postSponsor(signed, 1);
+    } catch {
+      sig = "";
+    }
+  }
+  if (!sig) sig = await opts.sendTransaction(tx, opts.conn);
+  await assertOnchainSuccess(opts.conn, sig);
+  return sig;
+}
 async function payHubToken(opts: {
   from: PublicKey;
   pawlyList: number;
@@ -500,6 +559,9 @@ async function payHubToken(opts: {
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet / 不能付给自己");
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
+  if (opts.coin !== "PAWLY") {
+    return swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
+  }
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const ixsFor = async (ataPayer: PublicKey) => {
     if (opts.coin === "SOL") {
