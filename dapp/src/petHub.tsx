@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.10 — extract Raydium data[] txs; SOL wrapSol no prewrap.
+ * PAWLY Pet Hub v0.2.11 — swap preflight + sponsor fee-payer fallback + longer confirm.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
   TransactionInstruction,
+  AddressLookupTableAccount,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
@@ -425,22 +426,67 @@ async function assertOnchainSuccess(conn: Connection, sig: string) {
   const s = String(sig || "").trim();
   if (s.length < 64) throw new Error("No on-chain signature / 没有链上签名");
   let last = "";
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 24; i++) {
     const res = await conn.getSignatureStatuses([s], { searchTransactionHistory: true });
     const st = res?.value?.[0];
     if (st) {
       if (st.err) throw new Error("Transaction failed on-chain / 链上失败");
-      if (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized") return;
-    }
-    last = st ? String(st.confirmationStatus || "") : "pending";
-    await new Promise((r) => setTimeout(r, 700));
+      if (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.confirmationStatus === "processed") {
+        if (st.confirmationStatus !== "processed") return;
+        last = "processed";
+      } else last = String(st.confirmationStatus || "");
+    } else last = "pending";
+    await new Promise((r) => setTimeout(r, 900));
   }
-  const tx = await conn.getTransaction(s, {
-    commitment: "confirmed",
-    maxSupportedTransactionVersion: 0,
-  });
+  let tx = await conn.getTransaction(s, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  if (!tx) tx = await conn.getTransaction(s, { commitment: "processed", maxSupportedTransactionVersion: 0 } as never);
   if (tx?.meta?.err) throw new Error("Transaction failed on-chain / 链上失败");
-  if (!tx) throw new Error("Signature not confirmed / 签名未上链 " + last);
+  if (!tx && last !== "processed") throw new Error("Signature not confirmed / 签名未上链 " + last);
+}
+
+async function sendHubSwapTx(opts: {
+  conn: Connection;
+  tx: VersionedTransaction;
+  sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
+  signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+}) {
+  const tryUser = async () => {
+    if (typeof opts.signTransaction === "function") {
+      const signed = await opts.signTransaction(opts.tx);
+      return await opts.conn.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+        maxRetries: 4,
+      });
+    }
+    return await opts.sendTransaction(opts.tx, opts.conn);
+  };
+  try {
+    return await tryUser();
+  } catch (e1) {
+    if (typeof opts.signTransaction !== "function") throw e1;
+    const sponsor = new PublicKey(SPONSOR);
+    const lookups = ((opts.tx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
+    const alts: AddressLookupTableAccount[] = [];
+    for (let i = 0; i < lookups.length; i++) {
+      const key = lookups[i] && lookups[i].accountKey;
+      if (!key) continue;
+      const acc = await opts.conn.getAddressLookupTable(key);
+      if (acc.value) alts.push(acc.value);
+    }
+    let ixs;
+    try {
+      ixs = TransactionMessage.decompile(opts.tx.message, { addressLookupTableAccounts: alts }).instructions;
+    } catch {
+      throw e1;
+    }
+    const { blockhash } = await opts.conn.getLatestBlockhash("confirmed");
+    const vtx = new VersionedTransaction(
+      new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts)
+    );
+    const signed = await opts.signTransaction(vtx);
+    return await postSponsor(signed, 1);
+  }
 }
 
 
@@ -573,17 +619,12 @@ async function swapCoinToTillPawly(opts: {
     throw new Error(String((pack && (pack.msg || pack.message)) || "Raydium build failed / 兑换构造失败"));
   }
   const tx = VersionedTransaction.deserialize(b64ToBytes(bag[0]));
-  let sig = "";
-  if (typeof opts.signTransaction === "function") {
-    const signed = await opts.signTransaction(tx);
-    try {
-      sig = await opts.conn.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 3 });
-    } catch {
-      sig = await opts.sendTransaction(signed, opts.conn);
-    }
-  } else {
-    sig = await opts.sendTransaction(tx, opts.conn);
-  }
+  const sig = await sendHubSwapTx({
+    conn: opts.conn,
+    tx,
+    sendTransaction: opts.sendTransaction,
+    signTransaction: opts.signTransaction,
+  });
   await assertOnchainSuccess(opts.conn, sig);
   const outUi = Number(quote.data.otherAmountThreshold || quote.data.outputAmount || 0) / 1e6;
   const list = Number(opts.pawlyList || 0);
