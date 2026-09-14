@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.19 — cache RPC, skip heavy recover when roster exists, faster videos.
+ * PAWLY Pet Hub v0.2.21 — Jupiter/local-key stablecoin pay: sign-only + site proxy + retry.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -551,6 +551,54 @@ async function assertOnchainSuccess(conn: Connection, sig: string) {
   if (!tx) throw new Error("Signature not confirmed / 签名未上链");
 }
 
+function sleepHub(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+function isUserCancel(e: unknown) {
+  return /reject|denied|cancel|user abort/i.test(String((e as { message?: string })?.message || e || ""));
+}
+async function hubUserSign(tx: VersionedTransaction, signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>) {
+  const tries: Array<() => Promise<VersionedTransaction>> = [];
+  if (typeof signTransaction === "function") tries.push(() => signTransaction(tx));
+  const w = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>) : null;
+  const bags = w ? [w.solana, (w.phantom as { solana?: unknown } | undefined)?.solana, w.solflare, (w.jupiter as { solana?: unknown } | undefined)?.solana, (w.bitkeep as { solana?: unknown } | undefined)?.solana] : [];
+  bags.forEach((p) => {
+    const prov = p as { signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>; signAllTransactions?: (xs: VersionedTransaction[]) => Promise<VersionedTransaction[]> } | null;
+    if (prov && typeof prov.signTransaction === "function") tries.push(() => prov.signTransaction!(tx));
+    if (prov && typeof prov.signAllTransactions === "function") tries.push(async () => (await prov.signAllTransactions!([tx]))[0]);
+  });
+  let last: unknown = "Wallet cannot sign / 钱包无法签名";
+  for (let i = 0; i < tries.length; i++) {
+    try {
+      const signed = await tries[i]();
+      if (signed) return signed;
+    } catch (e) {
+      if (isUserCancel(e)) throw e;
+      last = e;
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
+}
+async function pawlyUiOf(conn: Connection, owner: PublicKey) {
+  try {
+    const ata = await getAssociatedTokenAddress(new PublicKey(PAWLY_MINT), owner, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    const info = await conn.getTokenAccountBalance(ata);
+    return Number(info.value.uiAmount || 0);
+  } catch { return 0; }
+}
+async function buildHubSwapTx(opts: { inputMint: string; amount: string; user: string; inputAccount?: string; slippageBps: number }) {
+  const paths = ["/.netlify/functions/hub-jup-swap", "/dapp/.netlify/functions/hub-jup-swap"];
+  let last = "swap proxy failed";
+  for (const path of paths) {
+    try {
+      const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inputMint: opts.inputMint, outputMint: PAWLY_MINT, amount: opts.amount, userPublicKey: opts.user, inputAccount: opts.inputAccount || "", slippageBps: opts.slippageBps }) });
+      const d = (await r.json()) as { swapTransaction?: string; error?: string };
+      if (r.ok && d.swapTransaction) return d;
+      last = String(d.error || ("HTTP " + r.status));
+    } catch (e) { last = String((e as { message?: string })?.message || e); }
+  }
+  throw new Error(last);
+}
 async function sendHubSwapTx(opts: {
   conn: Connection;
   tx: VersionedTransaction;
@@ -576,7 +624,7 @@ async function sendHubSwapTx(opts: {
     const vtx = new VersionedTransaction(
       new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts)
     );
-    const signed = await opts.signTransaction(vtx);
+    const signed = await hubUserSign(vtx, opts.signTransaction);
     return await postSponsor(signed, 1);
   };
   if (typeof opts.signTransaction !== "function") {
@@ -663,105 +711,60 @@ async function swapCoinToTillPawly(opts: {
 }) {
   const isSol = opts.coin === "SOL";
   const inputMint = isSol ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
-  const rawIn = isSol
-    ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL))
-    : Math.max(1, Math.round(opts.coinAmount * 1e6));
-  const qUrl =
-    "https://transaction-v1.raydium.io/compute/swap-base-in?inputMint=" +
-    inputMint +
-    "&outputMint=" +
-    PAWLY_MINT +
-    "&amount=" +
-    String(rawIn) +
-    "&slippageBps=150&txVersion=V0";
-  const qr = await fetch(qUrl, { headers: { Accept: "application/json" } });
-  const quote = (await qr.json()) as { success?: boolean; data?: { outputAmount?: string; otherAmountThreshold?: string }; msg?: string; message?: string };
-  if (!qr.ok || !quote || quote.success === false || !quote.data) {
-    throw new Error(String((quote && (quote.msg || quote.message)) || "Raydium no quote / 无法报价"));
-  }
-  const body: Record<string, unknown> = {
-    computeUnitPriceMicroLamports: "100000",
-    swapResponse: quote,
-    txVersion: "V0",
-    wallet: opts.from.toBase58(),
-    wrapSol: isSol,
-    unwrapSol: false,
-  };
+  const rawIn = isSol ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL)) : Math.max(1, Math.round(opts.coinAmount * 1e6));
+  let inputAccount = "";
   if (!isSol) {
     const inMint = new PublicKey(inputMint);
     const ata = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-    let inputAccount = ata;
     const info = await opts.conn.getAccountInfo(ata);
-    if (!info) {
+    if (info) inputAccount = ata.toBase58();
+    else {
       const listed = await opts.conn.getTokenAccountsByOwner(opts.from, { mint: inMint });
       if (!listed.value.length) throw new Error("No " + opts.coin + " token account / 没有" + opts.coin + "账户");
-      inputAccount = listed.value[0].pubkey;
+      inputAccount = listed.value[0].pubkey.toBase58();
     }
-    body.inputAccount = inputAccount.toBase58();
   }
-  const sr = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(body),
-  });
-  const pack = (await sr.json()) as { success?: boolean; msg?: string; message?: string; data?: unknown; transaction?: string; transactions?: unknown[] };
-  const bag: string[] = [];
-  const push = (x: unknown) => {
-    if (!x) return;
-    if (typeof x === "string" && x.length > 40) {
-      bag.push(x);
-      return;
-    }
-    if (Array.isArray(x)) {
-      x.forEach(push);
-      return;
-    }
-    if (typeof x === "object") {
-      const o = x as { transaction?: unknown; tx?: unknown; data?: unknown; transactions?: unknown };
-      push(o.transaction);
-      push(o.tx);
-      push(o.data);
-      push(o.transactions);
-    }
-  };
-  push(pack);
-  if (!sr.ok || pack.success === false || !bag[0]) {
-    throw new Error(String((pack && (pack.msg || pack.message)) || "Raydium build failed / 兑换构造失败"));
-  }
-  let tx: VersionedTransaction | null = null;
-  let lastB64 = "";
-  for (let i = 0; i < bag.length; i++) {
+  const before = await pawlyUiOf(opts.conn, opts.from);
+  const slips = [200, 400, 800];
+  let lastErr: unknown = null;
+  let swapSig = "";
+  for (let attempt = 0; attempt < slips.length; attempt++) {
     try {
-      lastB64 = "";
-      tx = VersionedTransaction.deserialize(b64ToBytes(bag[i]));
+      const pack = await buildHubSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: slips[attempt] });
+      const tx = VersionedTransaction.deserialize(b64ToBytes(String(pack.swapTransaction)));
+      swapSig = await sendHubSwapTx({ conn: opts.conn, tx, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
+      await assertOnchainSuccess(opts.conn, swapSig);
+      lastErr = null;
       break;
     } catch (e) {
-      lastB64 = String((e && (e as Error).message) || e);
+      if (isUserCancel(e)) throw e;
+      lastErr = e;
+      await sleepHub(500);
     }
   }
-  if (!tx) throw new Error(lastB64 || "Raydium tx decode failed / 兑换交易解析失败");
-  const sig = await sendHubSwapTx({
-    conn: opts.conn,
-    tx,
-    sendTransaction: opts.sendTransaction,
-    signTransaction: opts.signTransaction,
-  });
-  await assertOnchainSuccess(opts.conn, sig);
-  const outUi = Number(quote.data.otherAmountThreshold || quote.data.outputAmount || 0) / 1e6;
-  const list = Number(opts.pawlyList || 0);
-  const payAmt = list > 0 ? Math.min(list, outUi) : outUi;
-  if (payAmt > 0) {
-    return payHubToken({
-      from: opts.from,
-      pawlyList: payAmt,
-      coin: "PAWLY",
-      coinAmount: payAmt,
-      sendTransaction: opts.sendTransaction,
-      signTransaction: opts.signTransaction,
-    });
+  if (!swapSig) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Swap failed / 兑换失败"));
+  let after = before;
+  for (let i = 0; i < 12; i++) {
+    after = await pawlyUiOf(opts.conn, opts.from);
+    if (after > before + 0.000001) break;
+    await sleepHub(500);
   }
-  return sig;
+  const list = Number(opts.pawlyList || 0);
+  const payAmt = list > 0 ? Math.min(list, after) : Math.max(0, after - before);
+  if (payAmt <= 0) throw new Error("Swap landed but no PAWLY yet / 兑换已发出，PAWLY 尚未到账");
+  let hop2: unknown = null;
+  for (let i = 0; i < 3; i++) {
+    try {
+      return await payHubToken({ from: opts.from, pawlyList: payAmt, coin: "PAWLY", coinAmount: payAmt, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
+    } catch (e) {
+      if (isUserCancel(e)) throw e;
+      hop2 = e;
+      await sleepHub(600);
+    }
+  }
+  throw hop2 instanceof Error ? hop2 : new Error(String(hop2 || "Second hop failed"));
 }
+
 async function payHubToken(opts: {
   from: PublicKey;
   pawlyList: number;
@@ -803,7 +806,7 @@ async function payHubToken(opts: {
       const tx = new VersionedTransaction(
         new TransactionMessage({ payerKey: sponsor, recentBlockhash: bh, instructions: ixs }).compileToV0Message()
       );
-      const signed = await opts.signTransaction(tx);
+      const signed = await hubUserSign(tx, opts.signTransaction);
       const sig = await postSponsor(signed, 1);
       await assertOnchainSuccess(conn, sig);
       return sig;
@@ -837,7 +840,7 @@ async function payPawlyInHub(opts: {
   const tx = new VersionedTransaction(msg);
   let sig = "";
   if (typeof opts.signTransaction === "function") {
-    const signed = await opts.signTransaction(tx);
+    const signed = await hubUserSign(tx, opts.signTransaction);
     const rawBytes = signed.serialize();
     let b64 = "";
     try {
