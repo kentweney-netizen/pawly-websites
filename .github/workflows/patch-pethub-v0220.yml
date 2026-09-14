@@ -1,0 +1,21 @@
+name: patch-pethub-v0220
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - dapp/patch-pethub-v0220-stablecoin.py
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 dapp/patch-pethub-v0220-stablecoin.py
+      - run: |
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHub.tsx netlify/functions/hub-jup-swap.js
+          git diff --cached --quiet && exit 0
+          git commit -m "v0.2.20 harden USDC/USDT/SOL Pet Hub checkout"
+          git push origin HEAD:main
