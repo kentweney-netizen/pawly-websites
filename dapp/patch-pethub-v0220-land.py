@@ -1,21 +1,61 @@
 #!/usr/bin/env python3
+"""PetHub land patch. v0.2.21: no duplicate ComputeBudget so wallet simulate can pass."""
 from pathlib import Path
+
 p = Path("dapp/src/petHub.tsx")
 t = p.read_text()
-if "v0.2.20" in t and "tillPawlyIxs" in t:
-    print("already v0.2.20")
+
+WITHOUT = """
+function withoutDupBudget(ixs: TransactionInstruction[]) {
+  let sawLimit = false;
+  let sawPrice = false;
+  const out: TransactionInstruction[] = [];
+  for (let i = 0; i < ixs.length; i++) {
+    const ix = ixs[i];
+    if (ix.programId.equals(ComputeBudgetProgram.programId)) {
+      const tag = ix.data && ix.data.length ? ix.data[0] : 255;
+      if (tag === 2) { if (sawLimit) continue; sawLimit = true; }
+      else if (tag === 3) { if (sawPrice) continue; sawPrice = true; }
+      else continue;
+    }
+    out.push(ix);
+  }
+  return out;
+}
+"""
+
+def hotfix(src: str) -> str:
+    if "function withoutDupBudget" not in src:
+        src = src.replace("async function sendHubSwapTx(opts: {", WITHOUT + "async function sendHubSwapTx(opts: {", 1)
+    src = src.replace(
+        "const ixs = [...budgetIxs(HUB_CU_SWAP, price), ...swapIxs, ...(opts.extraIxs || [])];",
+        "const ixs = withoutDupBudget([...swapIxs, ...(opts.extraIxs || [])]);",
+    )
+    src = src.replace(
+        "const ixs = [...budgetIxs(HUB_CU_TILL, price), ...(await ixsFor(sponsor))];",
+        "const ixs = withoutDupBudget(await ixsFor(sponsor));",
+    )
+    src = src.replace("Pet Hub v0.2.20", "Pet Hub v0.2.21")
+    src = src.replace("Pet Hub v0.2.19", "Pet Hub v0.2.21")
+    return src
+
+if "tillPawlyIxs" in t:
+    t = hotfix(t)
+    p.write_text(t)
+    print("hotfixed-v021", "withoutDupBudget" in t, "budgetIxs(HUB_CU_SWAP" not in t)
     raise SystemExit(0)
 
+# Full apply from v0.2.19
 t = t.replace(
     " * PAWLY Pet Hub v0.2.19 — cache RPC, skip heavy recover when roster exists, faster videos.",
-    " * PAWLY Pet Hub v0.2.20 — official-pool swap + till in one sponsored tx; dynamic priority fee; more land retries.",
+    " * PAWLY Pet Hub v0.2.21 — official-pool swap + till; no duplicate ComputeBudget.",
 )
 t = t.replace(
     "  LAMPORTS_PER_SOL,\n} from \"@solana/web3.js\";",
     "  LAMPORTS_PER_SOL,\n  ComputeBudgetProgram,\n} from \"@solana/web3.js\";",
 )
 
-helper = '''
+helper = """
 const HUB_SLIPPAGE_BPS = 400;
 const HUB_CU_SWAP = 700000;
 const HUB_CU_TILL = 120000;
@@ -49,6 +89,22 @@ function budgetIxs(units: number, microLamports: number): TransactionInstruction
     ComputeBudgetProgram.setComputeUnitPrice({ microLamports }),
   ];
 }
+function withoutDupBudget(ixs: TransactionInstruction[]) {
+  let sawLimit = false;
+  let sawPrice = false;
+  const out: TransactionInstruction[] = [];
+  for (let i = 0; i < ixs.length; i++) {
+    const ix = ixs[i];
+    if (ix.programId.equals(ComputeBudgetProgram.programId)) {
+      const tag = ix.data && ix.data.length ? ix.data[0] : 255;
+      if (tag === 2) { if (sawLimit) continue; sawLimit = true; }
+      else if (tag === 3) { if (sawPrice) continue; sawPrice = true; }
+      else continue;
+    }
+    out.push(ix);
+  }
+  return out;
+}
 async function tillPawlyIxs(opts: { from: PublicKey; till: PublicKey; payer: PublicKey; uiAmount: number }) {
   const mint = new PublicKey(PAWLY_MINT);
   const rawAmt = Math.round(opts.uiAmount * Math.pow(10, PAWLY_DECIMALS));
@@ -61,10 +117,10 @@ async function tillPawlyIxs(opts: { from: PublicKey; till: PublicKey; payer: Pub
   ];
 }
 
-'''
+"""
 t = t.replace("async function sendHubSwapTx(opts: {", helper + "async function sendHubSwapTx(opts: {", 1)
 
-old_send = '''async function sendHubSwapTx(opts: {
+old_send = """async function sendHubSwapTx(opts: {
   conn: Connection;
   tx: VersionedTransaction;
   sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
@@ -97,9 +153,9 @@ old_send = '''async function sendHubSwapTx(opts: {
   }
   return await sponsorize();
 }
-'''
+"""
 
-new_send = '''async function sendHubSwapTx(opts: {
+new_send = """async function sendHubSwapTx(opts: {
   conn: Connection;
   tx: VersionedTransaction;
   sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
@@ -122,8 +178,7 @@ new_send = '''async function sendHubSwapTx(opts: {
     if (acc.value) alts.push(acc.value);
   }
   const swapIxs = TransactionMessage.decompile(opts.tx.message, { addressLookupTableAccounts: alts }).instructions;
-  const price = await hubPriorityMicroLamports(opts.conn);
-  const ixs = [...budgetIxs(HUB_CU_SWAP, price), ...swapIxs, ...(opts.extraIxs || [])];
+  const ixs = withoutDupBudget([...swapIxs, ...(opts.extraIxs || [])]);
   const { blockhash } = await opts.conn.getLatestBlockhash("confirmed");
   const vtx = new VersionedTransaction(
     new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts)
@@ -131,7 +186,7 @@ new_send = '''async function sendHubSwapTx(opts: {
   const signed = await opts.signTransaction(vtx);
   return await postSponsor(signed, 1);
 }
-'''
+"""
 if old_send not in t:
     raise SystemExit("sendHubSwapTx block mismatch")
 t = t.replace(old_send, new_send, 1)
@@ -139,7 +194,7 @@ t = t.replace(old_send, new_send, 1)
 t = t.replace("&slippageBps=150&txVersion=V0\"", "&slippageBps=\" + HUB_SLIPPAGE_BPS + \"&txVersion=V0\"")
 t = t.replace('computeUnitPriceMicroLamports: "100000",', 'computeUnitPriceMicroLamports: "400000",')
 
-old_tail = '''  if (!tx) throw new Error(lastB64 || "Raydium tx decode failed / 兑换交易解析失败");
+old_tail = """  if (!tx) throw new Error(lastB64 || "Raydium tx decode failed / 兑换交易解析失败");
   const sig = await sendHubSwapTx({
     conn: opts.conn,
     tx,
@@ -162,8 +217,8 @@ old_tail = '''  if (!tx) throw new Error(lastB64 || "Raydium tx decode failed / 
   }
   return sig;
 }
-'''
-new_tail = '''  if (!tx) throw new Error(lastB64 || "Raydium tx decode failed / 兑换交易解析失败");
+"""
+new_tail = """  if (!tx) throw new Error(lastB64 || "Raydium tx decode failed / 兑换交易解析失败");
   const outUi = Number(quote.data.otherAmountThreshold || quote.data.outputAmount || 0) / 1e6;
   const list = Number(opts.pawlyList || 0);
   const payAmt = list > 0 ? Math.min(list, outUi) : outUi;
@@ -205,12 +260,12 @@ new_tail = '''  if (!tx) throw new Error(lastB64 || "Raydium tx decode failed / 
     return sig;
   }
 }
-'''
+"""
 if old_tail not in t:
     raise SystemExit("swap tail mismatch")
 t = t.replace(old_tail, new_tail, 1)
 
-old_loop = '''  if (typeof opts.signTransaction !== "function") throw new Error("Wallet cannot sign / 钱包无法签名");
+old_loop = """  if (typeof opts.signTransaction !== "function") throw new Error("Wallet cannot sign / 钱包无法签名");
   let lastErr: unknown = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -229,14 +284,13 @@ old_loop = '''  if (typeof opts.signTransaction !== "function") throw new Error(
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Sponsor pay failed / 代付失败"));
 }
-'''
-new_loop = '''  if (typeof opts.signTransaction !== "function") throw new Error("Wallet cannot sign / 钱包无法签名");
+"""
+new_loop = """  if (typeof opts.signTransaction !== "function") throw new Error("Wallet cannot sign / 钱包无法签名");
   let lastErr: unknown = null;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
-      const price = await hubPriorityMicroLamports(conn);
       const { blockhash: bh } = await conn.getLatestBlockhash("confirmed");
-      const ixs = [...budgetIxs(HUB_CU_TILL, price), ...(await ixsFor(sponsor))];
+      const ixs = withoutDupBudget(await ixsFor(sponsor));
       const tx = new VersionedTransaction(
         new TransactionMessage({ payerKey: sponsor, recentBlockhash: bh, instructions: ixs }).compileToV0Message()
       );
@@ -252,7 +306,7 @@ new_loop = '''  if (typeof opts.signTransaction !== "function") throw new Error(
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Sponsor pay failed / 代付失败"));
 }
-'''
+"""
 if old_loop not in t:
     raise SystemExit("pay loop mismatch")
 t = t.replace(old_loop, new_loop, 1)
@@ -263,4 +317,4 @@ t = t.replace(
 )
 
 p.write_text(t)
-print("ok", "v0.2.20" in t, "tillPawlyIxs" in t, "HUB_SLIPPAGE_BPS" in t, "attempt < 4" in t)
+print("ok-v021", "v0.2.21" in t, "withoutDupBudget" in t, "tillPawlyIxs" in t)
