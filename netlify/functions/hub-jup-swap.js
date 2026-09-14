@@ -16,6 +16,7 @@ function pickTx(body) {
   return out[0] || "";
 }
 
+const WSOL = "So11111111111111111111111111111111111111112";
 const UA = {
   "Content-Type": "application/json",
   Accept: "application/json",
@@ -41,6 +42,7 @@ exports.handler = async (event) => {
     if (!inputMint || !outputMint || !amount || !userPublicKey) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "missing fields" }) };
     }
+    const isSolIn = inputMint === WSOL;
     const qUrl =
       "https://transaction-v1.raydium.io/compute/swap-base-in" +
       "?inputMint=" +
@@ -60,26 +62,36 @@ exports.handler = async (event) => {
       };
     }
     const outAmount = String(quote.data.outputAmount || quote.data.otherAmountThreshold || "");
-    const sr = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
-      method: "POST",
-      headers: UA,
-      body: JSON.stringify({
-        computeUnitPriceMicroLamports: "100000",
-        swapResponse: quote,
-        txVersion: "V0",
-        wallet: userPublicKey,
-        wrapSol: true,
-        unwrapSol: true,
-      }),
-    });
-    const pack = await sr.json();
-    const swapTransaction = pickTx(pack);
-    if (!sr.ok || !swapTransaction) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: (pack && (pack.msg || pack.message || pack.error)) || "Raydium build failed" }),
-      };
+    const payloads = [quote, quote.data];
+    const wraps = isSolIn ? [true, false] : [false, true];
+    let swapTransaction = "";
+    let lastErr = "Raydium build failed";
+    for (const wrapSol of wraps) {
+      for (const swapResponse of payloads) {
+        const sr = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
+          method: "POST",
+          headers: UA,
+          body: JSON.stringify({
+            computeUnitPriceMicroLamports: "100000",
+            swapResponse,
+            txVersion: "V0",
+            wallet: userPublicKey,
+            wrapSol,
+            unwrapSol: isSolIn,
+          }),
+        });
+        const pack = await sr.json();
+        const tx = pickTx(pack);
+        if (tx) {
+          swapTransaction = tx;
+          break;
+        }
+        lastErr = (pack && (pack.msg || pack.message || pack.error)) || lastErr;
+      }
+      if (swapTransaction) break;
+    }
+    if (!swapTransaction) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: lastErr }) };
     }
     return {
       statusCode: 200,
