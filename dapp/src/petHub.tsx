@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2 LOCK — PAWLY/USDC/USDT/SOL pay till directly.
+ * PAWLY Pet Hub v0.2.8 — in-hub USDC/USDT/SOL -> Raydium PAWLY -> till.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ import {
   SystemProgram,
   TransactionMessage,
   VersionedTransaction,
+  TransactionInstruction,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
@@ -505,43 +506,76 @@ async function swapCoinToTillPawly(opts: {
   pawlyList?: number;
 }) {
   const inputMint = opts.coin === "SOL" ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
-  const rawIn = opts.coin === "SOL"
+  let rawIn = opts.coin === "SOL"
     ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL))
     : Math.max(1, Math.round(opts.coinAmount * 1e6));
-  const till = new PublicKey(SHOP_TILL);
-  const tillAta = await getAssociatedTokenAddress(new PublicKey(PAWLY_MINT), till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const sr = await fetch("/.netlify/functions/hub-jup-swap", {
+  const sponsor = new PublicKey(SPONSOR);
+  if (opts.coin === "SOL") {
+    const bal = await opts.conn.getBalance(opts.from, "confirmed");
+    if (rawIn > bal) rawIn = Math.max(1, bal);
+    const wsolAta = await getAssociatedTokenAddress(new PublicKey(WSOL_MINT), opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    const wrapIxs = [
+      createAssociatedTokenAccountIdempotentInstruction(sponsor, wsolAta, opts.from, new PublicKey(WSOL_MINT), TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
+      SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: wsolAta, lamports: rawIn }),
+      new TransactionInstruction({ programId: TOKEN_PROGRAM_ID, keys: [{ pubkey: wsolAta, isSigner: false, isWritable: true }], data: Uint8Array.from([17]) }),
+    ];
+    const { blockhash } = await opts.conn.getLatestBlockhash("confirmed");
+    const wrapTx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: wrapIxs }).compileToV0Message());
+    let wrapSig = "";
+    if (typeof opts.signTransaction === "function") {
+      try {
+        wrapSig = await postSponsor(await opts.signTransaction(wrapTx), 1);
+      } catch { wrapSig = ""; }
+    }
+    if (!wrapSig) wrapSig = await opts.sendTransaction(wrapTx, opts.conn);
+    await assertOnchainSuccess(opts.conn, wrapSig);
+  }
+  const qUrl = "https://transaction-v1.raydium.io/compute/swap-base-in?inputMint=" + inputMint + "&outputMint=" + PAWLY_MINT + "&amount=" + String(rawIn) + "&slippageBps=150&txVersion=V0";
+  const qr = await fetch(qUrl, { headers: { Accept: "application/json" } });
+  const quote = await qr.json() as { success?: boolean; data?: { outputAmount?: string; otherAmountThreshold?: string }; msg?: string; message?: string };
+  if (!qr.ok || !quote || quote.success === false || !quote.data) {
+    throw new Error(String(quote && (quote.msg || quote.message) || "Raydium no quote / 无法报价"));
+  }
+  const sr = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
-      inputMint,
-      outputMint: PAWLY_MINT,
-      amount: String(rawIn),
-      userPublicKey: opts.from.toBase58(),
-      destinationTokenAccount: tillAta.toBase58(),
+      computeUnitPriceMicroLamports: "100000",
+      swapResponse: quote,
+      txVersion: "V0",
+      wallet: opts.from.toBase58(),
+      wrapSol: false,
+      unwrapSol: false,
     }),
   });
-  const pack = await sr.json() as { swapTransaction?: string; error?: string; outAmount?: string };
-  if (!sr.ok || !pack.swapTransaction) throw new Error(String(pack.error || "No swap quote / 无法兑换成 PAWLY"));
-  const tx = VersionedTransaction.deserialize(b64ToBytes(pack.swapTransaction));
+  const pack = await sr.json() as { success?: boolean; msg?: string; message?: string; data?: unknown; transaction?: string; transactions?: unknown[] };
+  const bag: string[] = [];
+  const push = (x: unknown) => {
+    if (!x) return;
+    if (typeof x === "string" && x.length > 40) bag.push(x);
+    else if (typeof x === "object" && x) {
+      const o = x as { transaction?: unknown; tx?: unknown };
+      push(o.transaction); push(o.tx);
+    }
+  };
+  push(pack); push(pack && pack.data); if (Array.isArray(pack && pack.transactions)) pack.transactions.forEach(push);
+  if (!sr.ok || !bag[0]) throw new Error(String((pack && (pack.msg || pack.message)) || "Raydium build failed / 兑换构造失败"));
+  const tx = VersionedTransaction.deserialize(b64ToBytes(bag[0]));
   let sig = "";
   if (typeof opts.signTransaction === "function") {
-    try {
-      const signed = await opts.signTransaction(tx);
-      sig = await postSponsor(signed, 1);
-    } catch {
-      sig = "";
-    }
+    try { sig = await postSponsor(await opts.signTransaction(tx), 1); } catch { sig = ""; }
   }
   if (!sig) sig = await opts.sendTransaction(tx, opts.conn);
   await assertOnchainSuccess(opts.conn, sig);
+  const outUi = Number(quote.data.otherAmountThreshold || quote.data.outputAmount || 0) / 1e6;
   const list = Number(opts.pawlyList || 0);
-  if (list > 0) {
+  const payAmt = list > 0 ? Math.min(list, outUi) : outUi;
+  if (payAmt > 0) {
     return payHubToken({
       from: opts.from,
-      pawlyList: list,
+      pawlyList: payAmt,
       coin: "PAWLY",
-      coinAmount: list,
+      coinAmount: payAmt,
       sendTransaction: opts.sendTransaction,
       signTransaction: opts.signTransaction,
     });
@@ -561,7 +595,9 @@ async function payHubToken(opts: {
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet / 不能付给自己");
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
-  /* v0.2 LOCK: do not swap in-hub. USDC/USDT/SOL transfer to till. */
+  if (opts.coin !== "PAWLY") {
+    return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction, pawlyList: opts.pawlyList });
+  }
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const ixsFor = async (ataPayer: PublicKey) => {
     if (opts.coin === "SOL") {
@@ -1003,8 +1039,8 @@ export function PetHubPage() {
             </div>
             <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 6 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? " · PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
             <div style={{ fontSize: 11, color: "#9aa", margin: "6px 0 12px" }}>
-              Pays the shop till in the token you pick. Live pool price. Swap-to-PAWLY stays on the Swap page.<br />
-              按现价折算后直付店柜。要换 PAWLY 请用 dApp Swap。
+              Pays in USDC/USDT/SOL: swaps to PAWLY on the official pool, then PAWLY hits the shop till.<br />
+              用 USDC/USDT/SOL 付款时先换成 PAWLY 再进店柜，不用回 Swap 页。
             </div>
             <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={confirmPay}>
               {busy ? "Paying…" : "Confirm · " + quoteCoin(cart.amount, payCoin, px).label}
