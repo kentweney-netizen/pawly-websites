@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.14 — Hub USDC/USDT/SOL = dApp Swap then Payment to till.
+ * PAWLY Pet Hub v0.2.15 — both hops fee payer = hot wallet only; no user-SOL fallback.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -454,8 +454,10 @@ async function sendHubSwapTx(opts: {
     const lookups = ((opts.tx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
     const alts: AddressLookupTableAccount[] = [];
     for (let i = 0; i < lookups.length; i++) {
-      const key = lookups[i] && lookups[i].accountKey;
-      if (!key) continue;
+      const rawKey = lookups[i] && lookups[i].accountKey;
+      if (!rawKey) continue;
+      let key: PublicKey;
+      try { key = rawKey instanceof PublicKey ? rawKey : new PublicKey(String(rawKey)); } catch { continue; }
       let acc: { value: AddressLookupTableAccount | null } = { value: null };
       try { acc = await opts.conn.getAddressLookupTable(key); } catch { acc = { value: null }; }
       if (acc.value) alts.push(acc.value);
@@ -468,23 +470,10 @@ async function sendHubSwapTx(opts: {
     const signed = await opts.signTransaction(vtx);
     return await postSponsor(signed, 1);
   };
-  if (typeof opts.signTransaction === "function") {
-    try {
-      return await sponsorize();
-    } catch (e1) {
-      try {
-        return await opts.sendTransaction(opts.tx, opts.conn);
-      } catch (e2) {
-        try {
-          const signed = await opts.signTransaction(opts.tx);
-          return await opts.conn.sendRawTransaction(signed.serialize(), { maxRetries: 4 });
-        } catch {
-          throw e1;
-        }
-      }
-    }
+  if (typeof opts.signTransaction !== "function") {
+    throw new Error("Wallet cannot sign / 钱包无法签名");
   }
-  return await opts.sendTransaction(opts.tx, opts.conn);
+  return await sponsorize();
 }
 
 
@@ -655,7 +644,6 @@ async function payHubToken(opts: {
   if (opts.coin !== "PAWLY") {
     return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction, pawlyList: opts.pawlyList });
   }
-  const { blockhash } = await conn.getLatestBlockhash();
   const ixsFor = async (ataPayer: PublicKey) => {
     if (opts.coin === "SOL") {
       const lamports = Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL));
@@ -672,24 +660,24 @@ async function payHubToken(opts: {
       createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID),
     ];
   };
-  const compile = async (payerKey: PublicKey) => {
-    const ixs = await ixsFor(payerKey);
-    const msg = new TransactionMessage({ payerKey, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
-    return new VersionedTransaction(msg);
-  };
-  try {
-    const tx = await compile(sponsor);
-    if (typeof opts.signTransaction !== "function") throw new Error("Wallet cannot sign / 钱包无法签名");
-    const signed = await opts.signTransaction(tx);
-    const sig = await postSponsor(signed, 1);
-    await assertOnchainSuccess(conn, sig);
-    return sig;
-  } catch {
-    const tx = await compile(opts.from);
-    const sig = await opts.sendTransaction(tx, conn);
-    await assertOnchainSuccess(conn, sig);
-    return sig;
+  if (typeof opts.signTransaction !== "function") throw new Error("Wallet cannot sign / 钱包无法签名");
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { blockhash: bh } = await conn.getLatestBlockhash();
+      const ixs = await ixsFor(sponsor);
+      const tx = new VersionedTransaction(
+        new TransactionMessage({ payerKey: sponsor, recentBlockhash: bh, instructions: ixs }).compileToV0Message()
+      );
+      const signed = await opts.signTransaction(tx);
+      const sig = await postSponsor(signed, 1);
+      await assertOnchainSuccess(conn, sig);
+      return sig;
+    } catch (e) {
+      lastErr = e;
+    }
   }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Sponsor pay failed / 代付失败"));
 }
 async function payPawlyInHub(opts: {
   from: PublicKey;
@@ -736,9 +724,9 @@ async function payPawlyInHub(opts: {
     });
     const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
     if (r.ok && d.signature) sig = String(d.signature);
-    else if (d.error) throw new Error(String(d.error));
+    else throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
   }
-  if (!sig) sig = await opts.sendTransaction(tx, conn);
+  if (!sig) throw new Error("Sponsor pay failed / 代付失败");
   await assertOnchainSuccess(conn, sig);
   return sig;
 }
