@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.9 — Raydium inputAccount + user-signed swap then till.
+ * PAWLY Pet Hub v0.2.10 — extract Raydium data[] txs; SOL wrapSol no prewrap.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -505,83 +505,84 @@ async function swapCoinToTillPawly(opts: {
   signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
   pawlyList?: number;
 }) {
-  const inputMint = opts.coin === "SOL" ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
-  let rawIn = opts.coin === "SOL"
+  const isSol = opts.coin === "SOL";
+  const inputMint = isSol ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
+  const rawIn = isSol
     ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL))
     : Math.max(1, Math.round(opts.coinAmount * 1e6));
-  const sponsor = new PublicKey(SPONSOR);
-  if (opts.coin === "SOL") {
-    const bal = await opts.conn.getBalance(opts.from, "confirmed");
-    if (rawIn > bal) rawIn = Math.max(1, bal);
-    const wsolAta = await getAssociatedTokenAddress(new PublicKey(WSOL_MINT), opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-    const wrapIxs = [
-      createAssociatedTokenAccountIdempotentInstruction(sponsor, wsolAta, opts.from, new PublicKey(WSOL_MINT), TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
-      SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: wsolAta, lamports: rawIn }),
-      new TransactionInstruction({ programId: TOKEN_PROGRAM_ID, keys: [{ pubkey: wsolAta, isSigner: false, isWritable: true }], data: Buffer.from([17]) }),
-    ];
-    const { blockhash } = await opts.conn.getLatestBlockhash("confirmed");
-    const wrapTx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: wrapIxs }).compileToV0Message());
-    let wrapSig = "";
-    if (typeof opts.signTransaction === "function") {
-      try {
-        wrapSig = await postSponsor(await opts.signTransaction(wrapTx), 1);
-      } catch { wrapSig = ""; }
-    }
-    if (!wrapSig) wrapSig = await opts.sendTransaction(wrapTx, opts.conn);
-    await assertOnchainSuccess(opts.conn, wrapSig);
-  }
-  const qUrl = "https://transaction-v1.raydium.io/compute/swap-base-in?inputMint=" + inputMint + "&outputMint=" + PAWLY_MINT + "&amount=" + String(rawIn) + "&slippageBps=150&txVersion=V0";
+  const qUrl =
+    "https://transaction-v1.raydium.io/compute/swap-base-in?inputMint=" +
+    inputMint +
+    "&outputMint=" +
+    PAWLY_MINT +
+    "&amount=" +
+    String(rawIn) +
+    "&slippageBps=150&txVersion=V0";
   const qr = await fetch(qUrl, { headers: { Accept: "application/json" } });
-  const quote = await qr.json() as { success?: boolean; data?: { outputAmount?: string; otherAmountThreshold?: string }; msg?: string; message?: string };
+  const quote = (await qr.json()) as { success?: boolean; data?: { outputAmount?: string; otherAmountThreshold?: string }; msg?: string; message?: string };
   if (!qr.ok || !quote || quote.success === false || !quote.data) {
-    throw new Error(String(quote && (quote.msg || quote.message) || "Raydium no quote / 无法报价"));
+    throw new Error(String((quote && (quote.msg || quote.message)) || "Raydium no quote / 无法报价"));
   }
-  const inMint = new PublicKey(inputMint);
-  const pawlyMint = new PublicKey(PAWLY_MINT);
-  const inputAccount = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const outputAccount = await getAssociatedTokenAddress(pawlyMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const inInfo = await opts.conn.getAccountInfo(inputAccount, "confirmed");
-  if (!inInfo) throw new Error("No " + opts.coin + " token account / 没有" + opts.coin + "账户");
+  const body: Record<string, unknown> = {
+    computeUnitPriceMicroLamports: "100000",
+    swapResponse: quote,
+    txVersion: "V0",
+    wallet: opts.from.toBase58(),
+    wrapSol: isSol,
+    unwrapSol: false,
+  };
+  if (!isSol) {
+    const inMint = new PublicKey(inputMint);
+    const ata = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    let inputAccount = ata;
+    const info = await opts.conn.getAccountInfo(ata, "confirmed");
+    if (!info) {
+      const listed = await opts.conn.getTokenAccountsByOwner(opts.from, { mint: inMint });
+      if (!listed.value.length) throw new Error("No " + opts.coin + " token account / 没有" + opts.coin + "账户");
+      inputAccount = listed.value[0].pubkey;
+    }
+    body.inputAccount = inputAccount.toBase58();
+  }
   const sr = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({
-      computeUnitPriceMicroLamports: "100000",
-      swapResponse: quote,
-      txVersion: "V0",
-      wallet: opts.from.toBase58(),
-      wrapSol: false,
-      unwrapSol: false,
-      inputAccount: inputAccount.toBase58(),
-      outputAccount: outputAccount.toBase58(),
-    }),
+    body: JSON.stringify(body),
   });
-  const pack = await sr.json() as { success?: boolean; msg?: string; message?: string; data?: unknown; transaction?: string; transactions?: unknown[] };
+  const pack = (await sr.json()) as { success?: boolean; msg?: string; message?: string; data?: unknown; transaction?: string; transactions?: unknown[] };
   const bag: string[] = [];
   const push = (x: unknown) => {
     if (!x) return;
-    if (typeof x === "string" && x.length > 40) bag.push(x);
-    else if (typeof x === "object" && x) {
-      const o = x as { transaction?: unknown; tx?: unknown };
-      push(o.transaction); push(o.tx);
+    if (typeof x === "string" && x.length > 40) {
+      bag.push(x);
+      return;
+    }
+    if (Array.isArray(x)) {
+      x.forEach(push);
+      return;
+    }
+    if (typeof x === "object") {
+      const o = x as { transaction?: unknown; tx?: unknown; data?: unknown; transactions?: unknown };
+      push(o.transaction);
+      push(o.tx);
+      push(o.data);
+      push(o.transactions);
     }
   };
-  push(pack); push(pack && pack.data); const moreTx = pack.transactions; if (Array.isArray(moreTx)) moreTx.forEach(push);
-  if (!sr.ok || !bag[0]) throw new Error(String((pack && (pack.msg || pack.message)) || "Raydium build failed / 兑换构造失败"));
+  push(pack);
+  if (!sr.ok || pack.success === false || !bag[0]) {
+    throw new Error(String((pack && (pack.msg || pack.message)) || "Raydium build failed / 兑换构造失败"));
+  }
   const tx = VersionedTransaction.deserialize(b64ToBytes(bag[0]));
   let sig = "";
-  try {
-    sig = await opts.sendTransaction(tx, opts.conn);
-  } catch (e1) {
-    if (typeof opts.signTransaction === "function") {
-      const signed = await opts.signTransaction(tx);
-      try {
-        sig = await opts.conn.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 3 });
-      } catch {
-        try { sig = await postSponsor(signed, 1); } catch { sig = ""; }
-      }
+  if (typeof opts.signTransaction === "function") {
+    const signed = await opts.signTransaction(tx);
+    try {
+      sig = await opts.conn.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 3 });
+    } catch {
+      sig = await opts.sendTransaction(signed, opts.conn);
     }
-    if (!sig) throw e1;
+  } else {
+    sig = await opts.sendTransaction(tx, opts.conn);
   }
   await assertOnchainSuccess(opts.conn, sig);
   const outUi = Number(quote.data.otherAmountThreshold || quote.data.outputAmount || 0) / 1e6;
