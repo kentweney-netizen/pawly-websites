@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.4 — in-hub swap, fallback direct till if SW blocks Jupiter.
+ * PAWLY Pet Hub v0.2.5 — same-origin Jupiter proxy, no USDC-to-till fallback.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -507,31 +507,21 @@ async function swapCoinToTillPawly(opts: {
   const rawIn = opts.coin === "SOL"
     ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL))
     : Math.max(1, Math.round(opts.coinAmount * 1e6));
-  const qs = new URLSearchParams({
-    inputMint,
-    outputMint: PAWLY_MINT,
-    amount: String(rawIn),
-    slippageBps: "150",
-    onlyDirectRoutes: "false",
-  });
-  const qr = await fetch("https://quote-api.jup.ag/v6/quote?" + qs.toString());
-  const quote = await qr.json() as { outAmount?: string; error?: string };
-  if (!qr.ok || !quote.outAmount) throw new Error(String(quote.error || "No swap quote / 无法兑换，请用 PAWLY"));
   const till = new PublicKey(SHOP_TILL);
   const tillAta = await getAssociatedTokenAddress(new PublicKey(PAWLY_MINT), till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const sr = await fetch("https://quote-api.jup.ag/v6/swap", {
+  const sr = await fetch("/.netlify/functions/hub-jup-swap", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      quoteResponse: quote,
+      inputMint,
+      outputMint: PAWLY_MINT,
+      amount: String(rawIn),
       userPublicKey: opts.from.toBase58(),
       destinationTokenAccount: tillAta.toBase58(),
-      wrapAndUnwrapSol: true,
-      dynamicComputeUnitLimit: true,
     }),
   });
-  const pack = await sr.json() as { swapTransaction?: string; error?: string };
-  if (!sr.ok || !pack.swapTransaction) throw new Error(String(pack.error || "Swap build failed / 兑换构造失败"));
+  const pack = await sr.json() as { swapTransaction?: string; error?: string; outAmount?: string };
+  if (!sr.ok || !pack.swapTransaction) throw new Error(String(pack.error || "No swap quote / 无法兑换成 PAWLY"));
   const tx = VersionedTransaction.deserialize(b64ToBytes(pack.swapTransaction));
   let sig = "";
   if (typeof opts.signTransaction === "function") {
@@ -560,11 +550,7 @@ async function payHubToken(opts: {
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
   if (opts.coin !== "PAWLY") {
-    try {
-      return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
-    } catch {
-      /* PWA SW often blocks quote-api.jup.ag — pay the till directly so checkout still works */
-    }
+    return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
   }
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const ixsFor = async (ataPayer: PublicKey) => {
