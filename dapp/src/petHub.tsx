@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.18 — reload pets on wallet change + recover adopts from till txs.
+ * PAWLY Pet Hub v0.2.19 — cache RPC, skip heavy recover when roster exists, faster videos.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -52,17 +52,23 @@ const RPCS = [
   "https://solana-rpc.publicnode.com",
   "https://api.mainnet-beta.solana.com",
 ];
+let hubConn: Connection | null = null;
+let hubConnAt = 0;
 async function openHubConn() {
+  if (hubConn && Date.now() - hubConnAt < 90000) return hubConn;
   let last = "";
   for (const url of RPCS) {
     try {
       const conn = new Connection(url, "confirmed");
       await conn.getLatestBlockhash();
+      hubConn = conn;
+      hubConnAt = Date.now();
       return conn;
     } catch (e) {
       last = String((e as { message?: string })?.message || e);
     }
   }
+  if (hubConn) return hubConn;
   throw new Error("RPC failed / 节点连不上 " + last);
 }
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
@@ -261,33 +267,38 @@ function uiAmt(
 }
 async function recoverAdoptsFromChain(w: string): Promise<PetRec[]> {
   if (!w) return [];
+  if (loadPets(w).length > 0) return [];
   const conn = await openHubConn();
-  const sigs = await conn.getSignaturesForAddress(new PublicKey(w), { limit: 40 });
+  const sigs = (await conn.getSignaturesForAddress(new PublicKey(w), { limit: 12 })).filter((s) => !s.err).slice(0, 12);
   const out: PetRec[] = [];
-  for (const s of sigs) {
-    if (s.err) continue;
-    const tx = await conn.getParsedTransaction(s.signature, {
-      maxSupportedTransactionVersion: 0,
-      commitment: "confirmed",
-    });
-    if (!tx || !tx.meta) continue;
-    const tillIn = uiAmt(tx.meta.postTokenBalances as never, SHOP_TILL, PAWLY_MINT) - uiAmt(tx.meta.preTokenBalances as never, SHOP_TILL, PAWLY_MINT);
-    const userOut = uiAmt(tx.meta.preTokenBalances as never, w, PAWLY_MINT) - uiAmt(tx.meta.postTokenBalances as never, w, PAWLY_MINT);
-    const catalog = matchCompanion(tillIn) || matchCompanion(userOut);
-    if (!catalog) continue;
-    out.push({
-      id: "onchain_" + s.signature.slice(0, 12),
-      kind: "adopted",
-      species: catalog.species,
-      name: catalog.label,
-      emoji: catalog.emoji,
-      hunger: 70,
-      health: 80,
-      streak: 0,
-      pricePawly: catalog.pricePawly,
-      sig: s.signature,
-    });
-    if (out.length >= PET_SLOT_CAP) break;
+  for (let i = 0; i < sigs.length; i += 4) {
+    const chunk = sigs.slice(i, i + 4);
+    const txs = await Promise.all(
+      chunk.map((s) =>
+        conn.getParsedTransaction(s.signature, { maxSupportedTransactionVersion: 0 }).catch(() => null),
+      ),
+    );
+    for (let j = 0; j < chunk.length; j++) {
+      const tx = txs[j];
+      if (!tx || !tx.meta) continue;
+      const tillIn = uiAmt(tx.meta.postTokenBalances as never, SHOP_TILL, PAWLY_MINT) - uiAmt(tx.meta.preTokenBalances as never, SHOP_TILL, PAWLY_MINT);
+      const userOut = uiAmt(tx.meta.preTokenBalances as never, w, PAWLY_MINT) - uiAmt(tx.meta.postTokenBalances as never, w, PAWLY_MINT);
+      const catalog = matchCompanion(tillIn) || matchCompanion(userOut);
+      if (!catalog) continue;
+      out.push({
+        id: "onchain_" + chunk[j].signature.slice(0, 12),
+        kind: "adopted",
+        species: catalog.species,
+        name: catalog.label,
+        emoji: catalog.emoji,
+        hunger: 70,
+        health: 80,
+        streak: 0,
+        pricePawly: catalog.pricePawly,
+        sig: chunk[j].signature,
+      });
+      if (out.length >= PET_SLOT_CAP) return out;
+    }
   }
   return out;
 }
@@ -1071,7 +1082,7 @@ export function PetHubPage() {
         </button>
       </div>
       <div style={{ flex: "1 1 auto", minHeight: 0, position: "relative", background: "#0a1016" }}>
-        <video key={scene} src={asset(CLIP[scene])} autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        <video key={scene} src={asset(CLIP[scene])} autoPlay muted loop playsInline preload="metadata" poster="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#0b1220" }} />
         {greet && pets.length ? (
           <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
             {pets.slice(0, 4).map((p, i) => (
