@@ -51,7 +51,9 @@ exports.handler = async (event) => {
       encodeURIComponent(outputMint) +
       "&amount=" +
       encodeURIComponent(amount) +
-      "&slippageBps=400&txVersion=V0";
+      "&slippageBps=" +
+      encodeURIComponent(String(body.slippageBps || 400)) +
+      "&txVersion=V0";
     const qr = await fetch(qUrl, { headers: UA });
     const quote = await qr.json();
     if (!qr.ok || !quote || quote.success === false || !quote.data) {
