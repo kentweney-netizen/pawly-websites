@@ -517,7 +517,7 @@ async function swapCoinToTillPawly(opts: {
     const wrapIxs = [
       createAssociatedTokenAccountIdempotentInstruction(sponsor, wsolAta, opts.from, new PublicKey(WSOL_MINT), TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
       SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: wsolAta, lamports: rawIn }),
-      new TransactionInstruction({ programId: TOKEN_PROGRAM_ID, keys: [{ pubkey: wsolAta, isSigner: false, isWritable: true }], data: Uint8Array.from([17]) }),
+      new TransactionInstruction({ programId: TOKEN_PROGRAM_ID, keys: [{ pubkey: wsolAta, isSigner: false, isWritable: true }], data: Buffer.from([17]) }),
     ];
     const { blockhash } = await opts.conn.getLatestBlockhash("confirmed");
     const wrapTx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: wrapIxs }).compileToV0Message());
@@ -558,7 +558,7 @@ async function swapCoinToTillPawly(opts: {
       push(o.transaction); push(o.tx);
     }
   };
-  push(pack); push(pack && pack.data); if (Array.isArray(pack && pack.transactions)) pack.transactions.forEach(push);
+  push(pack); push(pack && pack.data); const moreTx = pack.transactions; if (Array.isArray(moreTx)) moreTx.forEach(push);
   if (!sr.ok || !bag[0]) throw new Error(String((pack && (pack.msg || pack.message)) || "Raydium build failed / 兑换构造失败"));
   const tx = VersionedTransaction.deserialize(b64ToBytes(bag[0]));
   let sig = "";
