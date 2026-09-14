@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.12 — Hub swap sponsor-first like Payment (local key silent).
+ * PAWLY Pet Hub v0.2.13 — do not re-pass confirmed; Connection already confirmed.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -57,7 +57,7 @@ async function openHubConn() {
   for (const url of RPCS) {
     try {
       const conn = new Connection(url, "confirmed");
-      await conn.getLatestBlockhash("confirmed");
+      await conn.getLatestBlockhash();
       return conn;
     } catch (e) {
       last = String((e as { message?: string })?.message || e);
@@ -438,8 +438,8 @@ async function assertOnchainSuccess(conn: Connection, sig: string) {
     } else last = "pending";
     await new Promise((r) => setTimeout(r, 900));
   }
-  let tx = await conn.getTransaction(s, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
-  if (!tx) tx = await conn.getTransaction(s, { commitment: "processed", maxSupportedTransactionVersion: 0 } as never);
+  let tx = await conn.getTransaction(s, { maxSupportedTransactionVersion: 0 });
+  if (!tx) tx = await conn.getTransaction(s, { maxSupportedTransactionVersion: 0 });
   if (tx?.meta?.err) throw new Error("Transaction failed on-chain / 链上失败");
   if (!tx && last !== "processed") throw new Error("Signature not confirmed / 签名未上链 " + last);
 }
@@ -458,11 +458,12 @@ async function sendHubSwapTx(opts: {
     for (let i = 0; i < lookups.length; i++) {
       const key = lookups[i] && lookups[i].accountKey;
       if (!key) continue;
-      const acc = await opts.conn.getAddressLookupTable(key);
+      let acc: { value: AddressLookupTableAccount | null } = { value: null };
+      try { acc = await opts.conn.getAddressLookupTable(key); } catch { acc = { value: null }; }
       if (acc.value) alts.push(acc.value);
     }
     const ixs = TransactionMessage.decompile(opts.tx.message, { addressLookupTableAccounts: alts }).instructions;
-    const { blockhash } = await opts.conn.getLatestBlockhash("confirmed");
+    const { blockhash } = await opts.conn.getLatestBlockhash();
     const vtx = new VersionedTransaction(
       new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts)
     );
@@ -580,7 +581,7 @@ async function swapCoinToTillPawly(opts: {
     const inMint = new PublicKey(inputMint);
     const ata = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
     let inputAccount = ata;
-    const info = await opts.conn.getAccountInfo(ata, "confirmed");
+    const info = await opts.conn.getAccountInfo(ata);
     if (!info) {
       const listed = await opts.conn.getTokenAccountsByOwner(opts.from, { mint: inMint });
       if (!listed.value.length) throw new Error("No " + opts.coin + " token account / 没有" + opts.coin + "账户");
@@ -656,7 +657,7 @@ async function payHubToken(opts: {
   if (opts.coin !== "PAWLY") {
     return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction, pawlyList: opts.pawlyList });
   }
-  const { blockhash } = await conn.getLatestBlockhash("confirmed");
+  const { blockhash } = await conn.getLatestBlockhash();
   const ixsFor = async (ataPayer: PublicKey) => {
     if (opts.coin === "SOL") {
       const lamports = Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL));
@@ -711,7 +712,7 @@ async function payPawlyInHub(opts: {
     createAssociatedTokenAccountIdempotentInstruction(payer, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
     createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, PAWLY_DECIMALS, [], TOKEN_PROGRAM_ID),
   ];
-  const { blockhash } = await conn.getLatestBlockhash("confirmed");
+  const { blockhash } = await conn.getLatestBlockhash();
   const msg = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
   const tx = new VersionedTransaction(msg);
   let sig = "";
