@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.5 — same-origin Jupiter proxy, no USDC-to-till fallback.
+ * PAWLY Pet Hub v0.2.7 — Raydium wrapSol only for SOL; PAWLY then to till.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -502,6 +502,7 @@ async function swapCoinToTillPawly(opts: {
   conn: Connection;
   sendTransaction: (tx: VersionedTransaction, conn: Connection) => Promise<string>;
   signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+  pawlyList?: number;
 }) {
   const inputMint = opts.coin === "SOL" ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
   const rawIn = opts.coin === "SOL"
@@ -534,6 +535,17 @@ async function swapCoinToTillPawly(opts: {
   }
   if (!sig) sig = await opts.sendTransaction(tx, opts.conn);
   await assertOnchainSuccess(opts.conn, sig);
+  const list = Number(opts.pawlyList || 0);
+  if (list > 0) {
+    return payHubToken({
+      from: opts.from,
+      pawlyList: list,
+      coin: "PAWLY",
+      coinAmount: list,
+      sendTransaction: opts.sendTransaction,
+      signTransaction: opts.signTransaction,
+    });
+  }
   return sig;
 }
 async function payHubToken(opts: {
@@ -550,7 +562,7 @@ async function payHubToken(opts: {
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
   if (opts.coin !== "PAWLY") {
-    return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
+    return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction, pawlyList: opts.pawlyList });
   }
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const ixsFor = async (ataPayer: PublicKey) => {
