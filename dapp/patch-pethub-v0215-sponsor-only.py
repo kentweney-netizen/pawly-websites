@@ -38,8 +38,17 @@ NEW_PAY = '''  if (typeof opts.signTransaction !== "function") throw new Error("
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Sponsor pay failed / 代付失败"));'''
 if OLD_PAY not in t:
-    raise SystemExit("payHub catch block missing")
-t = t.replace(OLD_PAY, NEW_PAY, 1)
+    if "Sponsor pay failed" not in t:
+        raise SystemExit("payHub catch block missing")
+else:
+    t = t.replace(OLD_PAY, NEW_PAY, 1)
+t = t.replace("  const { blockhash } = await conn.getLatestBlockhash();\n  const ixsFor = async (ataPayer: PublicKey) => {", "  const ixsFor = async (ataPayer: PublicKey) => {", 1)
+OLD_COMP = '''  const compile = async (payerKey: PublicKey) => {
+    const ixs = await ixsFor(payerKey);
+    const msg = new TransactionMessage({ payerKey, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
+    return new VersionedTransaction(msg);
+  };\n'''
+t = t.replace(OLD_COMP, "")
 OLD_SW = '''      const key = lookups[i] && lookups[i].accountKey;
       if (!key) continue;
       let acc: { value: AddressLookupTableAccount | null } = { value: null };
@@ -50,9 +59,8 @@ NEW_SW = '''      const rawKey = lookups[i] && lookups[i].accountKey;
       try { key = rawKey instanceof PublicKey ? rawKey : new PublicKey(String(rawKey)); } catch { continue; }
       let acc: { value: AddressLookupTableAccount | null } = { value: null };
       try { acc = await opts.conn.getAddressLookupTable(key); } catch { acc = { value: null }; }'''
-if OLD_SW not in t:
-    raise SystemExit("lookup key block missing")
-t = t.replace(OLD_SW, NEW_SW, 1)
+if OLD_SW in t:
+    t = t.replace(OLD_SW, NEW_SW, 1)
 OLD_FB = '''  if (typeof opts.signTransaction === "function") {
     try {
       return await sponsorize();
@@ -74,9 +82,8 @@ NEW_FB = '''  if (typeof opts.signTransaction !== "function") {
     throw new Error("Wallet cannot sign / 钱包无法签名");
   }
   return await sponsorize();'''
-if OLD_FB not in t:
-    raise SystemExit("swap fallback missing")
-t = t.replace(OLD_FB, NEW_FB, 1)
+if OLD_FB in t:
+    t = t.replace(OLD_FB, NEW_FB, 1)
 OLD_P2 = '''    if (r.ok && d.signature) sig = String(d.signature);
     else if (d.error) throw new Error(String(d.error));
   }
@@ -85,12 +92,9 @@ NEW_P2 = '''    if (r.ok && d.signature) sig = String(d.signature);
     else throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
   }
   if (!sig) throw new Error("Sponsor pay failed / 代付失败");'''
-if OLD_P2 not in t:
-    print("payPawlyInHub fallback not exact")
-else:
+if OLD_P2 in t:
     t = t.replace(OLD_P2, NEW_P2, 1)
-    print("payPawlyInHub fallback removed")
 p.write_text(t)
 print(t.splitlines()[1])
-print("user compile fallback left", "compile(opts.from)" in t)
-print("sendTransaction fallback in sendHub", "return await opts.sendTransaction(opts.tx" in t)
+print("compile(opts.from)", "compile(opts.from)" in t)
+print("sendTx fallback", "return await opts.sendTransaction(opts.tx" in t)
