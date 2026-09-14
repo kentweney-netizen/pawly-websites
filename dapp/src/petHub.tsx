@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.16 — robust b64 for Raydium + sponsor (no Failed to decode base64).
+ * PAWLY Pet Hub v0.2.17 — await txToB64 so Edge gets real base64 not a Promise.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -502,14 +502,21 @@ function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: number; solU
   }
   return { amount: usd, label: usd.toFixed(4) + " " + coin, usd };
 }
-async function txToB64(tx: VersionedTransaction) {
-  return bytesToB64(tx.serialize());
+function txToB64(tx: VersionedTransaction) {
+  const raw = tx.serialize();
+  const u8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayLike<number>);
+  try {
+    const Buf = (globalThis as { Buffer?: { from: (a: Uint8Array) => { toString: (e: string) => string } } }).Buffer;
+    if (Buf && typeof Buf.from === "function") return Buf.from(u8).toString("base64");
+  } catch { /* fall through */ }
+  return bytesToB64(u8);
 }
 async function postSponsor(signed: VersionedTransaction, feePawly: number) {
+  const b64 = txToB64(signed);
   const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-    body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1) }),
+    body: JSON.stringify({ transaction: b64, feePawly: Math.max(1, feePawly || 1) }),
   });
   const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
   if (r.ok && d.signature) return String(d.signature);
