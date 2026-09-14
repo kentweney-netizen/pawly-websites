@@ -1,0 +1,21 @@
+name: patch-pethub-v027
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - dapp/patch-pethub-v027-till-after-swap.py
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 dapp/patch-pethub-v027-till-after-swap.py
+      - run: |
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHub.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "v0.2.7 wrapSol SOL-only + PAWLY to till after swap"
+          git push origin HEAD:main
