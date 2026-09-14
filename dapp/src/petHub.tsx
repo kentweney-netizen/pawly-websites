@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.7 — Raydium wrapSol only for SOL; PAWLY then to till.
+ * PAWLY Pet Hub v0.2 LOCK — PAWLY/USDC/USDT/SOL pay till directly.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -561,9 +561,7 @@ async function payHubToken(opts: {
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet / 不能付给自己");
   if (opts.coinAmount <= 0) throw new Error("No live price / 拉不到价，改用 PAWLY");
   const conn = await openHubConn();
-  if (opts.coin !== "PAWLY") {
-    return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction, pawlyList: opts.pawlyList });
-  }
+  /* v0.2 LOCK: do not swap in-hub. USDC/USDT/SOL transfer to till. */
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const ixsFor = async (ataPayer: PublicKey) => {
     if (opts.coin === "SOL") {
@@ -1005,8 +1003,8 @@ export function PetHubPage() {
             </div>
             <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 6 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? " · PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
             <div style={{ fontSize: 11, color: "#9aa", margin: "6px 0 12px" }}>
-              Pays the shop till on-chain. Live pool price. No price = use PAWLY.<br />
-              按官方池现价折算，拉不到价请用 PAWLY。
+              Pays the shop till in the token you pick. Live pool price. Swap-to-PAWLY stays on the Swap page.<br />
+              按现价折算后直付店柜。要换 PAWLY 请用 dApp Swap。
             </div>
             <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={confirmPay}>
               {busy ? "Paying…" : "Confirm · " + quoteCoin(cart.amount, payCoin, px).label}
