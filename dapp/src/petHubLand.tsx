@@ -6,20 +6,17 @@ export type RoomId = "street" | "shop" | "hospital" | "shelter" | "hotel" | "gro
 const WOOD = {
   bg: "#2b1d14",
   panel: "#c9844a",
-  panelDark: "#8a4f28",
-  ink: "#3a2214",
-  cream: "#f4e1c1",
-  grass: "#3d6b32",
   slot: "#1b120c",
+  cream: "#f4e1c1",
 };
 
-export const PLOT: { id: RoomId; left: string; top: string; label: string; emoji: string }[] = [
-  { id: "hospital", left: "3%", top: "16%", label: "Hospital", emoji: "望" },
-  { id: "shelter", left: "22%", top: "14%", label: "Rescue", emoji: "家" },
-  { id: "hotel", left: "44%", top: "12%", label: "Hotel", emoji: "宿" },
-  { id: "groom", left: "66%", top: "16%", label: "Groom", emoji: "剪" },
-  { id: "shop", left: "8%", top: "62%", label: "Pet Shop", emoji: "店" },
-  { id: "park", left: "76%", top: "62%", label: "Park", emoji: "树" },
+export const PLOT: { id: RoomId; left: string; top: string; label: string }[] = [
+  { id: "hospital", left: "3%", top: "16%", label: "Hospital" },
+  { id: "shelter", left: "22%", top: "14%", label: "Rescue" },
+  { id: "hotel", left: "44%", top: "12%", label: "Hotel" },
+  { id: "groom", left: "66%", top: "16%", label: "Groom" },
+  { id: "shop", left: "8%", top: "62%", label: "Pet Shop" },
+  { id: "park", left: "76%", top: "62%", label: "Park" },
 ];
 
 const LOCKED_PLOTS = [
@@ -30,7 +27,7 @@ const LOCKED_PLOTS = [
 
 const plaque: React.CSSProperties = {
   background: WOOD.panel,
-  color: WOOD.ink,
+  color: "#3a2214",
   border: "3px solid #3a2214",
   boxShadow: "2px 2px 0 #1b120c",
   borderRadius: 0,
@@ -38,24 +35,18 @@ const plaque: React.CSSProperties = {
   fontSize: 10,
   padding: "3px 6px",
   lineHeight: 1.1,
-  fontFamily: '"Press Start 2P", ui-monospace, monospace',
 };
 
 export function LandPlots(props: { onEnter: (id: RoomId) => void }) {
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 5 }}>
       {PLOT.map((z) => (
-        <button
-          key={z.id}
-          type="button"
-          onClick={() => props.onEnter(z.id)}
-          style={{ position: "absolute", left: z.left, top: z.top, background: "transparent", border: 0, padding: 0, cursor: "pointer" }}
-        >
+        <button key={z.id} type="button" onClick={() => props.onEnter(z.id)} style={{ position: "absolute", left: z.left, top: z.top, background: "transparent", border: 0, padding: 0, cursor: "pointer" }}>
           <span style={plaque}>{z.label}</span>
         </button>
       ))}
       {LOCKED_PLOTS.map((z) => (
-        <div key={z.label} style={{ position: "absolute", left: z.left, top: z.top, opacity: 0.72, pointerEvents: "none" }}>
+        <div key={z.label} style={{ position: "absolute", left: z.left, top: z.top, opacity: 0.75, pointerEvents: "none" }}>
           <span style={{ ...plaque, background: "#6b5a48", color: "#efe6d6" }}>{z.label} locked</span>
         </div>
       ))}
@@ -111,7 +102,6 @@ export function LandHotbar(props: {
             background: WOOD.slot,
             border: props.focusId && p && p.id === props.focusId ? "3px solid #f0d060" : "3px solid #3a2214",
             padding: 0,
-            imageRendering: "pixelated",
           }}
         >
           {p ? (
