@@ -1,5 +1,5 @@
 [build]
-  command = "cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
+  command = "python3 dapp/unpack-adopt-pets.py && cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
   publish = "."
 
 [build.environment]
@@ -26,6 +26,18 @@
 [[redirects]]
   from = "/dapp/assets/*"
   to = "/dapp/dist/assets/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/pets/*"
+  to = "/pets/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/dist/pets/*"
+  to = "/pets/:splat"
   status = 200
   force = true
 
