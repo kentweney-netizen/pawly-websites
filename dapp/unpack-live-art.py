@@ -10,6 +10,12 @@ names = {
     "npc.png": ["npc.png", "pawly-npc.png", "game/npc.png"],
     "pig.png": ["pig.png", "pawly-pig.png", "game/pig.png"],
     "dog.png": ["dog.png", "pawly-dog.png", "game/dog.png"],
+    "street-walk.mp4": [
+        "street-walk.mp4",
+        "pet-hub-street-walk.mp4",
+        "game/street-walk.mp4",
+        "dapp/public/game/street-walk.mp4",
+    ],
 }
 for out, cands in names.items():
     src = None
