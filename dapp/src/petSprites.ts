@@ -1,4 +1,4 @@
-/** Adopt shop companions only. Rescue / shelter species return null and keep emoji. */
+/** Adopt shop only. Rescue / shelter species return null and keep emoji. */
 const ADOPT: Record<string, string> = {
   dog: "dog",
   cat: "cat",
@@ -19,9 +19,26 @@ const ADOPT: Record<string, string> = {
   mantis: "mantis",
 };
 
-export function spriteFor(species: string): string | null {
+function keyOf(species: string): string | null {
   const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
-  const key = ADOPT[raw];
+  return ADOPT[raw] || null;
+}
+
+/** Lv0: circular 3D face avatar */
+export function headFor(species: string): string | null {
+  const key = keyOf(species);
   if (!key) return null;
-  return "/pets/" + key + ".png";
+  return "/pets/heads/" + key + ".png";
+}
+
+/** Lv1+: looping 3D full-body clip */
+export function grownMp4For(species: string): string | null {
+  const key = keyOf(species);
+  if (!key) return null;
+  return "/pets/grown/" + key + ".mp4";
+}
+
+/** @deprecated side-view PNG crop — kept so old calls do not crash */
+export function spriteFor(species: string): string | null {
+  return headFor(species);
 }
