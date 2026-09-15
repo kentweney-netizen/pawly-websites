@@ -1,8 +1,9 @@
 import type React from "react";
 /**
- * PAWLY Pet Hub v0.2.27 helpers — certs + cloud roster + pay.
+ * PAWLY Pet Hub v0.2.31 — USDC/USDT/SOL swap to PAWLY then till. Multi-wallet send fallback.
+ * 3-layer: street video + Lv1+ stroll body + Lv0 small head. No fused 3D heads.
  */
-import { Connection, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { AddressLookupTableAccount, Connection, PublicKey, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
 
 export const PET_SLOT_CAP = 10;
@@ -123,16 +124,182 @@ export function drawCertPng(job: CertJob) {
   g.fillStyle = "#10281c"; drawRound(g, 70, 70, 1060, 660, 22); g.fill(); g.textAlign = "center";
   g.fillStyle = "#00ff9d"; g.font = "bold 42px sans-serif"; g.fillText("PAWLY PETS CERTIFICATE", 600, 150);
   g.font = "160px serif"; g.fillText(job.emoji || "\ud83d\udc3e", 600, 330); g.fillStyle = "#e8eef7"; g.font = "bold 40px sans-serif"; g.fillText(job.title, 600, 460);
-  g.fillStyle = "#c8ffe8"; g.font = "28px sans-serif"; g.fillText(job.amount + " PAWLY  \u00b7  on-chain", 600, 520);
+  g.fillStyle = "#c8ffe8"; g.font = "28px sans-serif"; g.fillText(job.amount + " PAWLY  -  on-chain", 600, 520);
   g.fillStyle = "#9aa"; g.font = "16px monospace"; const sig = String(job.sig || ""); g.fillText(sig.slice(0, 44), 600, 590); g.fillText(sig.slice(44), 600, 616);
   g.fillStyle = "#00ff9d"; g.font = "18px sans-serif"; g.fillText("www.pawlypets.online", 600, 680); return c.toDataURL("image/png");
 }
 export function downloadDataUrl(name: string, url: string) { if (!url) return; const a = document.createElement("a"); a.href = url; a.download = name; a.click(); }
 export function asset(name: string) { return "/" + name.replace(/^\//, ""); }
+
+const WSOL_MINT = "So11111111111111111111111111111111111111112";
+function openHubConn() { return new Connection(RPC, "confirmed"); }
+function sleepHub(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+function isUserCancel(e: unknown) {
+  return /reject|denied|cancel|user abort/i.test(String((e as { message?: string })?.message || e || ""));
+}
+function b64ToBytes(b64: string) {
+  let s = String(b64 || "").trim();
+  const comma = s.indexOf(",");
+  if (s.slice(0, 5) === "data:" && comma >= 0) s = s.slice(comma + 1);
+  s = s.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function bytesToB64(raw: Uint8Array) {
+  const u8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayLike<number>);
+  let s = "";
+  for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + 8192)));
+  return btoa(s);
+}
+function txToB64(tx: VersionedTransaction) {
+  const raw = tx.serialize();
+  const u8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayLike<number>);
+  try {
+    const Buf = (globalThis as { Buffer?: { from: (a: Uint8Array) => { toString: (e: string) => string } } }).Buffer;
+    if (Buf && typeof Buf.from === "function") return Buf.from(u8).toString("base64");
+  } catch { /* ignore */ }
+  return bytesToB64(u8);
+}
+async function assertOnchainSuccess(conn: Connection, s: string) {
+  if (!s || s.length < 32) throw new Error("Empty signature");
+  const latest = await conn.getLatestBlockhash();
+  try {
+    await conn.confirmTransaction({ signature: s, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight });
+  } catch { /* poll below */ }
+  const res = await conn.getSignatureStatuses([s], { searchTransactionHistory: true });
+  const st = res?.value?.[0];
+  if (st && st.err) throw new Error("Transaction failed on-chain");
+  if (st && st.confirmationStatus) return;
+  const tx = await conn.getTransaction(s, { maxSupportedTransactionVersion: 0 });
+  if (tx?.meta?.err) throw new Error("Transaction failed on-chain");
+  if (!tx) throw new Error("Signature not confirmed");
+}
+async function postSponsor(signed: VersionedTransaction, feePawly: number) {
+  const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
+    body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1) }),
+  });
+  const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
+  if (r.ok && d.signature) return String(d.signature);
+  throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
+}
+export type HubSign = (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+export type HubSend = (tx: VersionedTransaction, conn: Connection) => Promise<string>;
+async function hubUserSign(tx: VersionedTransaction, signTransaction?: HubSign) {
+  const tries: Array<() => Promise<VersionedTransaction>> = [];
+  if (typeof signTransaction === "function") tries.push(() => signTransaction(tx));
+  const w = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>) : null;
+  const bags = w ? [w.solana, (w.phantom as { solana?: unknown } | undefined)?.solana, w.solflare, (w.jupiter as { solana?: unknown } | undefined)?.solana, (w.bitkeep as { solana?: unknown } | undefined)?.solana, w.okxwallet] : [];
+  bags.forEach((p) => {
+    const prov = p as { signTransaction?: HubSign; signAllTransactions?: (xs: VersionedTransaction[]) => Promise<VersionedTransaction[]> } | null;
+    if (prov && typeof prov.signTransaction === "function") tries.push(() => prov.signTransaction!(tx));
+    if (prov && typeof prov.signAllTransactions === "function") tries.push(async () => (await prov.signAllTransactions!([tx]))[0]);
+  });
+  let last: unknown = "Wallet cannot sign";
+  for (let i = 0; i < tries.length; i++) {
+    try {
+      const signed = await tries[i]();
+      if (signed) return signed;
+    } catch (e) {
+      if (isUserCancel(e)) throw e;
+      last = e;
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
+}
+async function pawlyUiOf(conn: Connection, owner: PublicKey) {
+  try {
+    const ata = await getAssociatedTokenAddress(new PublicKey(PAWLY_MINT), owner, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    const info = await conn.getTokenAccountBalance(ata);
+    return Number(info.value.uiAmount || 0);
+  } catch { return 0; }
+}
+async function buildHubSwapTx(opts: { inputMint: string; amount: string; user: string; inputAccount?: string; slippageBps: number }) {
+  const paths = ["/.netlify/functions/hub-jup-swap", "/dapp/.netlify/functions/hub-jup-swap"];
+  let last = "swap proxy failed";
+  for (const path of paths) {
+    try {
+      const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inputMint: opts.inputMint, outputMint: PAWLY_MINT, amount: opts.amount, userPublicKey: opts.user, inputAccount: opts.inputAccount || "", slippageBps: opts.slippageBps }) });
+      const d = (await r.json()) as { swapTransaction?: string; error?: string };
+      if (r.ok && d.swapTransaction) return d;
+      last = String(d.error || ("HTTP " + r.status));
+    } catch (e) { last = String((e as { message?: string })?.message || e); }
+  }
+  throw new Error(last);
+}
+async function nativeWalletSend(tx: VersionedTransaction, conn: Connection, sendTransaction?: HubSend) {
+  const errs: unknown[] = [];
+  if (typeof sendTransaction === "function") {
+    try {
+      const s = await sendTransaction(tx, conn);
+      if (s) return String(s);
+    } catch (e) { if (isUserCancel(e)) throw e; errs.push(e); }
+  }
+  const w = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>) : null;
+  const bags = w ? [w.solana, (w.phantom as { solana?: unknown } | undefined)?.solana, w.solflare, (w.jupiter as { solana?: unknown } | undefined)?.solana, (w.bitkeep as { solana?: unknown } | undefined)?.solana, w.okxwallet] : [];
+  for (let i = 0; i < bags.length; i++) {
+    const p = bags[i] as { signAndSendTransaction?: (t: VersionedTransaction) => Promise<unknown>; sendTransaction?: (t: VersionedTransaction, c: Connection) => Promise<unknown> } | null;
+    if (!p) continue;
+    if (typeof p.signAndSendTransaction === "function") {
+      try {
+        const r = await p.signAndSendTransaction(tx);
+        const s = typeof r === "string" ? r : (r as { signature?: string } | null)?.signature;
+        if (s) return String(s);
+      } catch (e) { if (isUserCancel(e)) throw e; errs.push(e); }
+    }
+    if (typeof p.sendTransaction === "function") {
+      try {
+        const r = await p.sendTransaction(tx, conn);
+        if (r) return String(r);
+      } catch (e) { if (isUserCancel(e)) throw e; errs.push(e); }
+    }
+  }
+  throw errs[0] instanceof Error ? errs[0] : new Error("Wallet send failed");
+}
+async function sendHubSwapTx(opts: { conn: Connection; tx: VersionedTransaction; sendTransaction?: HubSend; signTransaction?: HubSign }) {
+  const sponsorize = async () => {
+    const sponsor = new PublicKey(SPONSOR);
+    const lookups = ((opts.tx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
+    const alts: AddressLookupTableAccount[] = [];
+    for (let i = 0; i < lookups.length; i++) {
+      const rawKey = lookups[i] && lookups[i].accountKey;
+      if (!rawKey) continue;
+      let key: PublicKey;
+      try { key = rawKey instanceof PublicKey ? rawKey : new PublicKey(String(rawKey)); } catch { continue; }
+      let acc: { value: AddressLookupTableAccount | null } = { value: null };
+      try { acc = await opts.conn.getAddressLookupTable(key); } catch { acc = { value: null }; }
+      if (acc.value) alts.push(acc.value);
+    }
+    const ixs = TransactionMessage.decompile(opts.tx.message, { addressLookupTableAccounts: alts }).instructions;
+    const { blockhash } = await opts.conn.getLatestBlockhash();
+    const vtx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts));
+    const signed = await hubUserSign(vtx, opts.signTransaction);
+    return await postSponsor(signed, 1);
+  };
+  let last: unknown = null;
+  try {
+    const sig = await nativeWalletSend(opts.tx, opts.conn, opts.sendTransaction);
+    if (sig) return sig;
+  } catch (e) {
+    if (isUserCancel(e)) throw e;
+    last = e;
+  }
+  try {
+    return await sponsorize();
+  } catch (e) {
+    if (isUserCancel(e)) throw e;
+    last = e;
+  }
+  throw last instanceof Error ? last : new Error(String(last || "Swap send failed"));
+}
 export async function fetchHubPx(): Promise<{ pawlyUsd: number; solUsd: number }> {
   let pawlyUsd = 0; let solUsd = 0;
   try { const r = await fetch("https://api.dexscreener.com/latest/dex/pairs/solana/" + OFFICIAL_POOL); const d = (await r.json()) as { pair?: { priceUsd?: string } }; pawlyUsd = Number(d.pair?.priceUsd || 0); } catch { /* ignore */ }
-  try { const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112"); const d = (await r.json()) as { pairs?: { chainId?: string; priceUsd?: string; quoteToken?: { symbol?: string } }[] }; const p = (d.pairs || []).find((x) => x.chainId === "solana" && String(x.quoteToken?.symbol || "").includes("USD")); solUsd = Number(p?.priceUsd || 0); } catch { /* ignore */ }
+  try { const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + WSOL_MINT); const d = (await r.json()) as { pairs?: { chainId?: string; priceUsd?: string; quoteToken?: { symbol?: string } }[] }; const p = (d.pairs || []).find((x) => x.chainId === "solana" && String(x.quoteToken?.symbol || "").includes("USD")); solUsd = Number(p?.priceUsd || 0); } catch { /* ignore */ }
   return { pawlyUsd, solUsd };
 }
 export function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: number; solUsd: number }) {
@@ -141,25 +308,109 @@ export function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: numbe
   if (coin === "SOL") { const v = px.solUsd > 0 && usd > 0 ? usd / px.solUsd : 0; return { amount: v, label: v.toFixed(6) + " SOL", usd }; }
   return { amount: usd, label: usd.toFixed(4) + " " + coin, usd };
 }
-export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: number; signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction> }) {
-  if (typeof opts.signTransaction !== "function") throw new Error("Connect wallet in dApp first / \u5148\u8fde\u94b1\u5305");
-  const till = new PublicKey(SHOP_TILL); const sponsor = new PublicKey(SPONSOR); const conn = new Connection(RPC, "confirmed"); const { blockhash } = await conn.getLatestBlockhash();
-  let ixs;
-  if (opts.coin === "SOL") ixs = [SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: till, lamports: Math.max(1, Math.round(opts.amount * LAMPORTS_PER_SOL)) })];
-  else {
-    const mintStr = opts.coin === "USDC" ? USDC_MINT : opts.coin === "USDT" ? USDT_MINT : PAWLY_MINT; const mint = new PublicKey(mintStr);
-    const rawAmt = Math.round(opts.amount * 1e6);
-    const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-    const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-    ixs = [createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID), createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID)];
+async function swapCoinToTillPawly(opts: { from: PublicKey; coin: PayCoin; coinAmount: number; conn: Connection; sendTransaction?: HubSend; signTransaction?: HubSign; pawlyList?: number }) {
+  const isSol = opts.coin === "SOL";
+  const inputMint = isSol ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
+  const rawIn = isSol ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL)) : Math.max(1, Math.round(opts.coinAmount * 1e6));
+  let inputAccount = "";
+  if (!isSol) {
+    const inMint = new PublicKey(inputMint);
+    const ata = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    const info = await opts.conn.getAccountInfo(ata);
+    if (info) inputAccount = ata.toBase58();
+    else {
+      const listed = await opts.conn.getTokenAccountsByOwner(opts.from, { mint: inMint });
+      if (!listed.value.length) throw new Error("No " + opts.coin + " token account");
+      inputAccount = listed.value[0].pubkey.toBase58();
+    }
   }
-  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
-  const signed = await opts.signTransaction(tx); const raw = signed.serialize(); const b64 = btoa(String.fromCharCode.apply(null, Array.from(raw)));
-  const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY }, body: JSON.stringify({ transaction: b64, feePawly: 1 }) });
-  const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
-  if (!r.ok || !d.signature) throw new Error(String(d.error || "Sponsor pay failed"));
-  return d.signature;
+  const before = await pawlyUiOf(opts.conn, opts.from);
+  const slips = [200, 400, 800];
+  let lastErr: unknown = null;
+  let swapSig = "";
+  for (let attempt = 0; attempt < slips.length; attempt++) {
+    try {
+      const pack = await buildHubSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: slips[attempt] });
+      const tx = VersionedTransaction.deserialize(b64ToBytes(String(pack.swapTransaction)));
+      swapSig = await sendHubSwapTx({ conn: opts.conn, tx, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction });
+      await assertOnchainSuccess(opts.conn, swapSig);
+      lastErr = null;
+      break;
+    } catch (e) {
+      if (isUserCancel(e)) throw e;
+      lastErr = e;
+      await sleepHub(500);
+    }
+  }
+  if (!swapSig) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Swap failed"));
+  let after = before;
+  for (let i = 0; i < 12; i++) {
+    after = await pawlyUiOf(opts.conn, opts.from);
+    if (after > before + 0.000001) break;
+    await sleepHub(500);
+  }
+  const list = Number(opts.pawlyList || 0);
+  const payAmt = list > 0 ? Math.min(list, after) : Math.max(0, after - before);
+  if (payAmt <= 0) throw new Error("Swap landed but no PAWLY yet");
+  let hop2: unknown = null;
+  for (let i = 0; i < 3; i++) {
+    try {
+      return await payHub({ from: opts.from, coin: "PAWLY", amount: payAmt, signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction });
+    } catch (e) {
+      if (isUserCancel(e)) throw e;
+      hop2 = e;
+      await sleepHub(600);
+    }
+  }
+  throw hop2 instanceof Error ? hop2 : new Error(String(hop2 || "Till transfer failed"));
 }
+export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: number; signTransaction?: HubSign; sendTransaction?: HubSend }) {
+  if (opts.amount <= 0) throw new Error("No live price, use PAWLY");
+  const till = new PublicKey(SHOP_TILL);
+  const sponsor = new PublicKey(SPONSOR);
+  if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
+  const conn = openHubConn();
+  if (opts.coin !== "PAWLY") {
+    return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.amount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction, pawlyList: 0 });
+  }
+  const mint = new PublicKey(PAWLY_MINT);
+  const rawAmt = Math.round(opts.amount * 1e6);
+  if (rawAmt <= 0) throw new Error("Amount too small");
+  const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  let lastErr: unknown = null;
+  try {
+    const { blockhash } = await conn.getLatestBlockhash();
+    const ixs = [
+      createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
+      createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID),
+    ];
+    const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+    const signed = await hubUserSign(tx, opts.signTransaction);
+    const sig = await postSponsor(signed, 1);
+    await assertOnchainSuccess(conn, sig);
+    return sig;
+  } catch (e) {
+    if (isUserCancel(e)) throw e;
+    lastErr = e;
+  }
+  try {
+    const { blockhash } = await conn.getLatestBlockhash();
+    const ixs = [
+      createAssociatedTokenAccountIdempotentInstruction(opts.from, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
+      createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID),
+    ];
+    const tx = new VersionedTransaction(new TransactionMessage({ payerKey: opts.from, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+    const sig = await nativeWalletSend(tx, conn, opts.sendTransaction);
+    await assertOnchainSuccess(conn, sig);
+    return sig;
+  } catch (e) {
+    if (isUserCancel(e)) throw e;
+    lastErr = e;
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Sponsor pay failed"));
+}
+
 export const ghost: React.CSSProperties = { background: "rgba(0,0,0,0.55)", color: "#c8ffe8", border: "1px solid rgba(0,255,157,0.4)", borderRadius: 10, padding: "6px 8px", cursor: "pointer", fontWeight: 700, fontSize: 11 };
 export const primary: React.CSSProperties = { ...ghost, background: "linear-gradient(90deg,#00ff9d,#7cffc8)", color: "#052015", border: "none", fontSize: 13, padding: "10px 12px" };
 export const rowBtn: React.CSSProperties = { ...ghost, display: "flex", justifyContent: "space-between", width: "100%", marginBottom: 4, fontSize: 12, padding: "8px 10px" };
