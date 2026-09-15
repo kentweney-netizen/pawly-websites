@@ -17,59 +17,72 @@ function normSpecies(species: string) {
 }
 
 const FACE: Record<string, string> = {
-  dog: "🐶",
-  cat: "🐱",
-  rabbit: "🐰",
-  hamster: "🐹",
-  parrot: "🦜",
-  chicken: "🐔",
-  duck: "🦆",
-  minipig: "🐷",
-  pig: "🐷",
-  alpaca: "🦙",
-  lizard: "🦎",
-  gecko: "🦎",
-  snake: "🐍",
-  beetle: "🪲",
-  tarantula: "🕷",
-  mantis: "🦗",
-  "stray-cat": "🐱",
-  "stray-dog": "🐶",
-  orangutan: "🦧",
-  sunbear: "🐻",
-  "malayan-tiger": "🐯",
-  seaturtle: "🐢",
-  hornbill: "🦅",
-  "asian-elephant": "🐘",
-  pangolin: "🦔",
-  gibbon: "🐒",
+  dog: "\ud83d\udc36",
+  cat: "\ud83d\udc31",
+  rabbit: "\ud83d\udc30",
+  hamster: "\ud83d\udc39",
+  parrot: "\ud83e\udd9c",
+  chicken: "\ud83d\udc14",
+  duck: "\ud83e\udd86",
+  minipig: "\ud83d\udc37",
+  pig: "\ud83d\udc37",
+  alpaca: "\ud83e\udd99",
+  lizard: "\ud83e\udd8e",
+  gecko: "\ud83e\udd8e",
+  snake: "\ud83d\udc0d",
+  beetle: "\ud83e\udeb2",
+  tarantula: "\ud83d\udd77",
+  mantis: "\ud83e\udd97",
+  "stray-cat": "\ud83d\udc31",
+  "stray-dog": "\ud83d\udc36",
+  orangutan: "\ud83e\udda7",
+  sunbear: "\ud83d\udc3b",
+  "malayan-tiger": "\ud83d\udc2f",
+  seaturtle: "\ud83d\udc22",
+  hornbill: "\ud83e\udd85",
+  "asian-elephant": "\ud83d\udc18",
+  pangolin: "\ud83e\udd94",
+  gibbon: "\ud83d\udc12",
 };
 
 export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean }) {
   const lv = Math.max(0, Number(props.pet.level || 0));
   const key = normSpecies(props.pet.species);
   const src = spriteFor(props.pet.species);
-  const size = props.size || 88;
+  const size = props.size || 48;
   const moving = !!props.moving;
-  const face = FACE[key] || props.pet.emoji || "🐾";
+  const face = FACE[key] || props.pet.emoji || "\ud83d\udc3e";
+  const isHead = lv <= 0;
   if (!src) {
     return (
-      <div className={moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{ fontSize: size * 0.72, lineHeight: 1, textAlign: "center" }}>
+      <div
+        className={moving ? "pawly-rig pawly-bob" : "pawly-rig"}
+        style={{
+          width: size,
+          height: isHead ? size : Math.round(size * 1.15),
+          fontSize: isHead ? Math.round(size * 0.72) : Math.round(size * 0.82),
+          lineHeight: 1,
+          textAlign: "center",
+          borderRadius: isHead ? "50%" : 8,
+          overflow: "hidden",
+          background: isHead ? "rgba(0,0,0,0.25)" : "transparent",
+        }}
+      >
         {face}
       </div>
     );
   }
-  const w = lv <= 0 ? Math.round(size * 0.72) : size;
-  const h = lv <= 0 ? Math.round(size * 0.72) : Math.round(size * 0.72);
+  const box = isHead ? size : Math.round(size * 1.05);
   return (
     <div
       className={moving ? "pawly-rig pawly-bob" : "pawly-rig"}
       style={{
-        width: w,
-        height: h,
+        width: box,
+        height: isHead ? box : Math.round(box * 1.2),
         overflow: "hidden",
         display: "inline-block",
-        borderRadius: lv <= 0 ? "50%" : 8,
+        borderRadius: isHead ? "50%" : 6,
+        background: isHead ? "rgba(8,20,14,0.35)" : "transparent",
       }}
     >
       <img
@@ -77,10 +90,10 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
         src={src}
         draggable={false}
         style={{
-          width: lv <= 0 ? "170%" : "100%",
-          height: lv <= 0 ? "170%" : "100%",
-          objectFit: "contain",
-          objectPosition: lv <= 0 ? "78% 18%" : "center bottom",
+          width: isHead ? "210%" : "100%",
+          height: isHead ? "210%" : "100%",
+          objectFit: isHead ? "cover" : "contain",
+          objectPosition: isHead ? "50% 8%" : "center bottom",
           imageRendering: "pixelated",
         }}
       />
