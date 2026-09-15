@@ -19,6 +19,7 @@ import {
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
 import { usePawlyWallet } from "./localWallet";
+import { PetRig, PET_RIG_CSS } from "./petAvatar";
 
 export const PET_SLOT_CAP = 10;
 export const FEED_DAY_MAX = 3;
@@ -382,6 +383,16 @@ export function PetHubPage() {
             )) : <div style={{ color: "#8aa", fontSize: 12 }}>Adopt in Shop to see your pet here.</div>}
           </div>
         )}
+                {scene === "street" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "6px 0 10px" }}>
+            {pets.length ? pets.map((p) => (
+              <div key={p.id} style={{ textAlign: "center" }}>
+                <PetRig pet={{ species: p.species, level: Number((p as { level?: number }).level || 0), emoji: p.emoji }} size={88} />
+                <div style={{ fontSize: 11, fontWeight: 800 }}>{p.name}</div>
+              </div>
+            )) : <div style={{ color: "#8aa", fontSize: 12 }}>Adopt in Shop to see your 3D pet here.</div>}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 4, overflowX: "auto", marginBottom: 8 }}>
           <button type="button" onClick={() => { setScene("street"); setShopView("home"); }} style={{ ...ghost, flex: "0 0 auto", background: scene === "street" ? "rgba(0,255,157,0.28)" : ghost.background }}>Street</button>
           {SHOPS.map((s) => (
@@ -458,6 +469,7 @@ export function PetHubPage() {
           </div>
         </div>
       ) : null}
+      <style>{PET_RIG_CSS}</style>
     </div>
   );
 }
