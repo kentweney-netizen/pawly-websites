@@ -1,9 +1,9 @@
 /**
- * PAWLY Pet Hub v0.2.28 page — Solscan + adopt/rescue cert + wallet cloud roster.
+ * PAWLY Pet Hub v0.2.29 page — Solscan + adopt/rescue cert + wallet cloud roster.
  * Lv0 small emoji head only. Lv1+ full body stroll. No fused 3D heads.
- * Labels are plain ASCII so wallet WebViews never print leftover escape text.
+ * Enter page loops BGM "we love animals" with no toggle.
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { usePawlyWallet } from "./localWallet";
@@ -16,12 +16,15 @@ import {
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 
-const VER = "v0.2.28";
+const VER = "v0.2.29";
+const BGM_MP3 = asset("we-love-animals.mp3");
+const BGM_WAV = asset("we-love-animals.wav");
 
 export function PetHubPage() {
   const navigate = useNavigate();
   const wallet = usePawlyWallet() as { publicKey?: PublicKey | null; signTransaction?: (tx: VersionedTransaction) => Promise<VersionedTransaction> };
   const addr = (wallet.publicKey && wallet.publicKey.toBase58()) || "";
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
   const [scene, setScene] = useState<SceneId>("street");
   const [shopView, setShopView] = useState<"home" | "adopt" | "food">("home");
   const [focusId, setFocusId] = useState("");
@@ -49,6 +52,24 @@ export function PetHubPage() {
     });
     return () => { live = false; };
   }, [addr]);
+  useEffect(() => {
+    const el = bgmRef.current;
+    if (!el) return;
+    el.loop = true;
+    el.volume = 0.34;
+    const kick = () => { if (el.paused) void el.play().catch(() => { /* wallet WebView may need one tap */ }); };
+    void el.play().catch(() => {});
+    const opts: AddEventListenerOptions = { capture: true, passive: true };
+    document.addEventListener("pointerdown", kick, opts);
+    document.addEventListener("touchstart", kick, opts);
+    document.addEventListener("click", kick, opts);
+    return () => {
+      document.removeEventListener("pointerdown", kick, opts);
+      document.removeEventListener("touchstart", kick, opts);
+      document.removeEventListener("click", kick, opts);
+      el.pause();
+    };
+  }, []);
   const openCart = (item: CartItem) => {
     setNote("");
     if (item.kind === "food") {
@@ -68,7 +89,7 @@ export function PetHubPage() {
     try {
       const sig = await payHub({ from: wallet.publicKey, coin: payCoin, amount: payAmt.amount, signTransaction: wallet.signTransaction });
       if (cart.kind === "adopt" || cart.kind === "rescue") {
-        const next: PetRec[] = [...pets, { id: "pet_" + Date.now(), kind: cart.kind === "rescue" ? "rescued" : "adopted", species: cart.species || "dog", name: cart.title.replace(/^(Adopt|Rescue)\s+/i, ""), emoji: cart.emoji || "🐾", hunger: 70, health: 80, streak: 0, pricePawly: cart.amount, sig, feedsTotal: 0, level: 0 }].slice(0, PET_SLOT_CAP);
+        const next: PetRec[] = [...pets, { id: "pet_" + Date.now(), kind: cart.kind === "rescue" ? "rescued" : "adopted", species: cart.species || "dog", name: cart.title.replace(/^(Adopt|Rescue)\s+/i, ""), emoji: cart.emoji || "\ud83d\udc3e", hunger: 70, health: 80, streak: 0, pricePawly: cart.amount, sig, feedsTotal: 0, level: 0 }].slice(0, PET_SLOT_CAP);
         setPets(next); savePets(addr, next);
       }
       if (cart.kind === "food") {
@@ -84,7 +105,7 @@ export function PetHubPage() {
       setLastSig(sig); setLastPaid(cart.amount); setLastTitle(cart.title); setNote(""); setCart(null);
       if (cart.kind === "adopt" || cart.kind === "rescue") {
         const job: CertJob = { title: cart.title, amount: cart.amount, kind: cart.kind, species: cart.species, emoji: cart.emoji, sig };
-        job.photoPng = drawPetPhotoPng(job.emoji || "🐾", job.title); job.certPng = drawCertPng(job); setCert(job);
+        job.photoPng = drawPetPhotoPng(job.emoji || "\ud83d\udc3e", job.title); job.certPng = drawCertPng(job); setCert(job);
       }
     } catch (e) { setNote(String((e as { message?: string }).message || e)); } finally { setBusy(false); }
   };
@@ -93,6 +114,10 @@ export function PetHubPage() {
   return (
     <div style={{ height: "100dvh", overflow: "hidden", background: "#070b10", color: "#e8eef7", display: "flex", flexDirection: "column", position: "relative", maxWidth: 430, margin: "0 auto" }}>
       <style>{PET_RIG_CSS}</style>
+      <audio ref={bgmRef} autoPlay loop playsInline preload="auto" style={{ display: "none" }}>
+        <source src={BGM_MP3} type="audio/mpeg" />
+        <source src={BGM_WAV} type="audio/wav" />
+      </audio>
       <div style={{ padding: "calc(env(safe-area-inset-top, 16px) + 18px) 10px 8px" }}>
         <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene] + sep + VER}</div>
         <div style={{ color: "#8aa", fontSize: 11 }}>{hint}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{sep}3-layer</div>
