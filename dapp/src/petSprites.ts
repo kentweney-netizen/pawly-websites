@@ -1,13 +1,27 @@
-const KNOWN = ["minipig", "rabbit", "dog", "cat", "hamster", "duck"] as const;
+/** Adopt shop companions only. Rescue / shelter species return null and keep emoji. */
+const ADOPT: Record<string, string> = {
+  dog: "dog",
+  cat: "cat",
+  rabbit: "rabbit",
+  hamster: "hamster",
+  parrot: "parrot",
+  chicken: "chicken",
+  duck: "duck",
+  minipig: "minipig",
+  pig: "minipig",
+  "mini-pig": "minipig",
+  alpaca: "alpaca",
+  lizard: "lizard",
+  snake: "snake",
+  gecko: "gecko",
+  beetle: "beetle",
+  tarantula: "tarantula",
+  mantis: "mantis",
+};
 
 export function spriteFor(species: string): string | null {
   const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
-  const key =
-    raw === "pig" || raw === "mini-pig" || raw === "minipig" ? "minipig" :
-    raw === "stray-dog" ? "dog" :
-    raw === "stray-cat" ? "cat" :
-    raw === "chicken" || raw === "parrot" || raw === "hornbill" ? "duck" :
-    raw;
-  if ((KNOWN as readonly string[]).includes(key)) return "/pets/" + key + ".png";
-  return null;
+  const key = ADOPT[raw];
+  if (!key) return null;
+  return "/pets/" + key + ".png";
 }
