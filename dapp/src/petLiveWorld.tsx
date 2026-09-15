@@ -15,9 +15,14 @@ const HOUSES: { id: SceneId; x: number; y: number; w: number; h: number }[] = [
   { id: "breed", x: 290, y: 175, w: 50, h: 40 },
 ];
 
-export function hitHouse(x: number; y: number): SceneId | null {
+export function hitHouse(x: number, y: number): SceneId | null {
   const h = HOUSES.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
   return h ? h.id : null;
+}
+
+function asset(name: string) {
+  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || "/dapp/";
+  return base.replace(/\/?$/, "/") + "game/" + name;
 }
 
 function loadImg(src: string) {
@@ -36,10 +41,10 @@ export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (
     if (!ctx) return;
     let live = true;
     let t = 0;
-    const town = loadImg("/game/town.jpg");
-    const npcSheet = loadImg("/game/npc.png");
-    const dogSheet = loadImg("/game/dog.png");
-    const pigSheet = loadImg("/game/pig.png");
+    const town = loadImg(asset("town.jpg"));
+    const npcSheet = loadImg(asset("npc.png"));
+    const dogSheet = loadImg(asset("dog.png"));
+    const pigSheet = loadImg(asset("pig.png"));
     const actors: Actor[] = [
       { kind: "npc", x: 70, y: 200, vx: 0.45, face: 1, frame: 0 },
       { kind: "npc", x: 360, y: 208, vx: -0.32, face: -1, frame: 1 },
@@ -74,10 +79,8 @@ export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (
         ctx.fillStyle = "#5d9e46";
         ctx.fillRect(0, 150, 480, 270);
       }
-      // drifting highlight on water / road
       ctx.fillStyle = "rgba(255,255,255," + (0.12 + 0.08 * Math.sin(t / 20)) + ")";
       ctx.fillRect(0, 12 + Math.sin(t / 30) * 4, 480, 8);
-
       actors.forEach((a) => {
         a.x += a.vx;
         a.frame += 0.12;
@@ -93,10 +96,7 @@ export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (
         }
         const hop = Math.sin(t / 5 + a.x) * 1.4;
         const sheet = a.kind === "npc" ? npcSheet : a.kind === "dog" ? dogSheet : pigSheet;
-        if (!drawSheet(sheet, a, hop)) {
-          ctx.fillStyle = a.kind === "npc" ? "#3a2214" : a.kind === "dog" ? "#c9844a" : "#f2a0b4";
-          ctx.fillRect(a.x - 8, a.y - 12 + hop, 16, 16);
-        }
+        drawSheet(sheet, a, hop);
       });
       requestAnimationFrame(loop);
     };
