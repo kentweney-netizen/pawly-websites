@@ -1,10 +1,4 @@
 /** Adopt shop only. Rescue / shelter species return null and keep emoji. */
-import { PIXEL_PART as A } from "./pixelSpritesA";
-import { PIXEL_PART as B } from "./pixelSpritesB";
-import { PIXEL_PART as C } from "./pixelSpritesC";
-
-const PIXEL_SPRITES: Record<string, string> = { ...A, ...B, ...C };
-
 const ADOPT: Record<string, string> = {
   dog: "dog",
   cat: "cat",
@@ -34,7 +28,7 @@ function keyOf(species: string): string | null {
 export function pixelFor(species: string): string | null {
   const key = keyOf(species);
   if (!key) return null;
-  return PIXEL_SPRITES[key] || null;
+  return "/pets/pixel/" + key + ".png";
 }
 
 /** Lv0 shop card: circular 3D face avatar */
