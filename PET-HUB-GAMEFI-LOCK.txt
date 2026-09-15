@@ -1,0 +1,24 @@
+PAWLY Pet Hub GameFi lock — 15.09.2026
+User confirmed fused street as the quality bar.
+
+World layer (shared, one clip for all wallets)
+  pet-hub-street.mp4 = fused dusk Tampines street
+  640x426 / 16fps / 15.13s
+  baked NPCs: minipig rabbit alpaca on road; duck chicken parrot on sidewalk
+  original golden dog + grey cat stay in the plate
+  NEVER bake a unique video per player roster
+
+Player layer (per wallet)
+  /pets/pixel/{species}.png side-view, same pixel language
+  CSS pawly-patrol on the road plane only
+  max 4 walking overlays
+  rescue / shelter = emoji only
+
+Card / profile layer
+  Lv0 = /pets/heads/{species}.png circular bob
+  Lv1+ = /pets/grown/{species}.mp4 3D loop
+
+Deploy
+  overwrite repo-root pet-hub-street.mp4 with pet-hub-street-fused.mp4
+  or upload pawly-street-world-fused.zip to repo root
+  Netlify unpack-street-world.py copies into root + dapp/public
