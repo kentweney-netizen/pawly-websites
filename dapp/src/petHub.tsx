@@ -90,8 +90,8 @@ export function PetHubPage() {
     <div style={{ height: "100dvh", overflow: "hidden", background: "#070b10", color: "#e8eef7", display: "flex", flexDirection: "column", position: "relative", maxWidth: 430, margin: "0 auto" }}>
       <style>{PET_RIG_CSS}</style>
       <div style={{ padding: "calc(env(safe-area-inset-top, 16px) + 18px) 10px 8px" }}>
-        <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene]} \u00b7 v0.2.27</div>
-        <div style={{ color: "#8aa", fontSize: 11 }}>{hint}{px.pawlyUsd ? " \u00b7 PAWLY $" + px.pawlyUsd.toFixed(4) : ""} \u00b7 3-layer</div>
+        <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene]}{" · "}v0.2.27</div>
+        <div style={{ color: "#8aa", fontSize: 11 }}>{hint}{px.pawlyUsd ? " · PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{" · 3-layer"}</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#0a1016" }}>
         <video key={scene} src={asset(CLIP[scene])} autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
@@ -108,7 +108,7 @@ export function PetHubPage() {
               <button key={p.id} type="button" onClick={() => { setFocusId(p.id); setFeedWarn(true); }} style={{ background: focusId === p.id ? "rgba(0,255,157,0.18)" : "transparent", border: "none", color: "#e8eef7" }}>
                 <PetRig pet={{ species: p.species, level: Number(p.level || 0), emoji: p.emoji, name: p.name }} size={Number(p.level || 0) >= 1 ? 56 : 42} />
                 <div style={{ fontSize: 11, fontWeight: 800 }}>{p.name}</div>
-                <div style={{ fontSize: 10, color: "#9f8" }}>{"Lv" + Number(p.level || 0) + " \u00b7 " + Number(p.feedsTotal || 0) + " feeds \u00b7 today " + feedsTodayOf(p) + "/3"}</div>
+                <div style={{ fontSize: 10, color: "#9f8" }}>{"Lv" + Number(p.level || 0) + " · " + Number(p.feedsTotal || 0) + " feeds · today " + feedsTodayOf(p) + "/3"}</div>
               </button>
             )) : <div style={{ color: "#8aa", fontSize: 12 }}>Adopt in Shop to see your pet here.</div>}
           </div>
@@ -118,16 +118,16 @@ export function PetHubPage() {
           {SHOPS.map((s) => (<button key={s.id} type="button" onClick={() => { setScene(s.id); setShopView("home"); }} style={{ ...ghost, flex: "0 0 auto", background: scene === s.id ? "rgba(0,255,157,0.28)" : ghost.background }}>{s.label}</button>))}
         </div>
         {scene === "shop" && shopView === "home" && (<div><button type="button" style={{ ...primary, width: "100%", marginBottom: 8 }} onClick={() => setShopView("adopt")}>Choose your pets</button><button type="button" style={{ ...primary, width: "100%" }} onClick={() => setShopView("food")}>Pets food</button></div>)}
-        {scene === "shop" && shopView === "adopt" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>\u2190 Shop</button>{COMPANIONS.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Adopt " + c.label, amount: c.pricePawly, kind: "adopt", species: c.species, emoji: c.emoji })}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><PetRig pet={{ species: c.species, level: 1, emoji: c.emoji, name: c.label }} size={28} />{c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
-        {scene === "shop" && shopView === "food" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>\u2190 Shop</button>{FOODS.map((c) => (<button key={c.id} type="button" style={rowBtn} onClick={() => openCart({ title: c.label, amount: c.pricePawly, kind: "food", emoji: c.emoji, petId: focusId || (pets[0] && pets[0].id) || undefined })}><span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
+        {scene === "shop" && shopView === "adopt" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>{"\u2190 Shop"}</button>{COMPANIONS.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Adopt " + c.label, amount: c.pricePawly, kind: "adopt", species: c.species, emoji: c.emoji })}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><PetRig pet={{ species: c.species, level: 1, emoji: c.emoji, name: c.label }} size={28} />{c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
+        {scene === "shop" && shopView === "food" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>{"\u2190 Shop"}</button>{FOODS.map((c) => (<button key={c.id} type="button" style={rowBtn} onClick={() => openCart({ title: c.label, amount: c.pricePawly, kind: "food", emoji: c.emoji, petId: focusId || (pets[0] && pets[0].id) || undefined })}><span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
         {scene === "shelter" && RESCUES.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Rescue " + c.label, amount: c.pricePawly, kind: "rescue", species: c.species, emoji: c.emoji })}><span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}
-        {scene === "hospital" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Hospital checkup", amount: 40, kind: "service" })}>Pay 40 PAWLY \u00b7 checkup</button>}
-        {scene === "park" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Walk the dog", amount: 15, kind: "service" })}>Pay 15 PAWLY \u00b7 walk</button>}
+        {scene === "hospital" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Hospital checkup", amount: 40, kind: "service" })}>{"Pay 40 PAWLY \u00b7 checkup"}</button>}
+        {scene === "park" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Walk the dog", amount: 15, kind: "service" })}>{"Pay 15 PAWLY \u00b7 walk"}</button>}
         {(scene === "hotel" || scene === "groom") && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: TITLE[scene], amount: scene === "hotel" ? 50 : 30, kind: "service" })}>Pay {scene === "hotel" ? 50 : 30} PAWLY</button>}
         {note ? <div style={{ color: "#ffb4b4", fontSize: 11, marginTop: 6, wordBreak: "break-word" }}>{note}</div> : null}
         {lastSig ? (
           <div style={{ marginTop: 8, padding: "8px 8px 6px", border: "1px solid rgba(0,255,157,0.35)", borderRadius: 10, background: "#0c1410" }}>
-            <div style={{ color: "#00ff9d", fontSize: 12, fontWeight: 800 }}>Paid {lastPaid} PAWLY \u00b7 {lastTitle}</div>
+            <div style={{ color: "#00ff9d", fontSize: 12, fontWeight: 800 }}>Paid {lastPaid} PAWLY{" · "}{lastTitle}</div>
             <div style={{ color: "#c8ffe8", fontSize: 10, lineHeight: 1.35, wordBreak: "break-all", margin: "4px 0 6px" }}>{lastSig}</div>
             <div style={{ display: "flex", gap: 6 }}>
               <button type="button" style={{ ...ghost, flex: 1 }} onClick={() => { try { navigator.clipboard.writeText(lastSig); } catch { /* ignore */ } }}>Copy sig</button>
@@ -135,7 +135,7 @@ export function PetHubPage() {
             </div>
           </div>
         ) : null}
-        <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => navigate("/")}>\u2190 Home</button>
+        <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => navigate("/")}>{"\u2190 Home"}</button>
       </div>
       {feedWarn ? (
         <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "flex-end" }} onClick={() => setFeedWarn(false)}>
@@ -154,8 +154,8 @@ export function PetHubPage() {
             <div style={{ margin: "8px 0 4px" }}>{cart.emoji ? cart.emoji + " " : ""}{cart.title}</div>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>{(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (<button key={c} type="button" onClick={() => setPayCoin(c)} style={{ ...ghost, borderColor: payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>))}</div>
-            <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 10 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? " \u00b7 PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
-            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? "Paying\u2026" : "Confirm \u00b7 " + quoteCoin(cart.amount, payCoin, px).label}</button>
+            <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 10 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? " · PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
+            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? "Paying\u2026" : "Confirm · " + quoteCoin(cart.amount, payCoin, px).label}</button>
             <button type="button" disabled={busy} style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setCart(null)}>Cancel</button>
           </div>
         </div>
@@ -168,7 +168,7 @@ export function PetHubPage() {
               {cert.photoPng ? <img alt="pet" src={cert.photoPng} onClick={() => downloadDataUrl("pawly-pet.png", cert.photoPng || "")} style={{ width: "46%", borderRadius: 10, marginRight: 6 }} /> : <div style={{ fontSize: 52 }}>{cert.emoji}</div>}
               {cert.certPng ? <img alt="certificate" src={cert.certPng} onClick={() => downloadDataUrl("pawly-certificate.png", cert.certPng || "")} style={{ width: "46%", borderRadius: 10 }} /> : null}
               <div style={{ fontWeight: 800, marginTop: 8 }}>{cert.title}</div>
-              <div style={{ fontSize: 12, color: "#c8ffe8" }}>{cert.amount} PAWLY \u00b7 generated certificate + photo</div>
+              <div style={{ fontSize: 12, color: "#c8ffe8" }}>{cert.amount} PAWLY{" · generated certificate + photo"}</div>
               <div style={{ fontSize: 10, color: "#8aa", marginTop: 6, wordBreak: "break-all" }}>{cert.sig}</div>
             </div>
             <button type="button" style={{ ...primary, width: "100%" }} onClick={() => downloadDataUrl("pawly-pet.png", cert.photoPng || "")}>Download pet photo</button>
