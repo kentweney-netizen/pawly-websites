@@ -84,7 +84,7 @@ function pickRicherPet(a: PetRec, b: PetRec): PetRec {
 }
 export function mergePetLists(a: PetRec[], b: PetRec[]): PetRec[] {
   const map = new Map<string, PetRec>();
-  for (const p of [...a, ...b]) { if (!p) continue; const k = petMergeKey(p); const prev = map.get(k); map.set(k, prev ? pickRicherPet(prev, p) : p); }
+  for (const p of [...a, ...b]) { if (!p) continue; const k = petMergeKey(p); map.set(k, map.get(k) ? pickRicherPet(map.get(k) as PetRec, p) : p); }
   return Array.from(map.values()).slice(0, PET_SLOT_CAP);
 }
 export async function pullCloudPets(w: string): Promise<PetRec[]> {
@@ -308,7 +308,7 @@ export function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: numbe
   if (coin === "SOL") { const v = px.solUsd > 0 && usd > 0 ? usd / px.solUsd : 0; return { amount: v, label: v.toFixed(6) + " SOL", usd }; }
   return { amount: usd, label: usd.toFixed(4) + " " + coin, usd };
 }
-async function swapCoinToTillPawly(opts: { from: PublicKey; coin: PayCoin; coinAmount: number; conn: Connection; sendTransaction?: HubSend; signTransaction?: HubSign; pawlyList?: number }) {
+async function swapCoinToTillPawly(opts: { from: PublicKey; coin: PayCoin; coinAmount: number; conn: Connection; sendTransaction?: HubSend; signTransaction?: HubSign; pawlyList?: number }): Promise<string> {
   const isSol = opts.coin === "SOL";
   const inputMint = isSol ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
   const rawIn = isSol ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL)) : Math.max(1, Math.round(opts.coinAmount * 1e6));
@@ -364,7 +364,7 @@ async function swapCoinToTillPawly(opts: { from: PublicKey; coin: PayCoin; coinA
   }
   throw hop2 instanceof Error ? hop2 : new Error(String(hop2 || "Till transfer failed"));
 }
-export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: number; signTransaction?: HubSign; sendTransaction?: HubSend }) {
+export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: number; signTransaction?: HubSign; sendTransaction?: HubSend }): Promise<string> {
   if (opts.amount <= 0) throw new Error("No live price, use PAWLY");
   const till = new PublicKey(SHOP_TILL);
   const sponsor = new PublicKey(SPONSOR);
