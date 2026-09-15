@@ -1,5 +1,5 @@
 import React from "react";
-import { spriteFor } from "./petSprites";
+import { grownMp4For, headFor } from "./petSprites";
 
 export type PetRigPet = {
   species: string;
@@ -48,49 +48,51 @@ const FACE: Record<string, string> = {
 export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean }) {
   const lv = Math.max(0, Number(props.pet.level || 0));
   const key = normSpecies(props.pet.species);
-  const src = spriteFor(props.pet.species);
+  const grown = lv >= 1 ? grownMp4For(props.pet.species) : null;
+  const head = headFor(props.pet.species);
   const size = props.size || 88;
   const moving = !!props.moving;
   const face = FACE[key] || props.pet.emoji || "\ud83d\udc3e";
-  if (!src) {
+
+  if (grown) {
     return (
-      <div className={moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{ fontSize: size * 0.72, lineHeight: 1, textAlign: "center" }}>
-        {face}
+      <div className={moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{ width: size, height: Math.round(size * 0.72) }}>
+        <video
+          src={grown}
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster={head || undefined}
+          draggable={false}
+          style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10, background: "transparent" }}
+        />
       </div>
     );
   }
-  const w = lv <= 0 ? Math.round(size * 0.72) : size;
-  const h = Math.round(size * 0.72);
+
+  if (head) {
+    const box = Math.round(size * 0.92);
+    return (
+      <div
+        className={moving ? "pawly-rig pawly-bob pawly-head" : "pawly-rig pawly-head"}
+        style={{ width: box, height: box, borderRadius: "50%", overflow: "hidden", display: "inline-block" }}
+      >
+        <img alt={props.pet.name || key} src={head} draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 28%" }} />
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={moving ? "pawly-rig pawly-bob" : "pawly-rig"}
-      style={{
-        width: w,
-        height: h,
-        overflow: "hidden",
-        display: "inline-block",
-        borderRadius: lv <= 0 ? "50%" : 8,
-      }}
-    >
-      <img
-        alt={props.pet.name || key}
-        src={src}
-        draggable={false}
-        style={{
-          width: lv <= 0 ? "170%" : "100%",
-          height: lv <= 0 ? "170%" : "100%",
-          objectFit: "contain",
-          objectPosition: lv <= 0 ? "78% 18%" : "center bottom",
-          imageRendering: "pixelated",
-        }}
-      />
+    <div className={moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{ fontSize: size * 0.72, lineHeight: 1, textAlign: "center" }}>
+      {face}
     </div>
   );
 }
 
 export const PET_RIG_CSS = `
 .pawly-rig { display: inline-block; line-height: 0; vertical-align: bottom; }
-.pawly-bob img, .pawly-bob { animation: pawly-step 0.28s steps(2) infinite; }
+.pawly-bob img, .pawly-bob video, .pawly-bob { animation: pawly-step 0.32s ease-in-out infinite; }
 .pawly-stroll { position: absolute; pointer-events: none; z-index: 4; }
 .pawly-stroll-0 { bottom: 14%; animation: pawly-patrol 11s linear infinite; }
 .pawly-stroll-1 { bottom: 20%; animation: pawly-patrol 14s linear infinite reverse; animation-delay: -4s; }
@@ -99,7 +101,7 @@ export const PET_RIG_CSS = `
 .pawly-bubble { background: #fff; color: #102018; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 4px 8px; margin-bottom: 4px; width: max-content; }
 @keyframes pawly-step {
   0% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  50% { transform: translateY(-5px); }
   100% { transform: translateY(0); }
 }
 @keyframes pawly-patrol {
