@@ -45,22 +45,21 @@ const FACE: Record<string, string> = {
   gibbon: "🐒",
 };
 
-function FaceBadge(props: { face: string; size: number; moving?: boolean }) {
+function FaceBadge(props: { face: string; size: number }) {
   return (
     <div
-      className={props.moving ? "pawly-rig pawly-bob" : "pawly-rig"}
+      className="pawly-rig"
       style={{
         width: props.size,
         height: props.size,
         borderRadius: "50%",
-        background: "rgba(8,20,14,0.55)",
-        border: "1px solid rgba(0,255,157,0.25)",
+        background: "transparent",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: Math.round(props.size * 0.62),
+        fontSize: Math.round(props.size * 0.78),
         lineHeight: 1,
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       {props.face}
@@ -72,21 +71,20 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
   const lv = Math.max(0, Number(props.pet.level || 0));
   const key = normSpecies(props.pet.species);
   const src = spriteFor(props.pet.species);
-  const size = props.size || 42;
+  const size = props.size || 36;
   const moving = !!props.moving;
-  const face = FACE[key] || props.pet.emoji || "🐾";
+  const face = props.pet.emoji || FACE[key] || "🐾";
   const [broken, setBroken] = useState(false);
-  const isHead = lv <= 0;
-  if (isHead || !src || broken) {
-    return <FaceBadge face={face} size={size} moving={moving && !isHead} />;
+  if (lv <= 0 || !src || broken) {
+    return <FaceBadge face={face} size={lv <= 0 ? Math.min(size, 36) : size} />;
   }
   return (
     <div
       className={moving ? "pawly-rig pawly-bob" : "pawly-rig"}
       style={{
         width: size,
-        height: Math.round(size * 1.15),
-        overflow: "hidden",
+        height: Math.round(size * 1.12),
+        overflow: "visible",
         display: "inline-block",
         background: "transparent",
       }}
@@ -109,14 +107,13 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
 }
 
 export const PET_RIG_CSS = `
-.pawly-rig { display: inline-block; line-height: 0; vertical-align: bottom; }
+.pawly-rig { display: inline-block; line-height: 1; vertical-align: bottom; background: transparent; }
 .pawly-bob img, .pawly-bob { animation: pawly-step 0.28s steps(2) infinite; }
 .pawly-stroll { position: absolute; pointer-events: auto; z-index: 4; background: transparent; border: none; padding: 0; cursor: pointer; }
 .pawly-stroll-0 { bottom: 14%; animation: pawly-patrol 11s linear infinite; }
 .pawly-stroll-1 { bottom: 20%; animation: pawly-patrol 14s linear infinite reverse; animation-delay: -4s; }
 .pawly-stroll-2 { bottom: 11%; animation: pawly-patrol 9s linear infinite; animation-delay: -2s; }
 .pawly-stroll-3 { bottom: 24%; animation: pawly-patrol 13s linear infinite reverse; animation-delay: -6s; }
-.pawly-bubble { background: #fff; color: #102018; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 4px 8px; margin-bottom: 4px; width: max-content; }
 @keyframes pawly-step {
   0% { transform: translateY(0); }
   50% { transform: translateY(-4px); }

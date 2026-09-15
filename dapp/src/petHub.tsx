@@ -1,6 +1,7 @@
 /**
- * PAWLY Pet Hub v0.2.27 page — Solscan + adopt/rescue cert + wallet cloud roster.
- * Lv0 small head only. Lv1+ full body stroll. No fused 3D heads.
+ * PAWLY Pet Hub v0.2.28 page — Solscan + adopt/rescue cert + wallet cloud roster.
+ * Lv0 small emoji head only. Lv1+ full body stroll. No fused 3D heads.
+ * Labels are plain ASCII so wallet WebViews never print leftover escape text.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,8 @@ import {
   COMPANIONS, RESCUES, FOODS, TITLE, SHOPS, CLIP, ghost, primary, rowBtn,
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
+
+const VER = "v0.2.28";
 
 export function PetHubPage() {
   const navigate = useNavigate();
@@ -34,7 +37,7 @@ export function PetHubPage() {
   const [lastTitle, setLastTitle] = useState("");
   const [cert, setCert] = useState<CertJob | null>(null);
   const [email, setEmail] = useState(() => loadEmail());
-  const hint = useMemo(() => (addr ? addr.slice(0, 4) + "\u2026" + addr.slice(-4) : "connect wallet"), [addr]);
+  const hint = useMemo(() => (addr ? addr.slice(0, 4) + "..." + addr.slice(-4) : "connect wallet"), [addr]);
   useEffect(() => { void fetchHubPx().then(setPx); const id = window.setInterval(() => { void fetchHubPx().then(setPx); }, 60000); return () => window.clearInterval(id); }, []);
   useEffect(() => {
     if (!addr) { setPets([]); return; }
@@ -50,22 +53,22 @@ export function PetHubPage() {
     setNote("");
     if (item.kind === "food") {
       const pet = pickFeedPet(pets, item.petId || focusId);
-      if (!pet) { setNote("Adopt a pet first / \u5148\u9886\u517b"); return; }
+      if (!pet) { setNote("Adopt a pet first"); return; }
       if (feedsTodayOf(pet) >= FEED_DAY_MAX) { setNote(pet.name + " already fed 3/3 today"); return; }
     }
     setCart(item);
   };
   const confirmPay = async () => {
     if (!cart) return;
-    if (!wallet.publicKey) { setNote("Connect wallet in dApp first / \u5148\u8fde\u94b1\u5305"); return; }
-    if ((cart.kind === "adopt" || cart.kind === "rescue") && pets.length >= PET_SLOT_CAP) { setNote("Max 10 pets / \u6700\u591a 10 \u53ea"); return; }
+    if (!wallet.publicKey) { setNote("Connect wallet in dApp first"); return; }
+    if ((cart.kind === "adopt" || cart.kind === "rescue") && pets.length >= PET_SLOT_CAP) { setNote("Max 10 pets"); return; }
     const payAmt = quoteCoin(cart.amount, payCoin, px);
-    if (payCoin !== "PAWLY" && payAmt.amount <= 0) { setNote("No live price / \u62c9\u4e0d\u5230\u4ef7\uff0c\u6539\u7528 PAWLY"); return; }
-    setBusy(true); setNote("Paying in Pet Hub\u2026");
+    if (payCoin !== "PAWLY" && payAmt.amount <= 0) { setNote("No live price, use PAWLY"); return; }
+    setBusy(true); setNote("Paying in Pet Hub...");
     try {
       const sig = await payHub({ from: wallet.publicKey, coin: payCoin, amount: payAmt.amount, signTransaction: wallet.signTransaction });
       if (cart.kind === "adopt" || cart.kind === "rescue") {
-        const next: PetRec[] = [...pets, { id: "pet_" + Date.now(), kind: cart.kind === "rescue" ? "rescued" : "adopted", species: cart.species || "dog", name: cart.title.replace(/^(Adopt|Rescue)\s+/i, ""), emoji: cart.emoji || "\ud83d\udc3e", hunger: 70, health: 80, streak: 0, pricePawly: cart.amount, sig, feedsTotal: 0, level: 0 }].slice(0, PET_SLOT_CAP);
+        const next: PetRec[] = [...pets, { id: "pet_" + Date.now(), kind: cart.kind === "rescue" ? "rescued" : "adopted", species: cart.species || "dog", name: cart.title.replace(/^(Adopt|Rescue)\s+/i, ""), emoji: cart.emoji || "🐾", hunger: 70, health: 80, streak: 0, pricePawly: cart.amount, sig, feedsTotal: 0, level: 0 }].slice(0, PET_SLOT_CAP);
         setPets(next); savePets(addr, next);
       }
       if (cart.kind === "food") {
@@ -81,17 +84,18 @@ export function PetHubPage() {
       setLastSig(sig); setLastPaid(cart.amount); setLastTitle(cart.title); setNote(""); setCart(null);
       if (cart.kind === "adopt" || cart.kind === "rescue") {
         const job: CertJob = { title: cart.title, amount: cart.amount, kind: cart.kind, species: cart.species, emoji: cart.emoji, sig };
-        job.photoPng = drawPetPhotoPng(job.emoji || "\ud83d\udc3e", job.title); job.certPng = drawCertPng(job); setCert(job);
+        job.photoPng = drawPetPhotoPng(job.emoji || "🐾", job.title); job.certPng = drawCertPng(job); setCert(job);
       }
     } catch (e) { setNote(String((e as { message?: string }).message || e)); } finally { setBusy(false); }
   };
   const walkers = pets.filter((p) => Number(p.level || 0) >= 1).slice(0, 4);
+  const sep = " - ";
   return (
     <div style={{ height: "100dvh", overflow: "hidden", background: "#070b10", color: "#e8eef7", display: "flex", flexDirection: "column", position: "relative", maxWidth: 430, margin: "0 auto" }}>
       <style>{PET_RIG_CSS}</style>
       <div style={{ padding: "calc(env(safe-area-inset-top, 16px) + 18px) 10px 8px" }}>
-        <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene]}{" · "}v0.2.27</div>
-        <div style={{ color: "#8aa", fontSize: 11 }}>{hint}{px.pawlyUsd ? " · PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{" · 3-layer"}</div>
+        <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene] + sep + VER}</div>
+        <div style={{ color: "#8aa", fontSize: 11 }}>{hint}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{sep}3-layer</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#0a1016" }}>
         <video key={scene} src={asset(CLIP[scene])} autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
@@ -106,9 +110,9 @@ export function PetHubPage() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "6px 0 10px" }}>
             {pets.length ? pets.map((p) => (
               <button key={p.id} type="button" onClick={() => { setFocusId(p.id); setFeedWarn(true); }} style={{ background: focusId === p.id ? "rgba(0,255,157,0.18)" : "transparent", border: "none", color: "#e8eef7" }}>
-                <PetRig pet={{ species: p.species, level: Number(p.level || 0), emoji: p.emoji, name: p.name }} size={Number(p.level || 0) >= 1 ? 56 : 42} />
+                <PetRig pet={{ species: p.species, level: Number(p.level || 0), emoji: p.emoji, name: p.name }} size={Number(p.level || 0) >= 1 ? 56 : 32} />
                 <div style={{ fontSize: 11, fontWeight: 800 }}>{p.name}</div>
-                <div style={{ fontSize: 10, color: "#9f8" }}>{"Lv" + Number(p.level || 0) + " · " + Number(p.feedsTotal || 0) + " feeds · today " + feedsTodayOf(p) + "/3"}</div>
+                <div style={{ fontSize: 10, color: "#9f8" }}>{"Lv" + Number(p.level || 0) + sep + Number(p.feedsTotal || 0) + " feeds" + sep + "today " + feedsTodayOf(p) + "/3"}</div>
               </button>
             )) : <div style={{ color: "#8aa", fontSize: 12 }}>Adopt in Shop to see your pet here.</div>}
           </div>
@@ -118,16 +122,16 @@ export function PetHubPage() {
           {SHOPS.map((s) => (<button key={s.id} type="button" onClick={() => { setScene(s.id); setShopView("home"); }} style={{ ...ghost, flex: "0 0 auto", background: scene === s.id ? "rgba(0,255,157,0.28)" : ghost.background }}>{s.label}</button>))}
         </div>
         {scene === "shop" && shopView === "home" && (<div><button type="button" style={{ ...primary, width: "100%", marginBottom: 8 }} onClick={() => setShopView("adopt")}>Choose your pets</button><button type="button" style={{ ...primary, width: "100%" }} onClick={() => setShopView("food")}>Pets food</button></div>)}
-        {scene === "shop" && shopView === "adopt" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>{"\u2190 Shop"}</button>{COMPANIONS.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Adopt " + c.label, amount: c.pricePawly, kind: "adopt", species: c.species, emoji: c.emoji })}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><PetRig pet={{ species: c.species, level: 1, emoji: c.emoji, name: c.label }} size={28} />{c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
-        {scene === "shop" && shopView === "food" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>{"\u2190 Shop"}</button>{FOODS.map((c) => (<button key={c.id} type="button" style={rowBtn} onClick={() => openCart({ title: c.label, amount: c.pricePawly, kind: "food", emoji: c.emoji, petId: focusId || (pets[0] && pets[0].id) || undefined })}><span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
+        {scene === "shop" && shopView === "adopt" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>Back to Shop</button>{COMPANIONS.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Adopt " + c.label, amount: c.pricePawly, kind: "adopt", species: c.species, emoji: c.emoji })}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><PetRig pet={{ species: c.species, level: 1, emoji: c.emoji, name: c.label }} size={28} />{c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
+        {scene === "shop" && shopView === "food" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>Back to Shop</button>{FOODS.map((c) => (<button key={c.id} type="button" style={rowBtn} onClick={() => openCart({ title: c.label, amount: c.pricePawly, kind: "food", emoji: c.emoji, petId: focusId || (pets[0] && pets[0].id) || undefined })}><span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
         {scene === "shelter" && RESCUES.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Rescue " + c.label, amount: c.pricePawly, kind: "rescue", species: c.species, emoji: c.emoji })}><span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}
-        {scene === "hospital" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Hospital checkup", amount: 40, kind: "service" })}>{"Pay 40 PAWLY \u00b7 checkup"}</button>}
-        {scene === "park" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Walk the dog", amount: 15, kind: "service" })}>{"Pay 15 PAWLY \u00b7 walk"}</button>}
+        {scene === "hospital" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Hospital checkup", amount: 40, kind: "service" })}>Pay 40 PAWLY - checkup</button>}
+        {scene === "park" && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: "Walk the dog", amount: 15, kind: "service" })}>Pay 15 PAWLY - walk</button>}
         {(scene === "hotel" || scene === "groom") && <button type="button" style={{ ...primary, width: "100%" }} onClick={() => openCart({ title: TITLE[scene], amount: scene === "hotel" ? 50 : 30, kind: "service" })}>Pay {scene === "hotel" ? 50 : 30} PAWLY</button>}
         {note ? <div style={{ color: "#ffb4b4", fontSize: 11, marginTop: 6, wordBreak: "break-word" }}>{note}</div> : null}
         {lastSig ? (
           <div style={{ marginTop: 8, padding: "8px 8px 6px", border: "1px solid rgba(0,255,157,0.35)", borderRadius: 10, background: "#0c1410" }}>
-            <div style={{ color: "#00ff9d", fontSize: 12, fontWeight: 800 }}>Paid {lastPaid} PAWLY{" · "}{lastTitle}</div>
+            <div style={{ color: "#00ff9d", fontSize: 12, fontWeight: 800 }}>Paid {lastPaid} PAWLY{sep}{lastTitle}</div>
             <div style={{ color: "#c8ffe8", fontSize: 10, lineHeight: 1.35, wordBreak: "break-all", margin: "4px 0 6px" }}>{lastSig}</div>
             <div style={{ display: "flex", gap: 6 }}>
               <button type="button" style={{ ...ghost, flex: 1 }} onClick={() => { try { navigator.clipboard.writeText(lastSig); } catch { /* ignore */ } }}>Copy sig</button>
@@ -135,7 +139,7 @@ export function PetHubPage() {
             </div>
           </div>
         ) : null}
-        <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => navigate("/")}>{"\u2190 Home"}</button>
+        <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => navigate("/")}>Home</button>
       </div>
       {feedWarn ? (
         <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "flex-end" }} onClick={() => setFeedWarn(false)}>
@@ -154,8 +158,8 @@ export function PetHubPage() {
             <div style={{ margin: "8px 0 4px" }}>{cart.emoji ? cart.emoji + " " : ""}{cart.title}</div>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>{(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (<button key={c} type="button" onClick={() => setPayCoin(c)} style={{ ...ghost, borderColor: payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>))}</div>
-            <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 10 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? " · PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
-            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? "Paying\u2026" : "Confirm · " + quoteCoin(cart.amount, payCoin, px).label}</button>
+            <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 10 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
+            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? "Paying..." : "Confirm - " + quoteCoin(cart.amount, payCoin, px).label}</button>
             <button type="button" disabled={busy} style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setCart(null)}>Cancel</button>
           </div>
         </div>
@@ -168,7 +172,7 @@ export function PetHubPage() {
               {cert.photoPng ? <img alt="pet" src={cert.photoPng} onClick={() => downloadDataUrl("pawly-pet.png", cert.photoPng || "")} style={{ width: "46%", borderRadius: 10, marginRight: 6 }} /> : <div style={{ fontSize: 52 }}>{cert.emoji}</div>}
               {cert.certPng ? <img alt="certificate" src={cert.certPng} onClick={() => downloadDataUrl("pawly-certificate.png", cert.certPng || "")} style={{ width: "46%", borderRadius: 10 }} /> : null}
               <div style={{ fontWeight: 800, marginTop: 8 }}>{cert.title}</div>
-              <div style={{ fontSize: 12, color: "#c8ffe8" }}>{cert.amount} PAWLY{" · generated certificate + photo"}</div>
+              <div style={{ fontSize: 12, color: "#c8ffe8" }}>{cert.amount} PAWLY{sep}generated certificate + photo</div>
               <div style={{ fontSize: 10, color: "#8aa", marginTop: 6, wordBreak: "break-all" }}>{cert.sig}</div>
             </div>
             <button type="button" style={{ ...primary, width: "100%" }} onClick={() => downloadDataUrl("pawly-pet.png", cert.photoPng || "")}>Download pet photo</button>
