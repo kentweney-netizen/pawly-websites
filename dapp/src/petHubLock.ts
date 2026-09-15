@@ -23,6 +23,6 @@ export const PET_HUB_LOCK = {
     breedCoolHours: 48,
     feedDayMax: 3,
     slotCap: 10,
-    till: "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3FR4C7Z",
+    till: "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3VR4C7Z",
   },
 } as const;
