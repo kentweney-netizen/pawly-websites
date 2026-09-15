@@ -58,10 +58,12 @@ export function PetLiveWorld(props: {
   const ref = useRef(null as HTMLCanvasElement | null);
 
   useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
+    const node = ref.current;
+    if (!node) return;
+    const raw = node.getContext("2d");
+    if (!raw) return;
+    const canvas: HTMLCanvasElement = node;
+    const g: CanvasRenderingContext2D = raw;
     let live = true;
     let tick = 0;
     const town = loadImg(asset("town.jpg"));
@@ -80,29 +82,29 @@ export function PetLiveWorld(props: {
       const fw = sheet.naturalWidth / 4;
       const fh = sheet.naturalHeight;
       const fr = Math.floor(a.frame) % 4;
-      ctx.save();
-      ctx.translate(a.x, a.y + hop);
-      ctx.scale(a.face, 1);
-      ctx.drawImage(sheet, fr * fw, 0, fw, fh, -22, -34, 44, 40);
-      ctx.restore();
+      g.save();
+      g.translate(a.x, a.y + hop);
+      g.scale(a.face, 1);
+      g.drawImage(sheet, fr * fw, 0, fw, fh, -22, -34, 44, 40);
+      g.restore();
     }
 
     function loop() {
       if (!live) return;
       tick += 1;
-      const w = c.clientWidth * (window.devicePixelRatio || 1);
-      const h = c.clientHeight * (window.devicePixelRatio || 1);
-      c.width = w;
-      c.height = h;
-      ctx.setTransform(w / 480, 0, 0, h / 420, 0, 0);
-      ctx.imageSmoothingEnabled = false;
+      const w = canvas.clientWidth * (window.devicePixelRatio || 1);
+      const h = canvas.clientHeight * (window.devicePixelRatio || 1);
+      canvas.width = w;
+      canvas.height = h;
+      g.setTransform(w / 480, 0, 0, h / 420, 0, 0);
+      g.imageSmoothingEnabled = false;
       if (town.complete && town.naturalWidth) {
-        ctx.drawImage(town, 0, 0, 480, 420);
+        g.drawImage(town, 0, 0, 480, 420);
       } else {
-        ctx.fillStyle = "#7ecbff";
-        ctx.fillRect(0, 0, 480, 420);
-        ctx.fillStyle = "#5d9e46";
-        ctx.fillRect(0, 150, 480, 270);
+        g.fillStyle = "#7ecbff";
+        g.fillRect(0, 0, 480, 420);
+        g.fillStyle = "#5d9e46";
+        g.fillRect(0, 150, 480, 270);
       }
       let i = 0;
       while (i < actors.length) {
