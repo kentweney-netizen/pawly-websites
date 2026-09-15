@@ -1,5 +1,5 @@
 [build]
-  command = "python3 dapp/unpack-adopt-pets.py && python3 dapp/unpack-pixel-pets.py && python3 dapp/unpack-street-world.py && python3 dapp/patch-pethub-v0226-street.py && python3 dapp/patch-pethub-game-door.py && python3 dapp/patch-pethub-gamefi.py && python3 dapp/patch-pethub-overworld.py && python3 dapp/patch-pethub-walkers.py && python3 dapp/patch-pethub-land.py && cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
+  command = "python3 dapp/unpack-adopt-pets.py && python3 dapp/unpack-pixel-pets.py && python3 dapp/unpack-street-world.py && python3 dapp/patch-pethub-v0226-street.py && python3 dapp/patch-pethub-game-door.py && python3 dapp/patch-pethub-gamefi.py && python3 dapp/patch-pethub-overworld.py && python3 dapp/patch-pethub-walkers.py && python3 dapp/patch-pethub-land.py && python3 dapp/patch-pethub-gamescreen.py && cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
   publish = "."
 
 [build.environment]
