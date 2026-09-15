@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Connection, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
 import { usePawlyWallet } from "./localWallet";
 import { ADOPT, BREED_LV, BREED_PAWLY, FEED_DAY_MAX, FOOD, LIST_FEE, MINT_LV, MINT_PAWLY, PAWLY_MINT, PayCoin, PetRec, RESCUE, SLOT_CAP, SceneId, SHOP_TILL, USDC_MINT, USDT_MINT, afterFeed, feedsTodayOf, loadPets, savePets } from "./petGame";
+import { PetLiveWorld } from "./petLiveWorld";
 
 const STORE_OLD = "pawly_pet_hub_v1_";
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
@@ -53,7 +54,7 @@ async function payTill(opts: { from: PublicKey; coin: PayCoin; amount: number; s
   const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
   const signed = await opts.signTransaction(tx);
   const raw = signed.serialize();
-  let b64 = btoa(String.fromCharCode.apply(null, Array.from(raw)));
+  const b64 = btoa(String.fromCharCode.apply(null, Array.from(raw)));
   const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
@@ -63,18 +64,6 @@ async function payTill(opts: { from: PublicKey; coin: PayCoin; amount: number; s
   if (!r.ok || !d.signature) throw new Error(String(d.error || "Sponsor pay failed"));
   return d.signature;
 }
-
-const PORTALS: { id: SceneId; x: number; y: number; label: string }[] = [
-  { id: "hospital", x: 40, y: 36, label: "Hospital" },
-  { id: "shelter", x: 180, y: 36, label: "Rescue" },
-  { id: "hotel", x: 320, y: 36, label: "Hotel" },
-  { id: "groom", x: 460, y: 36, label: "Groom" },
-  { id: "shop", x: 60, y: 300, label: "Shop" },
-  { id: "park", x: 500, y: 300, label: "Park" },
-  { id: "nft", x: 220, y: 300, label: "NFT" },
-  { id: "market", x: 310, y: 300, label: "Market" },
-  { id: "breed", x: 400, y: 300, label: "Breed" },
-];
 
 export function PetHubPage() {
   const navigate = useNavigate();
@@ -86,8 +75,6 @@ export function PetHubPage() {
   const [coin, setCoin] = useState<PayCoin>("PAWLY");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [cam, setCam] = useState({ x: 40, y: 20 });
-  const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
 
   useEffect(() => {
     if (!addr) return;
@@ -109,7 +96,6 @@ export function PetHubPage() {
       setBusy(false);
     }
   };
-
   const addPet = (p: PetRec) => {
     const next = [...pets, p].slice(0, SLOT_CAP);
     setPets(next);
@@ -117,43 +103,23 @@ export function PetHubPage() {
   };
 
   return (
-    <div style={{ height: "100dvh", maxWidth: 430, margin: "0 auto", background: "#1b120c", color: "#f4e1c1", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "10px 8px 6px", display: "flex", justifyContent: "space-between", gap: 6 }}>
+    <div style={{ height: "100dvh", maxWidth: 430, margin: "0 auto", background: "#08140e", color: "#f4e1c1", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "8px", display: "flex", justifyContent: "space-between", zIndex: 2 }}>
         <b>PAWLY TOWN</b>
         <span>{pets.length}/{SLOT_CAP}</span>
         <button type="button" onClick={() => navigate("/")}>Home</button>
       </div>
-      <div
-        style={{ flex: 1, position: "relative", overflow: "hidden", touchAction: "none" }}
-        onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; }}
-        onPointerMove={(e) => { if (!drag.current) return; setCam({ x: Math.max(0, drag.current.cx - (e.clientX - drag.current.x)), y: Math.max(0, drag.current.cy - (e.clientY - drag.current.y)) }); }}
-        onPointerUp={() => { drag.current = null; }}
-      >
-        {scene === "town" ? (
-          <div style={{ position: "absolute", left: -cam.x, top: -cam.y, width: 720, height: 480, background: "#5d9e46" }}>
-            <div style={{ position: "absolute", left: 0, top: 200, width: 720, height: 64, background: "#c9b48a" }} />
-            {PORTALS.map((p) => (
-              <button key={p.id} type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => setScene(p.id)} style={{ position: "absolute", left: p.x, top: p.y, width: 90, height: 70, background: "#c9844a", border: "3px solid #3a2214", fontWeight: 800 }}>
-                {p.label}
-              </button>
-            ))}
-            {pets.filter((p) => p.level >= 1).slice(0, 4).map((p, i) => (
-              <div key={p.id} style={{ position: "absolute", top: 210, left: 80 + i * 70, fontSize: 28 }}>{p.emoji}</div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ padding: 12 }}>
-            <button type="button" onClick={() => setScene("town")}>DOOR ← town</button>
+      <div style={{ flex: 1, position: "relative" }}>
+        <PetLiveWorld pets={pets} scene={scene} onEnter={setScene} />
+        {scene !== "town" && (
+          <div style={{ position: "absolute", left: 10, right: 10, bottom: 10, top: 10, background: "rgba(27,18,12,0.86)", border: "3px solid #c9844a", overflow: "auto", padding: 10 }}>
+            <button type="button" onClick={() => setScene("town")}>back to town</button>
             <h3>{scene}</h3>
             {scene === "shop" && ADOPT.map((a) => (
-              <button key={a.species} type="button" disabled={busy || pets.length >= SLOT_CAP} onClick={() => void pay("Adopt " + a.name, a.price).then((sig) => addPet({ id: "pet_" + Date.now(), kind: "adopted", species: a.species, name: a.name, emoji: a.emoji, level: 0, feedsTotal: 0, sig }))} style={{ display: "block", width: "100%", margin: "6px 0" }}>
-                {a.emoji} {a.name} · {a.price} {coin}
-              </button>
+              <button key={a.species} type="button" disabled={busy || pets.length >= SLOT_CAP} onClick={() => void pay("Adopt " + a.name, a.price).then((sig) => addPet({ id: "pet_" + Date.now(), kind: "adopted", species: a.species, name: a.name, emoji: a.emoji, level: 0, feedsTotal: 0, sig }))} style={{ display: "block", width: "100%", margin: "6px 0" }}>{a.emoji} {a.name} · {a.price} {coin}</button>
             ))}
             {scene === "shelter" && RESCUE.map((a) => (
-              <button key={a.species} type="button" disabled={busy || pets.length >= SLOT_CAP} onClick={() => void pay("Rescue " + a.name, a.price).then((sig) => addPet({ id: "pet_" + Date.now(), kind: "rescued", species: a.species, name: a.name, emoji: a.emoji, level: 0, feedsTotal: 0, sig }))} style={{ display: "block", width: "100%", margin: "6px 0" }}>
-                {a.emoji} {a.name} · {a.price} {coin}
-              </button>
+              <button key={a.species} type="button" disabled={busy || pets.length >= SLOT_CAP} onClick={() => void pay("Rescue " + a.name, a.price).then((sig) => addPet({ id: "pet_" + Date.now(), kind: "rescued", species: a.species, name: a.name, emoji: a.emoji, level: 0, feedsTotal: 0, sig }))} style={{ display: "block", width: "100%", margin: "6px 0" }}>{a.emoji} {a.name} · {a.price} {coin}</button>
             ))}
             {(scene === "shop" || scene === "park") && FOOD.map((f) => (
               <button key={f.title} type="button" disabled={busy || !pets.length} onClick={() => {
@@ -163,34 +129,26 @@ export function PetHubPage() {
                   const next = pets.map((p) => (p.id === pet.id ? afterFeed(p) : p));
                   setPets(next); savePets(addr, next);
                 });
-              }} style={{ display: "block", width: "100%", margin: "6px 0" }}>
-                {f.title} · {f.amount} {coin}
-              </button>
+              }} style={{ display: "block", width: "100%", margin: "6px 0" }}>{f.title} · {f.amount} {coin}</button>
             ))}
             {scene === "hospital" && <button type="button" disabled={busy} onClick={() => void pay("Hospital", 60)}>Heal · 60 {coin}</button>}
             {scene === "hotel" && <button type="button" disabled={busy} onClick={() => void pay("Hotel", 180)}>Stay · 180 {coin}</button>}
             {scene === "groom" && <button type="button" disabled={busy} onClick={() => void pay("Groom", 90)}>Groom · 90 {coin}</button>}
             {scene === "nft" && pets.map((p) => (
-              <button key={p.id} type="button" disabled={busy || p.level < MINT_LV} onClick={() => void pay("Mint " + p.name, MINT_PAWLY)} style={{ display: "block", width: "100%", margin: "6px 0" }}>
-                Mint {p.name} Lv{p.level} · {MINT_PAWLY}
-              </button>
+              <button key={p.id} type="button" disabled={busy || p.level < MINT_LV} onClick={() => void pay("Mint " + p.name, MINT_PAWLY)} style={{ display: "block", width: "100%", margin: "6px 0" }}>Mint {p.name} Lv{p.level} · {MINT_PAWLY}</button>
             ))}
-            {scene === "market" && <div>List fee {LIST_FEE} {coin}. P2P book next unlock.</div>}
-            {scene === "breed" && <div>Need two minted Lv{BREED_LV}+ · {BREED_PAWLY} {coin} · 48h.</div>}
+            {scene === "market" && <div>List fee {LIST_FEE} {coin}. Book next unlock.</div>}
+            {scene === "breed" && <div>Two minted Lv{BREED_LV}+ · {BREED_PAWLY} {coin} · 48h.</div>}
           </div>
         )}
       </div>
-      <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: 6, background: "#2b1d14" }}>
+      <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: 6 }}>
         {Array.from({ length: SLOT_CAP }, (_, i) => pets[i] || null).map((p, i) => (
-          <button key={p ? p.id : i} type="button" onClick={() => p && setFocus(p.id)} style={{ width: 48, height: 48, background: "#1b120c", border: focus === (p && p.id) ? "3px solid gold" : "3px solid #3a2214" }}>
-            {p ? p.emoji + "L" + p.level : "+"}
-          </button>
+          <button key={p ? p.id : i} type="button" onClick={() => p && setFocus(p.id)} style={{ width: 48, height: 48 }}>{p ? p.emoji + "L" + p.level : "+"}</button>
         ))}
       </div>
       <div style={{ padding: 8, fontSize: 12 }}>
-        <select value={coin} onChange={(e) => setCoin(e.target.value as PayCoin)}>
-          <option>PAWLY</option><option>USDC</option><option>USDT</option><option>SOL</option>
-        </select>
+        <select value={coin} onChange={(e) => setCoin(e.target.value as PayCoin)}><option>PAWLY</option><option>USDC</option><option>USDT</option><option>SOL</option></select>
         <div>{addr ? addr.slice(0, 6) + "…" + addr.slice(-4) : "no wallet"}</div>
         <div>{note}</div>
       </div>
