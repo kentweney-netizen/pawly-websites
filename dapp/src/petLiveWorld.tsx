@@ -1,9 +1,24 @@
 import React, { useEffect, useRef } from "react";
 import type { PetRec, SceneId } from "./petGame";
 
-type Actor = { kind: "npc" | "dog" | "pig"; x: number; y: number; vx: number; face: 1 | -1; frame: number };
+type ActorKind = "npc" | "dog" | "pig";
+type Actor = {
+  kind: ActorKind;
+  x: number;
+  y: number;
+  vx: number;
+  face: number;
+  frame: number;
+};
+type House = {
+  id: SceneId;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
 
-const HOUSES: { id: SceneId; x: number; y: number; w: number; h: number }[] = [
+const HOUSES: House[] = [
   { id: "hospital", x: 28, y: 70, w: 90, h: 78 },
   { id: "shelter", x: 150, y: 70, w: 90, h: 78 },
   { id: "hotel", x: 310, y: 62, w: 100, h: 84 },
@@ -15,14 +30,18 @@ const HOUSES: { id: SceneId; x: number; y: number; w: number; h: number }[] = [
   { id: "breed", x: 290, y: 175, w: 50, h: 40 },
 ];
 
-export function hitHouse(x: number, y: number): SceneId | null {
-  const h = HOUSES.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
-  return h ? h.id : null;
+export function hitHouse(px: number, py: number) {
+  const found = HOUSES.find(function (b) {
+    return px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h;
+  });
+  return found ? found.id : undefined;
 }
 
 function asset(name: string) {
-  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL || "/dapp/";
-  return base.replace(/\/?$/, "/") + "game/" + name;
+  const env = import.meta as unknown as { env?: { BASE_URL?: string } };
+  const base = (env.env && env.env.BASE_URL) || "/dapp/";
+  const prefix = base.endsWith("/") ? base : base + "/";
+  return prefix + "game/" + name;
 }
 
 function loadImg(src: string) {
@@ -31,8 +50,12 @@ function loadImg(src: string) {
   return img;
 }
 
-export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (id: SceneId) => void }) {
-  const ref = useRef<HTMLCanvasElement | null>(null);
+export function PetLiveWorld(props: {
+  pets: PetRec[];
+  scene: SceneId;
+  onEnter: (id: SceneId) => void;
+}) {
+  const ref = useRef(null as HTMLCanvasElement | null);
 
   useEffect(() => {
     const c = ref.current;
@@ -40,7 +63,7 @@ export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (
     const ctx = c.getContext("2d");
     if (!ctx) return;
     let live = true;
-    let t = 0;
+    let tick = 0;
     const town = loadImg(asset("town.jpg"));
     const npcSheet = loadImg(asset("npc.png"));
     const dogSheet = loadImg(asset("dog.png"));
@@ -52,8 +75,8 @@ export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (
       { kind: "pig", x: 280, y: 218, vx: -0.4, face: -1, frame: 2 },
     ];
 
-    const drawSheet = (sheet: HTMLImageElement, a: Actor, hop: number) => {
-      if (!sheet.complete || !sheet.naturalWidth) return false;
+    function drawSheet(sheet: HTMLImageElement, a: Actor, hop: number) {
+      if (!sheet.complete || !sheet.naturalWidth) return;
       const fw = sheet.naturalWidth / 4;
       const fh = sheet.naturalHeight;
       const fr = Math.floor(a.frame) % 4;
@@ -62,46 +85,49 @@ export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (
       ctx.scale(a.face, 1);
       ctx.drawImage(sheet, fr * fw, 0, fw, fh, -22, -34, 44, 40);
       ctx.restore();
-      return true;
-    };
+    }
 
-    const loop = () => {
+    function loop() {
       if (!live) return;
-      t += 1;
-      const w = (c.width = c.clientWidth * (window.devicePixelRatio || 1));
-      const h = (c.height = c.clientHeight * (window.devicePixelRatio || 1));
+      tick += 1;
+      const w = c.clientWidth * (window.devicePixelRatio || 1);
+      const h = c.clientHeight * (window.devicePixelRatio || 1);
+      c.width = w;
+      c.height = h;
       ctx.setTransform(w / 480, 0, 0, h / 420, 0, 0);
       ctx.imageSmoothingEnabled = false;
-      if (town.complete && town.naturalWidth) ctx.drawImage(town, 0, 0, 480, 420);
-      else {
+      if (town.complete && town.naturalWidth) {
+        ctx.drawImage(town, 0, 0, 480, 420);
+      } else {
         ctx.fillStyle = "#7ecbff";
         ctx.fillRect(0, 0, 480, 420);
         ctx.fillStyle = "#5d9e46";
         ctx.fillRect(0, 150, 480, 270);
       }
-      ctx.fillStyle = "rgba(255,255,255," + (0.12 + 0.08 * Math.sin(t / 20)) + ")";
-      ctx.fillRect(0, 12 + Math.sin(t / 30) * 4, 480, 8);
-      actors.forEach((a) => {
+      let i = 0;
+      while (i < actors.length) {
+        const a = actors[i];
         a.x += a.vx;
         a.frame += 0.12;
         if (a.x > 450) {
           a.x = 450;
-          a.vx *= -1;
+          a.vx = -Math.abs(a.vx);
           a.face = -1;
         }
         if (a.x < 24) {
           a.x = 24;
-          a.vx *= -1;
+          a.vx = Math.abs(a.vx);
           a.face = 1;
         }
-        const hop = Math.sin(t / 5 + a.x) * 1.4;
+        const hop = Math.sin(tick / 5 + a.x) * 1.4;
         const sheet = a.kind === "npc" ? npcSheet : a.kind === "dog" ? dogSheet : pigSheet;
         drawSheet(sheet, a, hop);
-      });
+        i += 1;
+      }
       requestAnimationFrame(loop);
-    };
+    }
     requestAnimationFrame(loop);
-    return () => {
+    return function () {
       live = false;
     };
   }, []);
@@ -109,7 +135,7 @@ export function PetLiveWorld(props: { pets: PetRec[]; scene: SceneId; onEnter: (
   return (
     <canvas
       ref={ref}
-      onClick={(e) => {
+      onClick={function (e) {
         const box = (e.target as HTMLCanvasElement).getBoundingClientRect();
         const x = ((e.clientX - box.left) / box.width) * 480;
         const y = ((e.clientY - box.top) / box.height) * 420;
