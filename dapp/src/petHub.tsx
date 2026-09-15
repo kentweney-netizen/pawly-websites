@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Connection, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
 import { usePawlyWallet } from "./localWallet";
+import { PetRig, PET_RIG_CSS } from "./petAvatar";
 import { ADOPT, BREED_LV, BREED_PAWLY, FEED_DAY_MAX, FOOD, LIST_FEE, MINT_LV, MINT_PAWLY, PAWLY_MINT, PayCoin, PetRec, RESCUE, SLOT_CAP, SceneId, SHOP_TILL, USDC_MINT, USDT_MINT, afterFeed, feedsTodayOf, loadPets, savePets } from "./petGame";
 import { PetLiveWorld } from "./petLiveWorld";
 
@@ -142,7 +143,17 @@ export function PetHubPage() {
           </div>
         )}
       </div>
-      <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: 6 }}>
+              {scene === "street" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "6px 0 10px" }}>
+            {pets.length ? pets.map((p) => (
+              <div key={p.id} style={{ textAlign: "center" }}>
+                <PetRig pet={{ species: p.species, level: Number((p as { level?: number }).level || 0), emoji: p.emoji }} size={88} />
+                <div style={{ fontSize: 11, fontWeight: 800 }}>{p.name}</div>
+              </div>
+            )) : <div style={{ color: "#8aa", fontSize: 12 }}>Adopt in Shop to see your 3D pet here.</div>}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: 6 }}>
         {Array.from({ length: SLOT_CAP }, (_, i) => pets[i] || null).map((p, i) => (
           <button key={p ? p.id : i} type="button" onClick={() => p && setFocus(p.id)} style={{ width: 48, height: 48 }}>{p ? p.emoji + "L" + p.level : "+"}</button>
         ))}
@@ -152,6 +163,7 @@ export function PetHubPage() {
         <div>{addr ? addr.slice(0, 6) + "…" + addr.slice(-4) : "no wallet"}</div>
         <div>{note}</div>
       </div>
+      <style>{PET_RIG_CSS}</style>
     </div>
   );
 }
