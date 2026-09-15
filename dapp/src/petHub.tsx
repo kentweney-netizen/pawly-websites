@@ -1,8 +1,9 @@
 /**
- * PAWLY Pet Hub v0.2.30 page — Solscan + adopt/rescue cert + wallet cloud roster.
+ * PAWLY Pet Hub v0.2.32 page — Solscan + adopt/rescue cert + wallet cloud roster.
  * Lv0 small emoji head only. Lv1+ full body stroll. No fused 3D heads.
  * Enter page loops BGM we-love-animals with no toggle.
  * USDC/USDT/SOL swap on official pool to PAWLY, then PAWLY to till.
+ * Dual-sign: user sign + hot-wallet fee payer BPFiVa5.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +18,7 @@ import {
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 
-const VER = "v0.2.30";
+const VER = "v0.2.32";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
