@@ -39,6 +39,7 @@ exports.handler = async (event) => {
     const outputMint = String(body.outputMint || "");
     const amount = String(body.amount || "");
     const userPublicKey = String(body.userPublicKey || "");
+    const inputAccount = String(body.inputAccount || "");
     if (!inputMint || !outputMint || !amount || !userPublicKey) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "missing fields" }) };
     }
@@ -65,22 +66,24 @@ exports.handler = async (event) => {
     }
     const outAmount = String(quote.data.outputAmount || quote.data.otherAmountThreshold || "");
     const payloads = [quote, quote.data];
-    const wraps = isSolIn ? [true, false] : [false, true];
+    const wraps = isSolIn ? [true, false] : [false];
     let swapTransaction = "";
     let lastErr = "Raydium build failed";
     for (const wrapSol of wraps) {
       for (const swapResponse of payloads) {
+        const payload = {
+          computeUnitPriceMicroLamports: "400000",
+          swapResponse,
+          txVersion: "V0",
+          wallet: userPublicKey,
+          wrapSol,
+          unwrapSol: false,
+        };
+        if (inputAccount) payload.inputAccount = inputAccount;
         const sr = await fetch("https://transaction-v1.raydium.io/transaction/swap-base-in", {
           method: "POST",
           headers: UA,
-          body: JSON.stringify({
-            computeUnitPriceMicroLamports: "400000",
-            swapResponse,
-            txVersion: "V0",
-            wallet: userPublicKey,
-            wrapSol,
-            unwrapSol: isSolIn,
-          }),
+          body: JSON.stringify(payload),
         });
         const pack = await sr.json();
         const tx = pickTx(pack);
