@@ -1,5 +1,5 @@
 [build]
-  command = "python3 dapp/patch-pethub-v0220-land.py && cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
+  command = "cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
   publish = "."
 
 [build.environment]
