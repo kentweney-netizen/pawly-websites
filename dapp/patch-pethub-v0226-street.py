@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""v0.2.27: street overlay uses real level so Lv0 stays a head."""
+"""v0.2.27: street overlay walks pets; Lv0 head, Lv1+ body clip."""
 from pathlib import Path
 
 p = Path(__file__).resolve().parent / "src" / "petHub.tsx"
 t = p.read_text()
 old = """        {greet && pets.length ? (
-          <div style={{ position: \"absolute\", inset: 0, pointerEvents: \"none\", overflow: \"hidden\" }}>
+          <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
             {pets.slice(0, 4).map((p, i) => (
-              <div key={p.id} className={\"pawly-run pawly-run-\" + (i % 3)} style={{ position: \"absolute\", bottom: 18 + i * 10, left: 8 + i * 18 }}>
-                <div className=\"pawly-bubble\">{i % 2 === 0 ? \"Hug me!\" : \"Snack please!\"}</div>
-                <div className=\"pawly-pet\">{p.emoji}</div>
-                <div style={{ fontSize: 10, color: \"#fff\", textShadow: \"0 1px 2px #000\", textAlign: \"center\" }}>{p.name}</div>
+              <div key={p.id} className={"pawly-run pawly-run-" + (i % 3)} style={{ position: "absolute", bottom: 18 + i * 10, left: 8 + i * 18 }}>
+                <div className="pawly-bubble">{i % 2 === 0 ? "Hug me!" : "Snack please!"}</div>
+                <div className="pawly-pet">{p.emoji}</div>
+                <div style={{ fontSize: 10, color: "#fff", textShadow: "0 1px 2px #000", textAlign: "center" }}>{p.name}</div>
               </div>
             ))}
           </div>
@@ -25,3 +25,42 @@ old = """        {greet && pets.length ? (
         @keyframes pawly-in { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes pawly-wiggle { from { transform: rotate(-8deg) translateY(0); } to { transform: rotate(8deg) translateY(-6px); } }
       `}</style>"""
+new = """        {scene === "street" && pets.length ? (
+          <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+            {pets.slice(0, 4).map((p, i) => (
+              <div key={p.id} className={"pawly-stroll pawly-stroll-" + (i % 4)}>
+                <PetRig pet={{ species: p.species, level: Number((p as { level?: number }).level || 0), emoji: p.emoji, name: p.name }} size={72} moving />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <style>{PET_RIG_CSS}</style>"""
+if old in t:
+    t = t.replace(old, new, 1)
+    print("v0226 overlay patched")
+elif "pawly-stroll" in t:
+    t = t.replace(
+        "level: Math.max(1, Number((p as { level?: number }).level || 0))",
+        "level: Number((p as { level?: number }).level || 0)",
+        1,
+    )
+    print("v0226 overlay level fixed")
+else:
+    raise SystemExit("v0226 overlay target missing")
+
+old2 = """                <span>{c.emoji + " " + c.label}</span>
+                <span>{c.pricePawly} PAWLY</span>"""
+new2 = """                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <PetRig pet={{ species: c.species, level: 0, emoji: c.emoji, name: c.label }} size={40} />
+                  {c.label}
+                </span>
+                <span>{c.pricePawly} PAWLY</span>"""
+if old2 in t and "PetRig pet={{ species: c.species" not in t:
+    t = t.replace(old2, new2, 1)
+    print("v0226 shop list patched")
+elif "PetRig pet={{ species: c.species, level: 1" in t:
+    t = t.replace("PetRig pet={{ species: c.species, level: 1", "PetRig pet={{ species: c.species, level: 0", 1)
+    print("v0226 shop list level 0")
+p.write_text(t)
+print("ok", p)
