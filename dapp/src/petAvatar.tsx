@@ -55,17 +55,24 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
   const moving = !!props.moving;
   const face = FACE[key] || props.pet.emoji || "\ud83d\udc3e";
 
-  // Street plane: same pixel language as pet-hub-street.mp4
-  if (moving && pixel) {
-    const h = lv <= 0 ? Math.round(size * 0.7) : Math.round(size * 0.86);
-    const w = Math.round(h * 1.55);
+  // Street actor: only a side-view pixel sprite. Never video (iOS tile garbage).
+  if (moving) {
+    if (lv < 1 || !pixel) return null;
+    const h = Math.round(size * 0.78);
+    const w = Math.round(h * 1.35);
     return (
       <div className="pawly-rig pawly-street-pet" style={{ width: w, height: h }}>
         <img
           alt={props.pet.name || key}
           src={pixel}
           draggable={false}
-          style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom" }}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            objectPosition: "center bottom",
+            imageRendering: "pixelated",
+          }}
         />
       </div>
     );
@@ -73,7 +80,7 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
 
   if (grown) {
     return (
-      <div className={moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{ width: size, height: Math.round(size * 0.72) }}>
+      <div className="pawly-rig" style={{ width: size, height: Math.round(size * 0.72) }}>
         <video
           src={grown}
           autoPlay
@@ -91,17 +98,14 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
   if (head) {
     const box = Math.round(size * 0.92);
     return (
-      <div
-        className={moving ? "pawly-rig pawly-bob pawly-head" : "pawly-rig pawly-head"}
-        style={{ width: box, height: box, borderRadius: "50%", overflow: "hidden", display: "inline-block" }}
-      >
+      <div className="pawly-rig pawly-head" style={{ width: box, height: box, borderRadius: "50%", overflow: "hidden", display: "inline-block" }}>
         <img alt={props.pet.name || key} src={head} draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 28%" }} />
       </div>
     );
   }
 
   return (
-    <div className={moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{ fontSize: size * 0.72, lineHeight: 1, textAlign: "center" }}>
+    <div className="pawly-rig" style={{ fontSize: size * 0.72, lineHeight: 1, textAlign: "center" }}>
       {face}
     </div>
   );
@@ -109,24 +113,17 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
 
 export const PET_RIG_CSS = `
 .pawly-rig { display: inline-block; line-height: 0; vertical-align: bottom; }
-.pawly-street-pet img { filter: drop-shadow(0 3px 0 rgba(8,6,16,0.55)); }
-.pawly-bob img, .pawly-bob video, .pawly-bob { animation: pawly-step 0.32s ease-in-out infinite; }
+.pawly-street-pet img { filter: drop-shadow(0 2px 0 rgba(8,6,16,0.45)); image-rendering: pixelated; }
 .pawly-stroll { position: absolute; pointer-events: none; z-index: 4; }
-.pawly-stroll-0 { bottom: 16%; animation: pawly-patrol 13s linear infinite; }
-.pawly-stroll-1 { bottom: 12%; animation: pawly-patrol 16s linear infinite reverse; animation-delay: -4s; }
-.pawly-stroll-2 { bottom: 19%; animation: pawly-patrol 11s linear infinite; animation-delay: -2s; }
-.pawly-stroll-3 { bottom: 10%; animation: pawly-patrol 15s linear infinite reverse; animation-delay: -7s; }
-.pawly-bubble { background: #fff; color: #102018; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 4px 8px; margin-bottom: 4px; width: max-content; }
-@keyframes pawly-step {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-  100% { transform: translateY(0); }
-}
+.pawly-stroll-0 { bottom: 14%; animation: pawly-patrol 14s linear infinite; }
+.pawly-stroll-1 { bottom: 11%; animation: pawly-patrol 18s linear infinite reverse; animation-delay: -5s; }
+.pawly-stroll-2 { bottom: 17%; animation: pawly-patrol 12s linear infinite; animation-delay: -3s; }
+.pawly-stroll-3 { bottom: 10%; animation: pawly-patrol 16s linear infinite reverse; animation-delay: -8s; }
 @keyframes pawly-patrol {
-  0% { left: -18%; transform: scaleX(1); }
-  49% { left: 78%; transform: scaleX(1); }
-  50% { left: 78%; transform: scaleX(-1); }
-  99% { left: -18%; transform: scaleX(-1); }
-  100% { left: -18%; transform: scaleX(1); }
+  0% { left: 8%; transform: scaleX(1); }
+  49% { left: 72%; transform: scaleX(1); }
+  50% { left: 72%; transform: scaleX(-1); }
+  99% { left: 8%; transform: scaleX(-1); }
+  100% { left: 8%; transform: scaleX(1); }
 }
 `;
