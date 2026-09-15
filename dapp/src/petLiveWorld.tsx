@@ -41,7 +41,8 @@ export function PetLiveWorld(props: {
           return (
             <button
               key={d.id}
-              type="button"n              onClick={function () {
+              type="button"
+              onClick={function () {
                 props.onEnter(d.id);
               }}
               style={{ background: "rgba(8,20,14,0.72)", color: "#f4e1c1", border: "1px solid #7dffb2", borderRadius: 8, padding: "4px 8px", fontSize: 11 }}
