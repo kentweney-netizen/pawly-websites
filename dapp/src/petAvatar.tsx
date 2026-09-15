@@ -1,5 +1,5 @@
 import React from "react";
-import { grownMp4For, headFor } from "./petSprites";
+import { grownMp4For, headFor, pixelFor } from "./petSprites";
 
 export type PetRigPet = {
   species: string;
@@ -50,9 +50,26 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
   const key = normSpecies(props.pet.species);
   const grown = lv >= 1 ? grownMp4For(props.pet.species) : null;
   const head = headFor(props.pet.species);
+  const pixel = pixelFor(props.pet.species);
   const size = props.size || 88;
   const moving = !!props.moving;
   const face = FACE[key] || props.pet.emoji || "\ud83d\udc3e";
+
+  // Street plane: same pixel language as pet-hub-street.mp4
+  if (moving && pixel) {
+    const h = lv <= 0 ? Math.round(size * 0.7) : Math.round(size * 0.86);
+    const w = Math.round(h * 1.55);
+    return (
+      <div className="pawly-rig pawly-street-pet" style={{ width: w, height: h }}>
+        <img
+          alt={props.pet.name || key}
+          src={pixel}
+          draggable={false}
+          style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom" }}
+        />
+      </div>
+    );
+  }
 
   if (grown) {
     return (
@@ -92,12 +109,13 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
 
 export const PET_RIG_CSS = `
 .pawly-rig { display: inline-block; line-height: 0; vertical-align: bottom; }
+.pawly-street-pet img { filter: drop-shadow(0 3px 0 rgba(8,6,16,0.55)); }
 .pawly-bob img, .pawly-bob video, .pawly-bob { animation: pawly-step 0.32s ease-in-out infinite; }
 .pawly-stroll { position: absolute; pointer-events: none; z-index: 4; }
-.pawly-stroll-0 { bottom: 14%; animation: pawly-patrol 11s linear infinite; }
-.pawly-stroll-1 { bottom: 20%; animation: pawly-patrol 14s linear infinite reverse; animation-delay: -4s; }
-.pawly-stroll-2 { bottom: 11%; animation: pawly-patrol 9s linear infinite; animation-delay: -2s; }
-.pawly-stroll-3 { bottom: 24%; animation: pawly-patrol 13s linear infinite reverse; animation-delay: -6s; }
+.pawly-stroll-0 { bottom: 16%; animation: pawly-patrol 13s linear infinite; }
+.pawly-stroll-1 { bottom: 12%; animation: pawly-patrol 16s linear infinite reverse; animation-delay: -4s; }
+.pawly-stroll-2 { bottom: 19%; animation: pawly-patrol 11s linear infinite; animation-delay: -2s; }
+.pawly-stroll-3 { bottom: 10%; animation: pawly-patrol 15s linear infinite reverse; animation-delay: -7s; }
 .pawly-bubble { background: #fff; color: #102018; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 4px 8px; margin-bottom: 4px; width: max-content; }
 @keyframes pawly-step {
   0% { transform: translateY(0); }
@@ -105,10 +123,10 @@ export const PET_RIG_CSS = `
   100% { transform: translateY(0); }
 }
 @keyframes pawly-patrol {
-  0% { left: -16%; transform: scaleX(1); }
-  49% { left: 74%; transform: scaleX(1); }
-  50% { left: 74%; transform: scaleX(-1); }
-  99% { left: -16%; transform: scaleX(-1); }
-  100% { left: -16%; transform: scaleX(1); }
+  0% { left: -18%; transform: scaleX(1); }
+  49% { left: 78%; transform: scaleX(1); }
+  50% { left: 78%; transform: scaleX(-1); }
+  99% { left: -18%; transform: scaleX(-1); }
+  100% { left: -18%; transform: scaleX(1); }
 }
 `;
