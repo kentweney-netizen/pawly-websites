@@ -61,8 +61,9 @@ exports.handler = async (event) => {
       };
     }
     const outAmount = String(quote.data.outputAmount || quote.data.otherAmountThreshold || "");
-    const payloads = [quote, quote.data];
-    const wraps = isSolIn ? [true, false] : [false];
+    const payloads = [quote.data, quote];
+    const requestedWrap = body.wrapSol === true;
+    const wraps = isSolIn ? (requestedWrap ? [true, false] : [false, true]) : [false];
     let swapTransaction = "";
     let lastErr = "Raydium build failed";
     for (const wrapSol of wraps) {

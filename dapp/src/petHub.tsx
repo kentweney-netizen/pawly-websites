@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.35 page — Solscan + adopt/rescue cert + wallet cloud roster.
+ * PAWLY Pet Hub v0.2.36 page — Solscan + adopt/rescue cert + wallet cloud roster.
  * Lv0 small emoji head only. Lv1+ full body stroll. No fused 3D heads.
  * Enter page loops BGM we-love-animals with no toggle.
  * USDC/USDT/SOL market-swap to PAWLY on official pool, then PAWLY to shop till.
@@ -17,7 +17,7 @@ import {
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 
-const VER = "v0.2.35";
+const VER = "v0.2.36";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
@@ -181,7 +181,7 @@ export function PetHubPage() {
         <div style={{ position: "absolute", inset: 0, zIndex: 6, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "flex-end" }} onClick={() => !busy && setCart(null)}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: "#101820", borderRadius: "16px 16px 0 0", padding: 16 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800 }}>Pet Hub checkout</div>
-            <div style={{ fontSize: 11, color: "#8aa", marginTop: 4 }}>USDC / USDT / SOL first swap to PAWLY on the official pool, then PAWLY goes to the shop till.</div>
+            <div style={{ fontSize: 11, color: "#8aa", marginTop: 4 }}>USDC / USDT / SOL swap to PAWLY on the market (official pool route), then that PAWLY goes to the shop till. SOL wraps first.</div>
             <div style={{ margin: "8px 0 4px" }}>{cart.emoji ? cart.emoji + " " : ""}{cart.title}</div>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>{(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (<button key={c} type="button" onClick={() => setPayCoin(c)} style={{ ...ghost, borderColor: payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>))}</div>
