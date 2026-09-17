@@ -39,10 +39,11 @@ export type HubWorld = {
 };
 
 export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldEvent) => void): HubWorld {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
+  const raw = canvas.getContext("2d");
+  if (!raw) {
     return { setScene() {}, setPets() {}, setStick() {}, destroy() {} };
   }
+  const ctx: CanvasRenderingContext2D = raw;
   let scene: SceneId = "street";
   let pets: WorldPet[] = [];
   let stickX = 0;
@@ -149,6 +150,7 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
       g.textAlign = "center";
       g.fillText("A  ENTER  " + near.label, near.x + near.w / 2, near.y - 8);
     }
+    const bob = Math.sin(t / 140) * 2;
     const grown = pets.filter((p) => p.level >= 1).slice(0, 4);
     grown.forEach((p, i) => {
       let f = followers.find((x) => x.id === p.id);
@@ -162,7 +164,7 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
       f.y += (ty - f.y) * 0.08;
       drawPet(g, f.x, f.y, p.emoji, p.level, Math.sin(t / 120 + i) * 2);
     });
-    drawKeeper(g, px, py, Math.sin(t / 140) * 2);
+    drawKeeper(g, px, py, bob);
   }
 
   function drawRoom(g: CanvasRenderingContext2D, w: number, h: number, t: number) {
@@ -186,7 +188,8 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
     g.beginPath();
     g.arc(w / 2, h * 0.34 - 10, 10, 0, Math.PI * 2);
     g.fill();
-    drawKeeper(g, px, py, Math.sin(t / 140) * 2);
+    const bob = Math.sin(t / 140) * 2;
+    drawKeeper(g, px, py, bob);
     g.fillStyle = "rgba(0,0,0,0.45)";
     g.fillRect(w / 2 - 54, h - 46, 108, 22);
     g.fillStyle = "#c8ffe8";
@@ -240,10 +243,18 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
   return {
     setScene(id: SceneId) {
       scene = id;
-      if (id === "street") { px = 210; py = 300; } else { px = 210; py = 280; }
+      if (id === "street") {
+        px = 210;
+        py = 300;
+      } else {
+        px = 210;
+        py = 280;
+      }
       lastNear = null;
     },
-    setPets(next: WorldPet[]) { pets = next || []; },
+    setPets(next: WorldPet[]) {
+      pets = next || [];
+    },
     setStick(x: number, y: number) {
       stickX = Math.max(-1, Math.min(1, x));
       stickY = Math.max(-1, Math.min(1, y));
