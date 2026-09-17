@@ -1,6 +1,6 @@
 /**
- * PAWLY Pet Hub v0.3.1 GameFi page — real street/room clips + D-pad.
- * Real Tampines street-walk / room clips as plate. Canvas only draws keeper + Lv1+ pets. Payment path unchanged:
+ * PAWLY Pet Hub v0.3.2 GameFi - cartoon keeper + pet body sprites + SVG pad.
+ * Real Tampines street-walk / room clips as plate. Canvas draws keeper + Lv1+ pets.
  * USDC/USDT/SOL market-swap to PAWLY, then PAWLY to shop till BPFiVa5.
  * Adopt + Rescue share 10 slots. Lv0 HUD heads only. Lv1+ follow on street.
  */
@@ -19,7 +19,7 @@ import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 import { createPetHubWorld } from "./petHubWorld";
 import type { HubWorld } from "./petHubWorld";
 
-const VER = "v0.3.1";
+const VER = "v0.3.2";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
@@ -162,7 +162,11 @@ export function PetHubPage() {
       }
     } catch (e) { setNote(String((e as { message?: string }).message || e)); } finally { setBusy(false); }
   };
-  const sep = " \u00b7 ";
+  const sep = " | ";
+  const tri = (dir: "up" | "down" | "left" | "right") => {
+    const pts = dir === "up" ? "12,3 21,19 3,19" : dir === "down" ? "3,5 21,5 12,21" : dir === "left" ? "19,3 19,21 3,12" : "5,3 21,12 5,21";
+    return <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><polygon points={pts} fill="#00ff9d" /></svg>;
+  };
   const arrowBtn = (left: number, top: number): React.CSSProperties => ({
     position: "absolute", left, top, width: 50, height: 50, borderRadius: 10,
     border: "1px solid rgba(0,255,157,0.55)", background: "rgba(8,20,16,0.72)",
@@ -185,7 +189,7 @@ export function PetHubPage() {
       </div>
       <div style={{ display: "flex", gap: 6, padding: "0 10px 6px", flexWrap: "wrap" }}>
         {quests.map((q) => (
-          <span key={q.label} style={{ fontSize: 10, padding: "3px 6px", borderRadius: 8, border: "1px solid rgba(0,255,157,0.35)", color: q.ok ? "#00ff9d" : "#9aa" }}>{q.ok ? "\u2713 " : "\u25cb "}{q.label}</span>
+          <span key={q.label} style={{ fontSize: 10, padding: "3px 6px", borderRadius: 8, border: "1px solid rgba(0,255,157,0.35)", color: q.ok ? "#00ff9d" : "#9aa" }}>{q.ok ? "OK " : "o "}{q.label}</span>
         ))}
       </div>
       <div style={{ flex: 1, minHeight: 260, position: "relative", background: "#081018", overflow: "hidden" }}>
@@ -208,10 +212,10 @@ export function PetHubPage() {
           </div>
         ) : null}
         <div style={{ position: "absolute", left: 10, bottom: 10, zIndex: 3, width: 118, height: 118, userSelect: "none" }}>
-          <button type="button" {...hold(0, -1)} style={arrowBtn(34, 0)}>{'\\u25b2'}</button>
-          <button type="button" {...hold(-1, 0)} style={arrowBtn(0, 34)}>{'\\u25c0'}</button>
-          <button type="button" {...hold(1, 0)} style={arrowBtn(68, 34)}>{'\\u25b6'}</button>
-          <button type="button" {...hold(0, 1)} style={arrowBtn(34, 68)}>{'\\u25bc'}</button>
+          <button type="button" {...hold(0, -1)} style={arrowBtn(34, 0)} aria-label="up">{tri("up")}</button>
+          <button type="button" {...hold(-1, 0)} style={arrowBtn(0, 34)} aria-label="left">{tri("left")}</button>
+          <button type="button" {...hold(1, 0)} style={arrowBtn(68, 34)} aria-label="right">{tri("right")}</button>
+          <button type="button" {...hold(0, 1)} style={arrowBtn(34, 68)} aria-label="down">{tri("down")}</button>
         </div>
         <button type="button" onClick={pressA} style={{ position: "absolute", right: 14, bottom: 58, zIndex: 3, width: 54, height: 54, borderRadius: 27, border: "none", background: "#00ff9d", color: "#052015", fontWeight: 800 }}>A</button>
         <button type="button" onClick={pressB} style={{ position: "absolute", right: 72, bottom: 18, zIndex: 3, width: 44, height: 44, borderRadius: 22, border: "none", background: "#2a3a44", color: "#c8ffe8", fontWeight: 800 }}>B</button>
@@ -224,9 +228,9 @@ export function PetHubPage() {
               <div style={{ fontSize: 10, fontWeight: 800 }}>{p.name}</div>
               <div style={{ fontSize: 9, color: "#9f8" }}>Lv{Number(p.level || 0)} {feedsTodayOf(p)}/3</div>
             </button>
-          )) : <div style={{ color: "#8aa", fontSize: 12 }}>Walk into SHOP and adopt. Rescue stays rescued — both count in 10 slots.</div>}
+          )) : <div style={{ color: "#8aa", fontSize: 12 }}>Walk into SHOP and adopt. Rescue stays rescued - both count in 10 slots.</div>}
         </div>
-        {focused ? <div style={{ fontSize: 11, color: "#c8ffe8", marginBottom: 6 }}>{focused.name} \u00b7 {focused.kind || "pet"} \u00b7 {Number(focused.feedsTotal || 0)} feeds \u00b7 hunger {Number(focused.hunger || 0)}</div> : null}
+        {focused ? <div style={{ fontSize: 11, color: "#c8ffe8", marginBottom: 6 }}>{focused.name} | {focused.kind || "pet"} | {Number(focused.feedsTotal || 0)} feeds | hunger {Number(focused.hunger || 0)}</div> : null}
         {note ? <div style={{ color: "#ffb4b4", fontSize: 11, marginBottom: 6, wordBreak: "break-word" }}>{note}</div> : null}
         {lastSig ? (
           <div style={{ marginBottom: 8, padding: "8px 8px 6px", border: "1px solid rgba(0,255,157,0.35)", borderRadius: 10, background: "#0c1410" }}>
@@ -262,8 +266,8 @@ export function PetHubPage() {
               </div>
             )}
             {scene === "shelter" && RESCUES.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Rescue " + c.label, amount: c.pricePawly, kind: "rescue", species: c.species, emoji: c.emoji })}><span>{c.emoji} {c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}
-            {scene === "hospital" && <button type="button" style={{ ...primary, width: "100%", marginTop: 10 }} onClick={() => openCart({ title: "Hospital checkup", amount: 40, kind: "service" })}>Pay 40 PAWLY \u00b7 checkup</button>}
-            {scene === "park" && <button type="button" style={{ ...primary, width: "100%", marginTop: 10 }} onClick={() => openCart({ title: "Walk the dog", amount: 15, kind: "service" })}>Pay 15 PAWLY \u00b7 walk</button>}
+            {scene === "hospital" && <button type="button" style={{ ...primary, width: "100%", marginTop: 10 }} onClick={() => openCart({ title: "Hospital checkup", amount: 40, kind: "service" })}>Pay 40 PAWLY | checkup</button>}
+            {scene === "park" && <button type="button" style={{ ...primary, width: "100%", marginTop: 10 }} onClick={() => openCart({ title: "Walk the dog", amount: 15, kind: "service" })}>Pay 15 PAWLY | walk</button>}
             {(scene === "hotel" || scene === "groom") && <button type="button" style={{ ...primary, width: "100%", marginTop: 10 }} onClick={() => openCart({ title: TITLE[scene], amount: scene === "hotel" ? 50 : 30, kind: "service" })}>Pay {scene === "hotel" ? 50 : 30} PAWLY</button>}
             <button type="button" style={{ ...ghost, width: "100%", marginTop: 10 }} onClick={() => setDesk(false)}>Close</button>
           </div>
@@ -288,7 +292,7 @@ export function PetHubPage() {
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>{(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (<button key={c} type="button" onClick={() => setPayCoin(c)} style={{ ...ghost, borderColor: payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>))}</div>
             <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 10 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? sep + "$" + px.pawlyUsd.toFixed(4) : ""}</div>
-            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? "Paying..." : "Confirm \u00b7 " + quoteCoin(cart.amount, payCoin, px).label}</button>
+            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? "Paying..." : "Confirm | " + quoteCoin(cart.amount, payCoin, px).label}</button>
             <button type="button" disabled={busy} style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setCart(null)}>Cancel</button>
           </div>
         </div>
