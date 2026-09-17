@@ -1,6 +1,6 @@
 /**
- * PAWLY Pet Hub v0.3.0 GameFi page.
- * Walkable 2D Tampines street + interiors. Payment path unchanged:
+ * PAWLY Pet Hub v0.3.1 GameFi page — real street/room clips + D-pad.
+ * Real Tampines street-walk / room clips as plate. Canvas only draws keeper + Lv1+ pets. Payment path unchanged:
  * USDC/USDT/SOL market-swap to PAWLY, then PAWLY to shop till BPFiVa5.
  * Adopt + Rescue share 10 slots. Lv0 HUD heads only. Lv1+ follow on street.
  */
@@ -13,13 +13,13 @@ import {
   PET_SLOT_CAP, FEED_DAY_MAX, sgDay, feedsTodayOf, pickFeedPet,
   loadPets, savePets, mergePetLists, pullCloudPets, loadEmail, saveEmail,
   drawPetPhotoPng, drawCertPng, downloadDataUrl, asset, fetchHubPx, quoteCoin, payHub,
-  COMPANIONS, RESCUES, FOODS, TITLE, ghost, primary, rowBtn,
+  COMPANIONS, RESCUES, FOODS, TITLE, CLIP, ghost, primary, rowBtn,
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 import { createPetHubWorld } from "./petHubWorld";
 import type { HubWorld } from "./petHubWorld";
 
-const VER = "v0.3.0";
+const VER = "v0.3.1";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
@@ -89,6 +89,11 @@ export function PetHubPage() {
     if (!canvas) return;
     const world = createPetHubWorld(canvas, (e) => {
       if (e.type === "near") setNear(e.id);
+      if (e.type === "enter") {
+        setScene(e.id);
+        setShopView(e.id === "shop" ? "desk" : "home");
+        setDesk(true);
+      }
       if (e.type === "tap-pet") { setFocusId(e.id); setFeedWarn(true); }
     });
     worldRef.current = world;
@@ -102,13 +107,11 @@ export function PetHubPage() {
   }, [pets]);
 
   const setStick = (x: number, y: number) => { worldRef.current?.setStick(x, y); };
-  const onPad = (ev: React.PointerEvent<HTMLDivElement>, end?: boolean) => {
-    if (end) { setStick(0, 0); return; }
-    const box = ev.currentTarget.getBoundingClientRect();
-    const x = (ev.clientX - box.left) / box.width * 2 - 1;
-    const y = (ev.clientY - box.top) / box.height * 2 - 1;
-    setStick(x, y);
-  };
+  const hold = (x: number, y: number) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); setStick(x, y); },
+    onPointerUp: () => setStick(0, 0),
+    onPointerCancel: () => setStick(0, 0),
+  });
   const goScene = (id: SceneId) => {
     setScene(id);
     setShopView(id === "shop" ? "desk" : "home");
@@ -160,6 +163,11 @@ export function PetHubPage() {
     } catch (e) { setNote(String((e as { message?: string }).message || e)); } finally { setBusy(false); }
   };
   const sep = " \u00b7 ";
+  const arrowBtn = (left: number, top: number): React.CSSProperties => ({
+    position: "absolute", left, top, width: 50, height: 50, borderRadius: 10,
+    border: "1px solid rgba(0,255,157,0.55)", background: "rgba(8,20,16,0.72)",
+    color: "#00ff9d", fontSize: 18, fontWeight: 800, touchAction: "none",
+  });
   const focused = pets.find((p) => p.id === focusId) || pets[0];
   return (
     <div style={{ height: "100dvh", overflow: "hidden", background: "#070b10", color: "#e8eef7", display: "flex", flexDirection: "column", position: "relative", maxWidth: 430, margin: "0 auto" }}>
@@ -180,17 +188,33 @@ export function PetHubPage() {
           <span key={q.label} style={{ fontSize: 10, padding: "3px 6px", borderRadius: 8, border: "1px solid rgba(0,255,157,0.35)", color: q.ok ? "#00ff9d" : "#9aa" }}>{q.ok ? "\u2713 " : "\u25cb "}{q.label}</span>
         ))}
       </div>
-      <div style={{ flex: 1, minHeight: 220, position: "relative", background: "#0a1016" }}>
-        <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
-        <div
-          onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); onPad(e); }}
-          onPointerMove={(e) => { if (e.buttons) onPad(e); }}
-          onPointerUp={(e) => onPad(e, true)}
-          onPointerCancel={(e) => onPad(e, true)}
-          style={{ position: "absolute", left: 10, bottom: 10, width: 96, height: 96, borderRadius: 48, background: "rgba(0,0,0,0.35)", border: "1px solid rgba(0,255,157,0.35)" }}
+      <div style={{ flex: 1, minHeight: 260, position: "relative", background: "#081018", overflow: "hidden" }}>
+        <video
+          key={scene}
+          src={asset(CLIP[scene])}
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster={asset(scene === "street" ? "pet-hub-street.jpg" : CLIP[scene].replace(".mp4", ".jpg"))}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}
         />
-        <button type="button" onClick={pressA} style={{ position: "absolute", right: 14, bottom: 58, width: 54, height: 54, borderRadius: 27, border: "none", background: "#00ff9d", color: "#052015", fontWeight: 800 }}>A</button>
-        <button type="button" onClick={pressB} style={{ position: "absolute", right: 72, bottom: 18, width: 44, height: 44, borderRadius: 22, border: "none", background: "#2a3a44", color: "#c8ffe8", fontWeight: 800 }}>B</button>
+        <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", touchAction: "none", zIndex: 1, background: "transparent" }} />
+        {scene === "street" ? (
+          <div style={{ position: "absolute", left: 8, right: 8, top: 8, zIndex: 2, display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {(["shop","hospital","shelter","hotel","groom","park"] as SceneId[]).map((id) => (
+              <button key={id} type="button" onClick={() => goScene(id)} style={{ ...ghost, fontSize: 10, padding: "4px 7px", background: near === id ? "rgba(0,255,157,0.22)" : "rgba(0,0,0,0.45)" }}>{TITLE[id]}</button>
+            ))}
+          </div>
+        ) : null}
+        <div style={{ position: "absolute", left: 10, bottom: 10, zIndex: 3, width: 118, height: 118, userSelect: "none" }}>
+          <button type="button" {...hold(0, -1)} style={arrowBtn(34, 0)}>{'\\u25b2'}</button>
+          <button type="button" {...hold(-1, 0)} style={arrowBtn(0, 34)}>{'\\u25c0'}</button>
+          <button type="button" {...hold(1, 0)} style={arrowBtn(68, 34)}>{'\\u25b6'}</button>
+          <button type="button" {...hold(0, 1)} style={arrowBtn(34, 68)}>{'\\u25bc'}</button>
+        </div>
+        <button type="button" onClick={pressA} style={{ position: "absolute", right: 14, bottom: 58, zIndex: 3, width: 54, height: 54, borderRadius: 27, border: "none", background: "#00ff9d", color: "#052015", fontWeight: 800 }}>A</button>
+        <button type="button" onClick={pressB} style={{ position: "absolute", right: 72, bottom: 18, zIndex: 3, width: 44, height: 44, borderRadius: 22, border: "none", background: "#2a3a44", color: "#c8ffe8", fontWeight: 800 }}>B</button>
       </div>
       <div style={{ zIndex: 2, padding: "8px 8px 10px", background: "#070b10", maxHeight: "34dvh", overflowY: "auto" }}>
         <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
