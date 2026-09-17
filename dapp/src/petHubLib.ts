@@ -6,8 +6,8 @@ import type React from "react";
  * SOL first wrap wSOL with sponsor fee payer (proven Swap path), then Raydium wrapSol=false.
  * 3-layer: street video + Lv1+ stroll body + Lv0 small head. No fused 3D heads.
  */
-import { AddressLookupTableAccount, Connection, PublicKey, SystemProgram, TransactionInstruction, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
+import { AddressLookupTableAccount, Connection, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createSyncNativeInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
 
 export const PET_SLOT_CAP = 10;
 export const FEED_DAY_MAX = 3;
@@ -263,7 +263,7 @@ async function ensureUserWsolSponsored(opts: { from: PublicKey; lamports: number
   const ixs = [
     createAssociatedTokenAccountIdempotentInstruction(sponsor, wsolAta, opts.from, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
     SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: wsolAta, lamports: n }),
-    new TransactionInstruction({ programId: TOKEN_PROGRAM_ID, keys: [{ pubkey: wsolAta, isSigner: false, isWritable: true }], data: Uint8Array.from([17]) }),
+    createSyncNativeInstruction(wsolAta, TOKEN_PROGRAM_ID),
   ];
   const { blockhash } = await opts.conn.getLatestBlockhash();
   const vtx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
