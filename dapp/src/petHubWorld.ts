@@ -1,8 +1,8 @@
 /**
- * PAWLY Pet Hub world v0.3.2 — actors match plate style.
+ * PAWLY Pet Hub world v0.3.4 — street-matched 4-frame walk sheets.
  * Transparent canvas over street/room clips.
- * Keeper = painted cartoon (hoodie), pets = /pets/*.png body sprites.
- * No 8-bit block person. No fused 3D heads.
+ * Keeper + pig/dog/cat use painted walk-cycle sheets (same cartoon street style).
+ * Other species fall back to /pets/*.png. No 8-bit block person. No fused 3D heads.
  */
 import type { SceneId } from "./petHubLib";
 
@@ -30,18 +30,63 @@ const PET_FILE: Record<string, string> = {
   tarantula: "tarantula", mantis: "mantis", "stray-dog": "dog", "stray-cat": "cat",
 };
 
+const SHEET_PET: Record<string, string> = {
+  dog: "dog-sheet.png", "stray-dog": "dog-sheet.png",
+  cat: "cat-sheet.png", "stray-cat": "cat-sheet.png",
+  minipig: "minipig-sheet.png", pig: "minipig-sheet.png", "mini-pig": "minipig-sheet.png",
+};
+
 const imgCache: Record<string, HTMLImageElement> = {};
-function petImg(species: string): HTMLImageElement | null {
-  const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
-  const key = PET_FILE[raw];
-  if (!key) return null;
-  const src = "/pets/" + key + ".png";
+function loadSrc(src: string): HTMLImageElement {
   if (!imgCache[src]) {
     const im = new Image();
     im.src = src;
     imgCache[src] = im;
   }
   return imgCache[src];
+}
+function readyImg(im: HTMLImageElement | null): HTMLImageElement | null {
+  return im && im.complete && im.naturalWidth > 0 ? im : null;
+}
+function firstReady(srcs: string[]): HTMLImageElement | null {
+  for (let i = 0; i < srcs.length; i++) {
+    const im = readyImg(loadSrc(srcs[i]));
+    if (im) return im;
+  }
+  srcs.forEach((s) => loadSrc(s));
+  return null;
+}
+function keeperSheet(): HTMLImageElement | null {
+  return firstReady(["/dapp/game/keeper-sheet.png", "/game/keeper-sheet.png"]);
+}
+function petSheet(species: string): HTMLImageElement | null {
+  const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
+  const file = SHEET_PET[raw];
+  if (!file) return null;
+  return firstReady(["/dapp/game/" + file, "/game/" + file]);
+}
+function petStill(species: string): HTMLImageElement | null {
+  const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
+  const key = PET_FILE[raw];
+  if (!key) return null;
+  return firstReady(["/pets/" + key + ".png", "/dapp/pets/" + key + ".png"]);
+}
+
+function frameIndex(moving: boolean, now: number): number {
+  return moving ? Math.floor(now / 140) % 4 : 0;
+}
+function drawSheet(
+  g: CanvasRenderingContext2D,
+  sheet: HTMLImageElement,
+  frame: number,
+  dw: number,
+  dh: number,
+) {
+  const cols = 4;
+  const fw = sheet.naturalWidth / cols;
+  const fh = sheet.naturalHeight;
+  const i = ((frame % cols) + cols) % cols;
+  g.drawImage(sheet, i * fw, 0, fw, fh, -dw / 2, -dh + 18, dw, dh);
 }
 
 export type HubWorld = {
@@ -69,6 +114,7 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
   let alive = true;
   let last = performance.now();
   const followers: { id: string; x: number; y: number }[] = [];
+  keeperSheet();
 
   function fit() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -99,71 +145,51 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
     return null;
   }
 
-  function drawKeeper(g: CanvasRenderingContext2D, x: number, y: number, bounce: number, walk: number) {
+  function drawKeeper(g: CanvasRenderingContext2D, x: number, y: number, bounce: number, moving: boolean, now: number) {
     g.save();
     g.translate(x, y + bounce);
     g.scale(facing, 1);
     g.fillStyle = "rgba(0,0,0,0.28)";
     g.beginPath();
-    g.ellipse(0, 18, 16, 5, 0, 0, Math.PI * 2);
+    g.ellipse(0, 18, 22, 6, 0, 0, Math.PI * 2);
     g.fill();
-    const swing = Math.sin(walk) * 7;
-    g.fillStyle = "#1d2430";
-    g.fillRect(-11, 4, 9, 16);
-    g.fillRect(2, 4, 9, 16);
-    g.fillStyle = "#2b3340";
-    g.fillRect(-12 + swing * 0.15, 18, 10, 6);
-    g.fillRect(3 - swing * 0.15, 18, 10, 6);
-    g.fillStyle = "#1fae78";
-    g.fillRect(-16, -16, 32, 24);
-    g.fillStyle = "#168a5e";
-    g.fillRect(-16, -2, 32, 10);
+    const sheet = keeperSheet();
+    if (sheet) {
+      drawSheet(g, sheet, frameIndex(moving, now), 92, 148);
+      g.restore();
+      return;
+    }
+    g.fillStyle = "#1d6f8a";
+    g.fillRect(-18, -22, 36, 40);
     g.fillStyle = "#f3c7a0";
     g.beginPath();
-    g.ellipse(-18, -2 + swing * 0.2, 5, 6, 0, 0, Math.PI * 2);
-    g.fill();
-    g.beginPath();
-    g.ellipse(18, -2 - swing * 0.2, 5, 6, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = "#f3c7a0";
-    g.beginPath();
-    g.ellipse(0, -28, 13, 15, 0, 0, Math.PI * 2);
+    g.ellipse(0, -36, 14, 16, 0, 0, Math.PI * 2);
     g.fill();
     g.fillStyle = "#2a1c14";
     g.beginPath();
-    g.ellipse(1, -36, 14, 10, 0, 0, Math.PI * 2);
+    g.ellipse(1, -46, 15, 10, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillRect(-12, -34, 6, 12);
-    g.fillRect(6, -34, 8, 14);
-    g.fillStyle = "#fff";
-    g.beginPath();
-    g.ellipse(-5, -28, 3.2, 3.6, 0, 0, Math.PI * 2);
-    g.ellipse(5, -28, 3.2, 3.6, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = "#1a120c";
-    g.beginPath();
-    g.ellipse(-4.4, -27.6, 1.5, 1.8, 0, 0, Math.PI * 2);
-    g.ellipse(5.6, -27.6, 1.5, 1.8, 0, 0, Math.PI * 2);
-    g.fill();
-    g.strokeStyle = "#c98464";
-    g.lineWidth = 1.4;
-    g.beginPath();
-    g.arc(0, -24, 5, 0.15, Math.PI - 0.15);
-    g.stroke();
     g.restore();
   }
 
-  function drawPet(g: CanvasRenderingContext2D, x: number, y: number, pet: WorldPet, bounce: number) {
+  function drawPet(g: CanvasRenderingContext2D, x: number, y: number, pet: WorldPet, bounce: number, moving: boolean, now: number) {
     g.save();
     g.translate(x, y + bounce);
     g.scale(facing, 1);
     g.fillStyle = "rgba(0,0,0,0.25)";
     g.beginPath();
-    g.ellipse(0, 16, 22, 6, 0, 0, Math.PI * 2);
+    g.ellipse(0, 16, 24, 7, 0, 0, Math.PI * 2);
     g.fill();
-    const im = petImg(pet.species);
-    if (im && im.complete && im.naturalWidth > 0) {
-      const h = pet.level >= 1 ? 70 : 48;
+    const sheet = petSheet(pet.species);
+    const h = pet.level >= 1 ? 78 : 54;
+    if (sheet) {
+      const w = h * ((sheet.naturalWidth / 4) / sheet.naturalHeight);
+      drawSheet(g, sheet, frameIndex(moving, now), w, h);
+      g.restore();
+      return;
+    }
+    const im = petStill(pet.species);
+    if (im) {
       const w = h * (im.naturalWidth / im.naturalHeight);
       g.drawImage(im, -w / 2, -h + 16, w, h);
     } else {
@@ -196,23 +222,25 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
     }
     ctx.clearRect(0, 0, w, h);
     ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     if (scene === "street") {
       const bob = moving ? Math.sin(now / 90) * 3 : Math.sin(now / 280) * 1;
       const grown = pets.filter((p) => p.level >= 1).slice(0, 4);
       grown.forEach((p, i) => {
-        petImg(p.species);
+        petSheet(p.species);
+        petStill(p.species);
         let f = followers.find((x) => x.id === p.id);
         if (!f) {
           f = { id: p.id, x: px * w - 40 - i * 36, y: py * h + 8 };
           followers.push(f);
         }
-        const tx = px * w - facing * (48 + i * 38);
-        const ty = py * h + 6 + (i % 2) * 8;
+        const tx = px * w - facing * (56 + i * 46);
+        const ty = py * h + 8 + (i % 2) * 8;
         f.x += (tx - f.x) * 0.09;
         f.y += (ty - f.y) * 0.09;
-        drawPet(ctx, f.x, f.y, p, Math.sin(now / 110 + i) * 2);
+        drawPet(ctx, f.x, f.y, p, Math.sin(now / 110 + i) * 2, moving, now);
       });
-      drawKeeper(ctx, px * w, py * h, bob, now / 90);
+      drawKeeper(ctx, px * w, py * h, bob, moving, now);
       if (n) {
         ctx.fillStyle = "rgba(0,0,0,0.55)";
         ctx.fillRect(n.ax, Math.max(8, n.ay - 18), n.aw, 16);
@@ -233,7 +261,7 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
     for (let i = 0; i < grown.length; i++) {
       const f = followers.find((z) => z.id === grown[i].id);
       if (!f) continue;
-      if (Math.hypot(x - f.x, y - f.y) < 36) {
+      if (Math.hypot(x - f.x, y - f.y) < 40) {
         onEvent({ type: "tap-pet", id: grown[i].id });
         return;
       }
@@ -264,7 +292,7 @@ export function createPetHubWorld(canvas: HTMLCanvasElement, onEvent: (e: WorldE
     },
     setPets(next: WorldPet[]) {
       pets = next || [];
-      pets.forEach((p) => petImg(p.species));
+      pets.forEach((p) => { petSheet(p.species); petStill(p.species); });
     },
     setStick(x: number, y: number) {
       stickX = Math.max(-1, Math.min(1, x));
