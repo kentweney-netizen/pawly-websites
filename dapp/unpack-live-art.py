@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import base64
 import math
 import shutil
 import struct
@@ -14,6 +15,8 @@ pets_root = root / "pets"
 pets_pub = dapp / "public" / "pets"
 pets_root.mkdir(parents=True, exist_ok=True)
 pets_pub.mkdir(parents=True, exist_ok=True)
+art = dapp / "game-art"
+art.mkdir(parents=True, exist_ok=True)
 
 names = {
     "town.jpg": ["town.jpg", "pawly-town.jpg", "game/town.jpg"],
@@ -64,6 +67,23 @@ if zpath:
                 print("sprite", out, len(data))
 else:
     print("missing pawly-adopt-pets-sprites.zip")
+
+# Street-matched 4-frame walk sheets (keeper + pig/dog/cat).
+for name in ("keeper-sheet.png", "minipig-sheet.png", "dog-sheet.png", "cat-sheet.png"):
+    raw = None
+    for p in (art / name, dest / name, root / "pet-hub-sheets" / name):
+        if p.exists() and p.is_file():
+            raw = p.read_bytes()
+            break
+    if raw is None:
+        b64p = art / (name + ".b64")
+        if b64p.exists():
+            raw = base64.b64decode("".join(b64p.read_text().split()))
+    if raw is None:
+        print("missing sheet", name)
+        continue
+    (dest / name).write_bytes(raw)
+    print("sheet", name, len(raw))
 
 
 def write_we_love_animals():
