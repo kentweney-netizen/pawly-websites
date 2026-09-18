@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.4.7 — painted myth portraits + stalls Buy / Need stall.
+ * PAWLY Pet Hub v0.4.9 — fast GameFi pay (12s sponsor, unlock, no hang).
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -15,7 +15,7 @@ import {
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 import { StallLayer } from "./petHubStalls";
 
-const VER = "v0.4.7";
+const VER = "v0.4.9";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
@@ -84,9 +84,17 @@ export function PetHubPage() {
     if ((cart.kind === "adopt" || cart.kind === "rescue") && pets.length >= PET_SLOT_CAP) { setNote("Max 10 pets"); return; }
     const payAmt = quoteCoin(cart.amount, payCoin, px);
     if (payCoin !== "PAWLY" && payAmt.amount <= 0) { setNote("No live price, use PAWLY"); return; }
-    setBusy(true); setNote(payCoin === "PAWLY" ? "Paying PAWLY to till..." : "Swap " + payCoin + " to PAWLY, then till");
+    setBusy(true); setNote(payCoin === "PAWLY" ? "1/3 Sign in wallet" : "Swap " + payCoin + " then till");
+    const watchdog = window.setTimeout(() => {
+      setBusy(false);
+      setNote("Network slow / 网络慢。若钱包已签名请到 Solscan 核对，勿连点付款。");
+    }, 16000);
     try {
-      const sig = await payHub({ from: wallet.publicKey, coin: payCoin, amount: payAmt.amount, signTransaction: wallet.signTransaction, sendTransaction: wallet.sendTransaction, wallet: wallet as never });
+      const sig = await payHub({
+        from: wallet.publicKey, coin: payCoin, amount: payAmt.amount,
+        signTransaction: wallet.signTransaction, sendTransaction: wallet.sendTransaction, wallet: wallet as never,
+        onPhase: (_p, label) => setNote(label),
+      });
       if (cart.kind === "adopt" || cart.kind === "rescue") {
         const next: PetRec[] = [...pets, { id: "pet_" + Date.now(), kind: cart.kind === "rescue" ? "rescued" : "adopted", species: cart.species || "dog", name: cart.title.replace(/^(Adopt|Rescue)\s+/i, ""), emoji: cart.emoji || "\ud83d\udc3e", hunger: 70, health: 80, streak: 0, pricePawly: cart.amount, sig, feedsTotal: 0, level: 0 }].slice(0, PET_SLOT_CAP);
         setPets(next); savePets(addr, next);
@@ -106,7 +114,7 @@ export function PetHubPage() {
         const job: CertJob = { title: cart.title, amount: cart.amount, kind: cart.kind, species: cart.species, emoji: cart.emoji, sig };
         job.photoPng = drawPetPhotoPng(job.emoji || "\ud83d\udc3e", job.title); job.certPng = drawCertPng(job); setCert(job);
       }
-    } catch (e) { setNote(String((e as { message?: string }).message || e)); } finally { setBusy(false); }
+    } catch (e) { setNote(String((e as { message?: string }).message || e)); } finally { window.clearTimeout(watchdog); setBusy(false); }
   };
   const walkers = pets.filter((p) => Number(p.level || 0) >= 1).slice(0, PET_SLOT_CAP);
   const sep = " - ";
@@ -189,7 +197,8 @@ export function PetHubPage() {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>{(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (<button key={c} type="button" onClick={() => setPayCoin(c)} style={{ ...ghost, borderColor: payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>))}</div>
             <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 10 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}</div>
             <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? (note || "Paying...") : "Confirm - " + quoteCoin(cart.amount, payCoin, px).label}</button>
-            <button type="button" disabled={busy} style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => setCart(null)}>Cancel</button>
+            {busy ? <div style={{ fontSize: 11, color: "#c8ffe8", marginTop: 8 }}>Sign → Pay → Done. Max wait 16s.</div> : null}
+            <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => { setBusy(false); setCart(null); }}>{busy ? "Unlock / 解锁" : "Cancel"}</button>
           </div>
         </div>
       ) : null}
