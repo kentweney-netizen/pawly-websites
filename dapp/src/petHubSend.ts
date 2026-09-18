@@ -125,34 +125,36 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
   const till = new PublicKey(SHOP_TILL);
   const sponsor = new PublicKey(SHOP_TILL);
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
-  let tx: VersionedTransaction;
   if (opts.coin !== "PAWLY") {
-    say("build", "Build " + opts.coin + " → PAWLY → till");
+    say("swap", "1/2 Swap " + opts.coin + " → PAWLY");
     const mod = await import("./petHubSwap");
-    tx = await mod.buildSwapTillTx({ from: opts.from, coin: opts.coin, coinAmount: opts.amount, listPawly: Number(opts.listPawly || 0) });
-  } else {
-    const conn = openHubConn();
-    say("build", "Building pay...");
-    const mint = new PublicKey(PAWLY_MINT);
-    const rawAmt = Math.round(opts.amount * 1e6);
-    const tokenProgramId = await resolveTokenProgramId(conn, mint);
-    const found = await findPawlySource(conn, opts.from, rawAmt, tokenProgramId, mint);
-    const toAta = await getAssociatedTokenAddress(mint, till, false, found.program, ASSOCIATED_TOKEN_PROGRAM_ID);
-    const { blockhash } = await withTimeout(conn.getLatestBlockhash("confirmed"), 8000, "RPC timeout");
-    tx = new VersionedTransaction(new TransactionMessage({
-      payerKey: sponsor,
-      recentBlockhash: blockhash,
-      instructions: [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
-        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
-        createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, found.program, ASSOCIATED_TOKEN_PROGRAM_ID),
-        createTransferCheckedInstruction(found.source, mint, toAta, opts.from, rawAmt, 6, [], found.program),
-      ],
-    }).compileToV0Message());
+    return await mod.swapThenTill({
+      from: opts.from, coin: opts.coin, coinAmount: opts.amount, listPawly: Number(opts.listPawly || 0),
+      signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction,
+      wallet: opts.wallet || undefined, onPhase: opts.onPhase,
+    });
   }
-  say("sign", "Sign once in wallet");
+  const conn = openHubConn();
+  say("build", "2/2 Pay PAWLY to till");
+  const mint = new PublicKey(PAWLY_MINT);
+  const rawAmt = Math.round(opts.amount * 1e6);
+  const tokenProgramId = await resolveTokenProgramId(conn, mint);
+  const found = await findPawlySource(conn, opts.from, rawAmt, tokenProgramId, mint);
+  const toAta = await getAssociatedTokenAddress(mint, till, false, found.program, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const { blockhash } = await withTimeout(conn.getLatestBlockhash("confirmed"), 8000, "RPC timeout");
+  const tx = new VersionedTransaction(new TransactionMessage({
+    payerKey: sponsor,
+    recentBlockhash: blockhash,
+    instructions: [
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
+      createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, found.program, ASSOCIATED_TOKEN_PROGRAM_ID),
+      createTransferCheckedInstruction(found.source, mint, toAta, opts.from, rawAmt, 6, [], found.program),
+    ],
+  }).compileToV0Message());
+  say("sign", "2/2 Sign PAWLY to hot wallet");
   const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
-  say("sponsor", "Broadcast...");
+  say("sponsor", "Broadcast till pay...");
   const sig = await sponsorBroadcast(signed, 1);
   say("confirm", "On-chain " + sig.slice(0, 8) + "...");
   return sig;
