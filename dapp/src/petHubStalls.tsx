@@ -9,7 +9,8 @@ import {
 } from "./petHubMarket";
 import type { StallRec, NftRec } from "./petHubMarket";
 import { payPeer } from "./petHubPeer";
-import { nftPortrait, nftSpriteName } from "./petHubNftArt";
+import { nftPortrait, nftSpriteName, mythArt } from "./petHubNftArt";
+import { MYTH_KIND, MYTH_NAME } from "./petHubMythSprites";
 
 type WalletBag = {
   publicKey?: PublicKey | null;
@@ -68,14 +69,27 @@ function useStore() {
 export function setHubTab(tab: Store["tab"]) { setStore({ tab, zoom: null }); }
 
 function NftThumb({ n, size }: { n: NftRec; size: number }) {
-  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name]);
+  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name, n.species]);
   return (
     <img
-      alt={n.name}
+      alt={nftSpriteName(n)}
       src={src}
-      onClick={(e) => { e.stopPropagation(); setStore({ zoom: n }); }}
+      onClick={(e) => { e.stopPropagation(); setStore({ zoom: store.zoom && store.zoom.id === n.id ? null : n }); }}
       style={{ width: size, height: size, borderRadius: 8, objectFit: "cover", flex: "0 0 auto", border: "1px solid rgba(0,255,157,0.35)", cursor: "zoom-in" }}
     />
+  );
+}
+
+function ZoomCard({ n }: { n: NftRec }) {
+  return (
+    <button type="button" onClick={() => setStore({ zoom: null })} style={{ width: "100%", background: "transparent", border: "none", padding: 0, margin: "0 0 8px" }}>
+      <img
+        alt={nftSpriteName(n)}
+        src={nftPortrait(n)}
+        style={{ display: "block", width: 220, height: 220, maxWidth: "72vw", margin: "0 auto", objectFit: "cover", borderRadius: 14, border: "2px solid rgba(0,255,157,0.45)", cursor: "zoom-out" }}
+      />
+      <div style={{ textAlign: "center", color: "#00ff9d", fontWeight: 800, fontSize: 13, marginTop: 4 }}>{nftSpriteName(n)}</div>
+    </button>
   );
 }
 
@@ -198,18 +212,26 @@ export function StallLayer(props: LayerProps) {
     } catch (e) { props.setNote(String((e as { message?: string }).message || e)); } finally { props.setBusy(false); }
   };
 
+  if (s.tab === "play" && s.zoom) {
+    return <ZoomCard n={s.zoom} />;
+  }
+
   return (
     <>
-      {s.zoom ? (
-        <div onClick={() => setStore({ zoom: null })} style={{ position: "fixed", inset: 0, zIndex: 20, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <img alt={nftSpriteName(s.zoom)} src={nftPortrait(s.zoom)} style={{ width: "min(92vw, 420px)", maxHeight: "78vh", objectFit: "contain", borderRadius: 16, border: "2px solid rgba(0,255,157,0.45)", cursor: "zoom-out" }} />
-        </div>
-      ) : null}
       {s.tab === "stalls" ? (
         <div style={{ width: "100%", marginTop: 4 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13 }}>{s.myStall ? "My stall" : "Open stall"}</div>
-            <button type="button" style={tiny} onClick={() => setStore({ tab: "play" })}>Close</button>
+            <button type="button" style={tiny} onClick={() => setStore({ tab: "play", zoom: null })}>Close</button>
+          </div>
+          {s.zoom ? <ZoomCard n={s.zoom} /> : null}
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 8, paddingBottom: 2 }}>
+            {MYTH_KIND.map((k) => (
+              <div key={k} style={{ flex: "0 0 auto", textAlign: "center", width: 52 }}>
+                <img alt={MYTH_NAME[k]} src={mythArt(k)} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(0,255,157,0.3)" }} />
+                <div style={{ fontSize: 8, color: "#9f8", marginTop: 2, whiteSpace: "nowrap" }}>{MYTH_NAME[k]}</div>
+              </div>
+            ))}
           </div>
           {!s.myStall ? (
             <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
@@ -264,7 +286,7 @@ export function StallLayer(props: LayerProps) {
         <div style={{ width: "100%", marginTop: 4 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13 }}>Highest user price</div>
-            <button type="button" style={tiny} onClick={() => setStore({ tab: "play" })}>Close</button>
+            <button type="button" style={tiny} onClick={() => setStore({ tab: "play", zoom: null })}>Close</button>
           </div>
           {ranks.map((r, i) => (
             <div key={r.wallet} style={card}>
