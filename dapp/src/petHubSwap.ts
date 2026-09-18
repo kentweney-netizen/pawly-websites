@@ -1,6 +1,6 @@
 import { AddressLookupTableAccount, Connection, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createSyncNativeInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
-import type { PayCoin } from "./petHubSend";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createSyncNativeInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
+import type { HubSign, HubSend, HubWallet, PayCoin, PayPhaseFn } from "./petHubSend";
 
 const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -8,8 +8,12 @@ const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 const WSOL_MINT = "So11111111111111111111111111111111111111112";
 const SHOP_TILL = "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3VR4C7Z";
 const RPC = "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
+const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
 
 function conn() { return new Connection(RPC, "confirmed"); }
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+function isCancel(e: unknown) { return /reject|denied|cancel|user abort/i.test(String((e as { message?: string })?.message || e || "")); }
 async function fetchJson(url: string, init: RequestInit, ms: number, label: string) {
   const ctrl = new AbortController();
   const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, ms);
@@ -33,9 +37,52 @@ function b64ToBytes(b64: string) {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
-async function buildSwapTx(opts: { inputMint: string; amount: string; user: string; inputAccount?: string; slippageBps: number }) {
+function txToB64(tx: VersionedTransaction) {
+  const raw = tx.serialize();
+  const u8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayLike<number>);
+  let s = "";
+  for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + 8192)));
+  return btoa(s);
+}
+async function broadcast(signed: VersionedTransaction) {
+  const { r, d } = await fetchJson(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
+    body: JSON.stringify({ transaction: txToB64(signed), feePawly: 1, mode: "send" }),
+  }, 20000, "Sponsor timeout");
+  const body = d as { signature?: string; error?: string };
+  if (r.ok && body.signature) return String(body.signature);
+  throw new Error(String(body.error || ("Sponsor HTTP " + r.status)));
+}
+async function userSign(tx: VersionedTransaction, wallet?: HubWallet | null, signTransaction?: HubSign) {
+  const ad = wallet && (wallet.adapter || (wallet.wallet && wallet.wallet.adapter) || wallet);
+  const tryAll = async () => {
+    const fn = (ad && ad.signAllTransactions) || (wallet && wallet.signAllTransactions);
+    if (typeof fn !== "function") return null;
+    const arr = await fn([tx]);
+    return arr && arr[0] ? arr[0] : null;
+  };
+  const take = (out: unknown) => (out && typeof (out as VersionedTransaction).serialize === "function" ? out as VersionedTransaction : tx);
+  if (typeof signTransaction === "function") {
+    try { return take(await signTransaction(tx)); } catch (e) { if (isCancel(e)) throw e; const alt = await tryAll(); if (alt) return take(alt); }
+  }
+  if (ad && typeof ad.signTransaction === "function") {
+    try { return take(await ad.signTransaction(tx)); } catch (e) { if (isCancel(e)) throw e; const alt = await tryAll(); if (alt) return take(alt); throw e; }
+  }
+  const alt = await tryAll();
+  if (alt) return take(alt);
+  throw new Error("Wallet cannot sign swap");
+}
+async function pawlyUi(c: Connection, owner: PublicKey) {
+  try {
+    const ata = await getAssociatedTokenAddress(new PublicKey(PAWLY_MINT), owner, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    const info = await c.getTokenAccountBalance(ata);
+    return Number(info.value.uiAmount || 0);
+  } catch { return 0; }
+}
+async function buildSwapTx(opts: { inputMint: string; amount: string; user: string; inputAccount?: string; slippageBps: number; wrapSol?: boolean }) {
   const paths = ["/.netlify/functions/hub-jup-swap", "/.netlify/functions/hub-jup-swap/", "/dapp/.netlify/functions/hub-jup-swap"];
-  const payload = { inputMint: opts.inputMint, outputMint: PAWLY_MINT, amount: opts.amount, userPublicKey: opts.user, inputAccount: opts.inputAccount || "", slippageBps: opts.slippageBps, wrapSol: false };
+  const payload = { inputMint: opts.inputMint, outputMint: PAWLY_MINT, amount: opts.amount, userPublicKey: opts.user, inputAccount: opts.inputAccount || "", slippageBps: opts.slippageBps, wrapSol: opts.wrapSol === true };
   let last = "swap proxy failed";
   for (const path of paths) {
     try {
@@ -47,33 +94,22 @@ async function buildSwapTx(opts: { inputMint: string; amount: string; user: stri
   }
   throw new Error(last);
 }
-async function altsOf(c: Connection, tx: VersionedTransaction) {
-  const lookups = ((tx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
-  const alts: AddressLookupTableAccount[] = [];
-  for (let i = 0; i < lookups.length; i++) {
-    const rawKey = lookups[i] && lookups[i].accountKey;
-    if (!rawKey) continue;
-    try {
-      const key = rawKey instanceof PublicKey ? rawKey : new PublicKey(String(rawKey));
-      const acc = await c.getAddressLookupTable(key);
-      if (acc.value) alts.push(acc.value);
-    } catch { /* ignore */ }
-  }
-  return alts;
-}
 
-/** One VersionedTransaction: wrap + official-pool swap + PAWLY to till. Caller signs once. */
-export async function buildSwapTillTx(opts: { from: PublicKey; coin: PayCoin; coinAmount: number; listPawly: number }): Promise<VersionedTransaction> {
-  if (opts.coin === "PAWLY") throw new Error("PAWLY uses direct till pay");
+/** Sign 1: wrap if needed + official pool → PAWLY into the user wallet. Does NOT pay till. */
+export async function swapCoinToPawly(opts: {
+  from: PublicKey; coin: PayCoin; coinAmount: number;
+  signTransaction?: HubSign; wallet?: HubWallet | null; onPhase?: PayPhaseFn;
+}): Promise<{ sig: string; gained: number }> {
+  const say = (label: string) => { try { opts.onPhase && opts.onPhase("swap", label); } catch { /* ignore */ } };
+  if (opts.coin === "PAWLY") throw new Error("Already PAWLY");
   const c = conn();
   const sponsor = new PublicKey(SHOP_TILL);
-  const till = sponsor;
   const isSol = opts.coin === "SOL";
   const inputMint = isSol ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
   const rawIn = isSol ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL)) : Math.max(1, Math.round(opts.coinAmount * 1e6));
-  const listRaw = Math.max(1, Math.round((opts.listPawly > 0 ? opts.listPawly : 1) * 1e6));
   const wrapIxs = [];
   let inputAccount = "";
+  let wrapSol = false;
   if (isSol) {
     const mint = new PublicKey(WSOL_MINT);
     const wsolAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
@@ -81,6 +117,7 @@ export async function buildSwapTillTx(opts: { from: PublicKey; coin: PayCoin; co
     wrapIxs.push(SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: wsolAta, lamports: rawIn }));
     wrapIxs.push(createSyncNativeInstruction(wsolAta, TOKEN_PROGRAM_ID));
     inputAccount = wsolAta.toBase58();
+    wrapSol = false;
   } else {
     const inMint = new PublicKey(inputMint);
     const ata = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
@@ -92,31 +129,71 @@ export async function buildSwapTillTx(opts: { from: PublicKey; coin: PayCoin; co
       inputAccount = listed.value[0].pubkey.toBase58();
     }
   }
-  let pack: { swapTransaction?: string } | null = null;
+  const before = await pawlyUi(c, opts.from);
   let last = "swap failed";
+  let swapSig = "";
   const slips = [200, 400, 800];
   for (let i = 0; i < slips.length; i++) {
     try {
-      pack = await buildSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: slips[i] });
-      if (pack.swapTransaction) break;
-    } catch (e) { last = String((e as { message?: string })?.message || e); }
+      say("1/2 Sign swap " + opts.coin + " → PAWLY");
+      const pack = await buildSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: slips[i], wrapSol });
+      const rawTx = VersionedTransaction.deserialize(b64ToBytes(String(pack.swapTransaction)));
+      const lookups = ((rawTx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
+      const alts: AddressLookupTableAccount[] = [];
+      for (let a = 0; a < lookups.length; a++) {
+        const rawKey = lookups[a] && lookups[a].accountKey;
+        if (!rawKey) continue;
+        try {
+          const key = rawKey instanceof PublicKey ? rawKey : new PublicKey(String(rawKey));
+          const acc = await c.getAddressLookupTable(key);
+          if (acc.value) alts.push(acc.value);
+        } catch { /* ignore */ }
+      }
+      const swapIxs = TransactionMessage.decompile(rawTx.message, { addressLookupTableAccounts: alts }).instructions;
+      const { blockhash } = await c.getLatestBlockhash("confirmed");
+      const vtx = new VersionedTransaction(new TransactionMessage({
+        payerKey: sponsor,
+        recentBlockhash: blockhash,
+        instructions: [...wrapIxs, ...swapIxs],
+      }).compileToV0Message(alts));
+      const signed = await userSign(vtx, opts.wallet, opts.signTransaction);
+      swapSig = await broadcast(signed);
+      last = "";
+      break;
+    } catch (e) {
+      if (isCancel(e)) throw e;
+      last = String((e as { message?: string })?.message || e);
+      await sleep(400);
+    }
   }
-  if (!pack || !pack.swapTransaction) throw new Error(last);
-  const rawTx = VersionedTransaction.deserialize(b64ToBytes(String(pack.swapTransaction)));
-  const alts = await altsOf(c, rawTx);
-  const swapIxs = TransactionMessage.decompile(rawTx.message, { addressLookupTableAccounts: alts }).instructions;
-  const pawly = new PublicKey(PAWLY_MINT);
-  const userPawly = await getAssociatedTokenAddress(pawly, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const tillPawly = await getAssociatedTokenAddress(pawly, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const tail = [
-    createAssociatedTokenAccountIdempotentInstruction(sponsor, userPawly, opts.from, pawly, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
-    createAssociatedTokenAccountIdempotentInstruction(sponsor, tillPawly, till, pawly, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
-    createTransferCheckedInstruction(userPawly, pawly, tillPawly, opts.from, listRaw, 6, [], TOKEN_PROGRAM_ID),
-  ];
-  const { blockhash } = await c.getLatestBlockhash();
-  return new VersionedTransaction(new TransactionMessage({
-    payerKey: sponsor,
-    recentBlockhash: blockhash,
-    instructions: [...wrapIxs, ...swapIxs, ...tail],
-  }).compileToV0Message(alts));
+  if (!swapSig) throw new Error(last || "Swap failed");
+  let after = before;
+  for (let i = 0; i < 12; i++) {
+    after = await pawlyUi(c, opts.from);
+    if (after > before + 0.000001) break;
+    await sleep(600);
+  }
+  const gained = Math.max(0, after - before);
+  if (!(gained > 0)) throw new Error("Swap " + swapSig.slice(0, 8) + " landed but PAWLY not in wallet yet / 已兑换请稍候再付店柜");
+  return { sig: swapSig, gained };
+}
+
+export async function swapThenTill(opts: {
+  from: PublicKey; coin: PayCoin; coinAmount: number; listPawly: number;
+  signTransaction?: HubSign; sendTransaction?: HubSend; wallet?: HubWallet | null; onPhase?: PayPhaseFn;
+}): Promise<string> {
+  const hop1 = await swapCoinToPawly({
+    from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount,
+    signTransaction: opts.signTransaction, wallet: opts.wallet, onPhase: opts.onPhase,
+  });
+  const list = Number(opts.listPawly || 0);
+  const payAmt = list > 0 ? Math.min(list, hop1.gained > 0 ? hop1.gained : list) : hop1.gained;
+  if (!(payAmt > 0)) throw new Error("No PAWLY to send to till");
+  try { opts.onPhase && opts.onPhase("till", "2/2 Sign pay " + payAmt.toFixed(2) + " PAWLY to till"); } catch { /* ignore */ }
+  const { payHub } = await import("./petHubSend");
+  return await payHub({
+    from: opts.from, coin: "PAWLY", amount: payAmt,
+    signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction,
+    wallet: opts.wallet, onPhase: opts.onPhase,
+  });
 }
