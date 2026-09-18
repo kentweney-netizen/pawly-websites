@@ -9,7 +9,7 @@ import {
 } from "./petHubMarket";
 import type { StallRec, NftRec } from "./petHubMarket";
 import { payPeer } from "./petHubPeer";
-import { nftPortrait, nftSpriteName } from "./petHubNftArt";
+import { nftSheet, nftSpriteName, ensureIdleCss } from "./petHubNftArt";
 
 type WalletBag = {
   publicKey?: PublicKey | null;
@@ -67,14 +67,37 @@ function useStore() {
 
 export function setHubTab(tab: Store["tab"]) { setStore({ tab, zoom: null }); }
 
-function NftThumb({ n, size }: { n: NftRec; size: number }) {
-  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name, n.species]);
+function NftLive({ n, size, onClick }: { n: NftRec; size: number; onClick?: (e: React.MouseEvent) => void }) {
+  useEffect(() => { ensureIdleCss(); }, []);
+  const sheet = useMemo(() => nftSheet(n), [n.id, n.breedSig, n.name, n.species]);
   return (
-    <img
-      alt={nftSpriteName(n)}
-      src={src}
+    <div
+      role="img"
+      aria-label={nftSpriteName(n)}
+      onClick={onClick}
+      style={{
+        width: size,
+        height: size,
+        flex: "0 0 auto",
+        borderRadius: 8,
+        border: "1px solid rgba(0,255,157,0.35)",
+        backgroundImage: sheet ? "url(" + sheet + ")" : "none",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: (size * 8) + "px " + size + "px",
+        imageRendering: "pixelated",
+        animation: sheet ? "pawlyNftIdle 0.96s steps(8) infinite" : "none",
+        cursor: onClick ? "zoom-in" : "default",
+      }}
+    />
+  );
+}
+
+function NftThumb({ n, size }: { n: NftRec; size: number }) {
+  return (
+    <NftLive
+      n={n}
+      size={size}
       onClick={(e) => { e.stopPropagation(); setStore({ zoom: store.zoom && store.zoom.id === n.id ? null : n }); }}
-      style={{ width: size, height: size, borderRadius: 8, objectFit: "cover", flex: "0 0 auto", border: "1px solid rgba(0,255,157,0.35)", cursor: "zoom-in" }}
     />
   );
 }
@@ -82,11 +105,9 @@ function NftThumb({ n, size }: { n: NftRec; size: number }) {
 function ZoomCard({ n }: { n: NftRec }) {
   return (
     <button type="button" onClick={() => setStore({ zoom: null })} style={{ width: "100%", background: "transparent", border: "none", padding: 0, margin: "0 0 8px" }}>
-      <img
-        alt={nftSpriteName(n)}
-        src={nftPortrait(n)}
-        style={{ display: "block", width: 160, height: 160, maxWidth: "48vw", margin: "0 auto", objectFit: "cover", borderRadius: 12, border: "2px solid rgba(0,255,157,0.45)", cursor: "zoom-out" }}
-      />
+      <div style={{ width: 160, height: 160, maxWidth: "48vw", margin: "0 auto" }}>
+        <NftLive n={n} size={160} />
+      </div>
       <div style={{ textAlign: "center", color: "#00ff9d", fontWeight: 800, fontSize: 13, marginTop: 4 }}>{nftSpriteName(n)}</div>
     </button>
   );
