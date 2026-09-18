@@ -1,6 +1,6 @@
 import type React from "react";
 /**
- * PAWLY Pet Hub v0.2.36 — dual-sign like Payment: userPartialSign + sponsor-dapp-tx.
+ * PAWLY Pet Hub pay — dual-sign + 12s sponsor cap. Signature = done; never re-pay after sig.
  * Fee payer always hot wallet BPFiVa5. No user-SOL fallback.
  * USDC/USDT/SOL: market swap to PAWLY (official pool route), then PAWLY to till.
  * SOL first wrap wSOL with sponsor fee payer (proven Swap path), then Raydium wrapSol=false.
@@ -140,6 +140,28 @@ function sleepHub(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 function isUserCancel(e: unknown) {
   return /reject|denied|cancel|user abort/i.test(String((e as { message?: string })?.message || e || ""));
 }
+export type PayPhase = "build" | "sign" | "sponsor" | "confirm" | "swap" | "till";
+export type PayPhaseFn = (phase: PayPhase, label: string) => void;
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = window.setTimeout(() => reject(new Error(label)), ms);
+    p.then((v) => { window.clearTimeout(t); resolve(v); }, (e) => { window.clearTimeout(t); reject(e); });
+  });
+}
+async function fetchJson(url: string, init: RequestInit, ms: number, label: string) {
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = window.setTimeout(() => { try { ctrl && ctrl.abort(); } catch { /* ignore */ } }, ms);
+  try {
+    const r = await fetch(url, { ...init, signal: ctrl ? ctrl.signal : init.signal });
+    const d = await r.json().catch(() => ({}));
+    return { r, d };
+  } catch (e) {
+    if (String((e as { name?: string })?.name || "") === "AbortError") throw new Error(label);
+    throw e;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
 function b64ToBytes(b64: string) {
   let s = String(b64 || "").trim();
   const comma = s.indexOf(",");
@@ -168,27 +190,29 @@ function txToB64(tx: VersionedTransaction) {
 }
 async function assertOnchainSuccess(conn: Connection, s: string) {
   if (!s || s.length < 32) throw new Error("Empty signature");
-  const latest = await conn.getLatestBlockhash();
   try {
-    await conn.confirmTransaction({ signature: s, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight });
-  } catch { /* poll below */ }
-  const res = await conn.getSignatureStatuses([s], { searchTransactionHistory: true });
-  const st = res?.value?.[0];
-  if (st && st.err) throw new Error("Transaction failed on-chain");
-  if (st && st.confirmationStatus) return;
-  const tx = await conn.getTransaction(s, { maxSupportedTransactionVersion: 0 });
-  if (tx?.meta?.err) throw new Error("Transaction failed on-chain");
-  if (!tx) throw new Error("Signature not confirmed");
+    const stPack = await withTimeout(conn.getSignatureStatuses([s], { searchTransactionHistory: true }), 6000, "Status timeout");
+    const st = stPack?.value?.[0];
+    if (st && st.err) throw new Error("Transaction failed on-chain");
+    if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized")) return;
+  } catch (e) {
+    if (/failed on-chain/i.test(String((e as { message?: string })?.message || e))) throw e;
+  }
 }
 async function postSponsor(signed: VersionedTransaction, feePawly: number) {
-  const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-    body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1) }),
-  });
-  const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
-  if (r.ok && d.signature) return String(d.signature);
-  throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
+  const { r, d } = await fetchJson(
+    SUPABASE_URL + "/functions/v1/sponsor-dapp-tx",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
+      body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1) }),
+    },
+    12000,
+    "Sponsor timeout 12s / 代付超时，请再试一次（已签名勿连点）"
+  );
+  const body = d as { signature?: string; error?: string };
+  if (r.ok && body.signature) return String(body.signature);
+  throw new Error(String(body.error || ("Sponsor HTTP " + r.status)));
 }
 export type HubSign = (tx: VersionedTransaction) => Promise<VersionedTransaction>;
 export type HubSend = (tx: VersionedTransaction, conn: Connection) => Promise<string>;
@@ -343,10 +367,10 @@ async function swapCoinToTillPawly(opts: { from: PublicKey; coin: PayCoin; coinA
   }
   if (!swapSig) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Swap failed"));
   let after = before;
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 6; i++) {
     after = await pawlyUiOf(opts.conn, opts.from);
     if (after > before + 0.000001) break;
-    await sleepHub(500);
+    await sleepHub(400);
   }
   const list = Number(opts.pawlyList || 0);
   const payAmt = list > 0 ? Math.min(list, after) : Math.max(0, after - before);
@@ -363,7 +387,8 @@ async function swapCoinToTillPawly(opts: { from: PublicKey; coin: PayCoin; coinA
   }
   throw hop2 instanceof Error ? hop2 : new Error(String(hop2 || "Till transfer failed"));
 }
-export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: number; signTransaction?: HubSign; sendTransaction?: HubSend; wallet?: HubWallet | null }): Promise<string> {
+export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: number; signTransaction?: HubSign; sendTransaction?: HubSend; wallet?: HubWallet | null; onPhase?: PayPhaseFn }): Promise<string> {
+  const say = (phase: PayPhase, label: string) => { try { opts.onPhase && opts.onPhase(phase, label); } catch { /* ignore */ } };
   if (!opts.from) throw new Error("Connect wallet first");
   if (!(opts.amount > 0)) throw new Error("Amount too small");
   if (opts.coin !== "PAWLY" && opts.amount <= 0) throw new Error("No live price, use PAWLY");
@@ -372,31 +397,41 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
   const conn = openHubConn();
   if (opts.coin !== "PAWLY") {
+    say("swap", "Swap " + opts.coin + " → PAWLY");
     return await swapCoinToTillPawly({ from: opts.from, coin: opts.coin, coinAmount: opts.amount, conn, sendTransaction: opts.sendTransaction, signTransaction: opts.signTransaction, wallet: opts.wallet || undefined, pawlyList: 0 });
   }
+  say("build", "Building pay...");
   const mint = new PublicKey(PAWLY_MINT);
   const rawAmt = Math.round(opts.amount * 1e6);
   if (rawAmt <= 0) throw new Error("Amount too small");
   const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
   const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
   let lastErr: unknown = null;
+  let gotSig = "";
   for (let attempt = 0; attempt < 2; attempt++) {
+    if (gotSig) break;
     try {
-      const { blockhash } = await conn.getLatestBlockhash();
+      const { blockhash } = await withTimeout(conn.getLatestBlockhash(), 8000, "RPC timeout");
       const ixs = [
         createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
         createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID),
       ];
       const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+      say("sign", "Sign in wallet");
       const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
+      say("sponsor", "Paying till...");
       const sig = await postSponsor(signed, 1);
+      gotSig = sig;
+      say("confirm", "On-chain " + sig.slice(0, 8) + "...");
       await assertOnchainSuccess(conn, sig);
       return sig;
     } catch (e) {
       if (isUserCancel(e)) throw e;
+      if (gotSig) return gotSig;
       lastErr = e;
     }
   }
+  if (gotSig) return gotSig;
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr || "Sponsor pay failed / 代付失败，不会改回用户自付 SOL"));
 }
 
