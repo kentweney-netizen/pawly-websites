@@ -1,13 +1,12 @@
 import type React from "react";
 /**
- * PAWLY Pet Hub pay — dual-sign + 12s sponsor cap. Signature = done; never re-pay after sig.
- * Fee payer always hot wallet BPFiVa5. No user-SOL fallback.
- * USDC/USDT/SOL: market swap to PAWLY (official pool route), then PAWLY to till.
+ * PAWLY Pet Hub — lib barrel. Pay lives in petHubSend; cert gate in petHubPay.
  */
 export { quoteRaydiumOut, quoteHubSwap, fetchHubPx, HUB_POOL } from "./petHubQuote";
 export type { HubPx } from "./petHubQuote";
-export { payHub, requireHubPaySuccess, quoteCoin } from "./petHubPay";
-export type { PayPhase, PayPhaseFn, HubSign, HubSend, HubWallet } from "./petHubPay";
+export { requireHubPaySuccess } from "./petHubPay";
+export { payHub, quoteCoin } from "./petHubSend";
+export type { PayPhase, PayPhaseFn, HubSign, HubSend, HubWallet } from "./petHubSend";
 export const PET_SLOT_CAP = 10;
 export const FEED_DAY_MAX = 3;
 export function sgDay() { return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" }); }
