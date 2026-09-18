@@ -254,11 +254,11 @@ export function StallLayer(props: LayerProps) {
               <NftThumb n={n} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nftSpriteName(n)}</div>
-                <div style={{ fontSize: 10, color: "#9f8" }}>{"g" + Number(n.gen || 1) + " · " + priceLabel(n)}</div>
+                <div style={{ fontSize: 10, color: "#9f8" }}>{"g" + Number(n.gen || 1) + " \u00b7 " + priceLabel(n)}</div>
               </div>
               {n.listed
                 ? <button type="button" style={tiny} onClick={() => flush(s.myStall, s.myNfts.map((x) => x.id === n.id ? { ...x, listed: false } : x))}>Unlist</button>
-                : <button type="button" style={tiny} onClick={() => { const price = Number(s.listPrice); if (!(price > 0)) { props.setNote("Set your own PAWLY price"); return; } flush(s.myStall, s.myNfts.map((x) => x.id === n.id ? { ...x, listed: true, pricePawly: price, highPrice: Math.max(Number(x.highPrice || 0), price) } : x)); }}>List</button>}
+                : <button type="button" style={tiny} onClick={() => { if (!s.myStall) { props.setNote("Open a stall first (200 PAWLY)"); return; } const price = Number(s.listPrice); if (!(price > 0)) { props.setNote("Set your own PAWLY price"); return; } flush(s.myStall, s.myNfts.map((x) => x.id === n.id ? { ...x, listed: true, pricePawly: price, highPrice: Math.max(Number(x.highPrice || 0), price) } : x)); }}>{s.myStall ? "List" : "Need stall"}</button>}
             </div>
           ))}
           <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13, margin: "10px 0 6px" }}>{s.openStall && s.openStall.wallet !== addr ? "This stall" : "Market"}</div>
@@ -267,7 +267,7 @@ export function StallLayer(props: LayerProps) {
               <NftThumb n={n} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 13 }}>{nftSpriteName(n)}</div>
-                <div style={{ fontSize: 10, color: "#9f8" }}>{n.owner.slice(0, 4) + "... · " + priceLabel(n)}</div>
+                <div style={{ fontSize: 10, color: "#9f8" }}>{n.owner.slice(0, 4) + "... \u00b7 " + priceLabel(n)}</div>
               </div>
               <button type="button" style={{ ...tiny, borderColor: "#00ff9d", color: "#00ff9d" }} disabled={props.busy} onClick={() => void buyNft(n)}>Buy</button>
             </div>
