@@ -9,7 +9,7 @@ import {
 } from "./petHubMarket";
 import type { StallRec, NftRec } from "./petHubMarket";
 import { payPeer } from "./petHubPeer";
-import { nftSheet, nftSpriteName, ensureIdleCss } from "./petHubNftArt";
+import { nftPortrait, nftSpriteName, nftIdleKind, ensureIdleCss } from "./petHubNftArt";
 
 type WalletBag = {
   publicKey?: PublicKey | null;
@@ -69,23 +69,23 @@ export function setHubTab(tab: Store["tab"]) { setStore({ tab, zoom: null }); }
 
 function NftLive({ n, size, onClick }: { n: NftRec; size: number; onClick?: (e: React.MouseEvent) => void }) {
   useEffect(() => { ensureIdleCss(); }, []);
-  const sheet = useMemo(() => nftSheet(n), [n.id, n.breedSig, n.name, n.species]);
+  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name, n.species]);
+  const idle = nftIdleKind(n);
   return (
-    <div
-      role="img"
-      aria-label={nftSpriteName(n)}
+    <img
+      alt={nftSpriteName(n)}
+      src={src}
       onClick={onClick}
       style={{
         width: size,
         height: size,
         flex: "0 0 auto",
+        objectFit: "contain",
         borderRadius: 8,
         border: "1px solid rgba(0,255,157,0.35)",
-        backgroundImage: sheet ? "url(" + sheet + ")" : "none",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: (size * 8) + "px " + size + "px",
+        background: "#081018",
         imageRendering: "pixelated",
-        animation: sheet ? "pawlyNftIdle 0.96s steps(8) infinite" : "none",
+        animation: idle === "wing" ? "pawlyNftWing 0.9s ease-in-out infinite" : "pawlyNftBob 0.9s ease-in-out infinite",
         cursor: onClick ? "zoom-in" : "default",
       }}
     />
