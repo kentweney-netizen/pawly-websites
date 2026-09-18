@@ -1,0 +1,134 @@
+import { ComputeBudgetProgram, Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
+export type PayCoin = "PAWLY" | "USDC" | "USDT" | "SOL";
+export type PayPhase = "build" | "sign" | "sponsor" | "confirm" | "swap" | "till";
+export type PayPhaseFn = (phase: PayPhase, label: string) => void;
+export type HubSign = (tx: VersionedTransaction) => Promise<VersionedTransaction>;
+export type HubSend = (tx: VersionedTransaction, conn: Connection) => Promise<string>;
+export type HubWallet = {
+  adapter?: { signTransaction?: HubSign };
+  wallet?: { adapter?: { signTransaction?: HubSign } };
+  signTransaction?: HubSign;
+};
+const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
+const SHOP_TILL = "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3VR4C7Z";
+const RPC = "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
+const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
+function openHubConn() { return new Connection(RPC, "confirmed"); }
+function isUserCancel(e: unknown) { return /reject|denied|cancel|user abort/i.test(String((e as { message?: string })?.message || e || "")); }
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = window.setTimeout(() => reject(new Error(label)), ms);
+    p.then((v) => { window.clearTimeout(t); resolve(v); }, (e) => { window.clearTimeout(t); reject(e); });
+  });
+}
+function txToB64(tx: VersionedTransaction) {
+  const raw = tx.serialize();
+  const u8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayLike<number>);
+  let s = "";
+  for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + 8192)));
+  return btoa(s);
+}
+async function resolveTokenProgramId(conn: Connection, mint: PublicKey) {
+  try {
+    const info = await conn.getAccountInfo(mint, "confirmed");
+    if (info && info.owner) return info.owner;
+  } catch { /* ignore */ }
+  return TOKEN_PROGRAM_ID;
+}
+async function findPawlySource(conn: Connection, owner: PublicKey, rawAmt: number, tokenProgramId: PublicKey, mint: PublicKey) {
+  const canon = await getAssociatedTokenAddress(mint, owner, false, tokenProgramId, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const readAmt = async (ata: PublicKey) => {
+    try { const b = await conn.getTokenAccountBalance(ata); return Number(b.value.amount || 0); } catch { return -1; }
+  };
+  const canonAmt = await readAmt(canon);
+  if (canonAmt >= rawAmt) return { source: canon, program: tokenProgramId, have: canonAmt };
+  const programs = [tokenProgramId, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID];
+  let best: { source: PublicKey; program: PublicKey; have: number } | null = canonAmt > 0 ? { source: canon, program: tokenProgramId, have: canonAmt } : null;
+  for (let p = 0; p < programs.length; p++) {
+    try {
+      const listed = await conn.getParsedTokenAccountsByOwner(owner, { mint, programId: programs[p] });
+      const rows = listed && listed.value ? listed.value : [];
+      for (let i = 0; i < rows.length; i++) {
+        const amt = Number(rows[i].account?.data?.parsed?.info?.tokenAmount?.amount || 0);
+        if (amt > (best ? best.have : -1)) best = { source: rows[i].pubkey, program: programs[p], have: amt };
+      }
+    } catch { /* ignore */ }
+  }
+  if (best && best.have >= rawAmt) return best;
+  const haveUi = ((best && best.have > 0 ? best.have : (canonAmt > 0 ? canonAmt : 0)) / 1e6);
+  throw new Error("Need " + (rawAmt / 1e6).toFixed(2) + " PAWLY, wallet has " + haveUi.toFixed(2) + " / 余额不足，钱包模拟会失败");
+}
+async function postSponsor(signed: VersionedTransaction, feePawly: number) {
+  const ctrl = new AbortController();
+  const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 12000);
+  try {
+    const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
+      body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1) }),
+      signal: ctrl.signal,
+    });
+    const d = await r.json().catch(() => ({})) as { signature?: string; error?: string };
+    if (r.ok && d.signature) return String(d.signature);
+    throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
+  } catch (e) {
+    if (String((e as { name?: string })?.name || "") === "AbortError") throw new Error("Sponsor timeout 12s / 代付超时，请再试一次（已签名勿连点）");
+    throw e;
+  } finally { window.clearTimeout(timer); }
+}
+function pickSigned(out: unknown, fallback: VersionedTransaction): VersionedTransaction {
+  if (out && typeof out === "object" && typeof (out as VersionedTransaction).serialize === "function") return out as VersionedTransaction;
+  return fallback;
+}
+async function userPartialSign(tx: VersionedTransaction, wallet?: HubWallet | null, signTransaction?: HubSign): Promise<VersionedTransaction> {
+  const tries: Array<() => Promise<VersionedTransaction>> = [];
+  const wrap = (fn: HubSign) => async () => pickSigned(await fn(tx), tx);
+  if (typeof signTransaction === "function") tries.push(wrap(signTransaction));
+  const adapter = wallet && (wallet.adapter || (wallet.wallet && wallet.wallet.adapter));
+  if (adapter && typeof adapter.signTransaction === "function") tries.push(wrap(adapter.signTransaction));
+  if (wallet && typeof wallet.signTransaction === "function") tries.push(wrap(wallet.signTransaction));
+  let last: unknown = "Wallet cannot partial-sign / 钱包无法单独签名（代付需要 signTransaction）";
+  for (let i = 0; i < tries.length; i++) {
+    try { const signed = await tries[i](); if (signed) return signed; } catch (e) { if (isUserCancel(e)) throw e; last = e; }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
+}
+export function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: number; solUsd: number }) {
+  const usd = pawlyAmt * (px.pawlyUsd > 0 ? px.pawlyUsd : 0);
+  if (coin === "PAWLY") return { amount: pawlyAmt, label: pawlyAmt.toFixed(2) + " PAWLY", usd };
+  if (coin === "SOL") { const v = px.solUsd > 0 && usd > 0 ? usd / px.solUsd : 0; return { amount: v, label: v.toFixed(6) + " SOL", usd }; }
+  return { amount: usd, label: usd.toFixed(4) + " " + coin, usd };
+}
+export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: number; signTransaction?: HubSign; sendTransaction?: HubSend; wallet?: HubWallet | null; onPhase?: PayPhaseFn; listPawly?: number }): Promise<string> {
+  const say = (phase: PayPhase, label: string) => { try { opts.onPhase && opts.onPhase(phase, label); } catch { /* ignore */ } };
+  if (!opts.from) throw new Error("Connect wallet first");
+  if (!(opts.amount > 0)) throw new Error("Amount too small");
+  if (opts.coin !== "PAWLY") throw new Error("Use PAWLY for this build / 请先用 PAWLY 付款");
+  const till = new PublicKey(SHOP_TILL);
+  const sponsor = new PublicKey(SHOP_TILL);
+  if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
+  const conn = openHubConn();
+  say("build", "Building pay...");
+  const mint = new PublicKey(PAWLY_MINT);
+  const rawAmt = Math.round(opts.amount * 1e6);
+  const tokenProgramId = await resolveTokenProgramId(conn, mint);
+  const found = await findPawlySource(conn, opts.from, rawAmt, tokenProgramId, mint);
+  const fromAta = found.source;
+  const toAta = await getAssociatedTokenAddress(mint, till, false, found.program, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const { blockhash } = await withTimeout(conn.getLatestBlockhash(), 8000, "RPC timeout");
+  const ixs = [
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 120000 }),
+    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 20000 }),
+    createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, found.program, ASSOCIATED_TOKEN_PROGRAM_ID),
+    createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], found.program),
+  ];
+  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+  say("sign", "Sign in wallet (red Simulation failed is OK — fee payer is shop)");
+  const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
+  say("sponsor", "Paying till...");
+  const sig = await postSponsor(signed, 1);
+  say("confirm", "On-chain " + sig.slice(0, 8) + "...");
+  return sig;
+}
