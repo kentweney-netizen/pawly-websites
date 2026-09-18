@@ -1,21 +1,19 @@
-/** Full-body myth portraits. JPEGs are standing creatures (limbs/tail), not blob faces. */
+/** Full-body myth portraits (standing creatures). Files live at /myth/*.jpg */
 import { MYTH_KIND, MYTH_NAME } from "./petHubMythSprites";
 import type { MythSprite } from "./petHubMythSprites";
-import foxImg from "./petHubMythFox";
-import mothImg from "./petHubMythMoth";
-import wyrmImg from "./petHubMythWyrm";
-import boarImg from "./petHubMythBoar";
-import catImg from "./petHubMythCat";
-import toadImg from "./petHubMythToad";
-import lynxImg from "./petHubMythLynx";
-import roseImg from "./petHubMythRose";
 
 export type MythKind = "sacred" | "weird";
 export type MythSpec = { name: string; species: string; kind: MythKind; seed: number; sprite: MythSprite };
 
 export const MYTH_IMG: Record<MythSprite, string> = {
-  fox: foxImg, moth: mothImg, wyrm: wyrmImg, boar: boarImg,
-  cat: catImg, toad: toadImg, lynx: lynxImg, rose: roseImg,
+  fox: "/myth/fox.jpg",
+  moth: "/myth/moth.jpg",
+  wyrm: "/myth/wyrm.jpg",
+  boar: "/myth/boar.jpg",
+  cat: "/myth/cat.jpg",
+  toad: "/myth/toad.jpg",
+  lynx: "/myth/lynx.jpg",
+  rose: "/myth/rose.jpg",
 };
 
 function hash(s: string) {
