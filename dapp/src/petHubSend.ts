@@ -95,8 +95,9 @@ async function userPartialSign(tx: VersionedTransaction, wallet?: HubWallet | nu
   }
   throw last instanceof Error ? last : new Error(String(last));
 }
-export function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: number; solUsd: number }) {
-  const usd = pawlyAmt * (px.pawlyUsd > 0 ? px.pawlyUsd : 0);
+export function quoteCoin(pawlyAmt: number, coin: PayCoin, px: { pawlyUsd: number; solUsd: number; pawlyPerUsdc?: number }) {
+  const unit = px.pawlyUsd > 0 ? px.pawlyUsd : (px.pawlyPerUsdc && px.pawlyPerUsdc > 0 ? 1 / px.pawlyPerUsdc : 0);
+  const usd = pawlyAmt * unit;
   if (coin === "PAWLY") return { amount: pawlyAmt, label: pawlyAmt.toFixed(2) + " PAWLY", usd };
   if (coin === "SOL") { const v = px.solUsd > 0 && usd > 0 ? usd / px.solUsd : 0; return { amount: v, label: v.toFixed(6) + " SOL", usd }; }
   return { amount: usd, label: usd.toFixed(4) + " " + coin, usd };
