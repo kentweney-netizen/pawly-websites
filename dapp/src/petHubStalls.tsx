@@ -116,6 +116,44 @@ function ZoomCard({ n }: { n: NftRec }) {
 const card: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 8px", marginBottom: 6, borderRadius: 10, border: "1px solid rgba(0,255,157,0.28)", background: "#0c1410", color: "#e8eef7", textAlign: "left" };
 const tiny: React.CSSProperties = { ...ghost, padding: "4px 8px", fontSize: 11, flex: "0 0 auto" };
 
+function pinOrder(stalls: StallRec[], addr: string) {
+  const seen = new Set<string>();
+  const out: StallRec[] = [];
+  for (const st of stalls) {
+    if (!st.wallet || seen.has(st.wallet)) continue;
+    if (st.wallet === addr) { seen.add(st.wallet); out.push(st); }
+  }
+  const rest = stalls.filter((st) => st.wallet && st.wallet !== addr && !seen.has(st.wallet)).sort((a, b) => a.wallet.localeCompare(b.wallet));
+  for (const st of rest) { seen.add(st.wallet); out.push(st); }
+  return out;
+}
+
+function pinBox(i: number, count: number, mine: boolean): React.CSSProperties {
+  const cols = count <= 2 ? 2 : 3;
+  const col = i % cols;
+  const row = Math.floor(i / cols);
+  const gap = cols === 2 ? 52 : 30;
+  return {
+    position: "absolute",
+    left: (6 + col * gap) + "%",
+    bottom: (8 + row * 20) + "%",
+    zIndex: mine ? 8 : 6,
+    minWidth: 84,
+    minHeight: 42,
+    padding: "9px 12px",
+    fontSize: 11,
+    fontWeight: 800,
+    lineHeight: 1.15,
+    letterSpacing: 0.2,
+    border: mine ? "2px solid #013322" : "2px solid #5a3a00",
+    borderRadius: 10,
+    background: mine ? "rgba(0,255,157,0.94)" : "rgba(255,210,80,0.94)",
+    color: "#052015",
+    boxShadow: "0 3px 10px rgba(0,0,0,0.5)",
+    touchAction: "manipulation",
+  };
+}
+
 export function StallLayer(props: LayerProps) {
   const s = useStore();
   const { addr } = props;
@@ -158,10 +196,16 @@ export function StallLayer(props: LayerProps) {
   };
 
   if (props.where === "pins") {
+    const pins = pinOrder(s.stalls, addr);
     return (
       <>
-        {s.stalls.map((st) => (
-          <button key={st.wallet} type="button" onClick={() => setStore({ openStall: st, tab: "stalls" })} style={{ position: "absolute", left: (10 + st.slot * 10) + "%", bottom: "12%", zIndex: 5, background: st.wallet === addr ? "rgba(0,255,157,0.88)" : "rgba(255,210,80,0.9)", color: "#052015", border: "none", borderRadius: 8, padding: "3px 6px", fontSize: 9, fontWeight: 800 }}>
+        {pins.map((st, i) => (
+          <button
+            key={st.wallet}
+            type="button"
+            onClick={() => setStore({ openStall: st, tab: "stalls" })}
+            style={pinBox(i, pins.length, st.wallet === addr)}
+          >
             {st.wallet === addr ? "MY STALL" : "STALL"}
           </button>
         ))}
