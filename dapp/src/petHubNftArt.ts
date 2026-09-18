@@ -1,7 +1,6 @@
-/** Original PAWLY pixel portraits + idle bob. Style matches 16-bit battle sprites; art is not third-party. */
+/** Original PAWLY 16-bit battle portraits + idle bob. Not third-party sprites. */
 import { MYTH_KIND, MYTH_NAME } from "./petHubMythSprites";
 import type { MythSprite } from "./petHubMythSprites";
-import { MYTH_IMG } from "./petHubMythImg";
 
 export type MythKind = "sacred" | "weird";
 export type MythSpec = { name: string; species: string; kind: MythKind; seed: number; sprite: MythSprite };
@@ -45,7 +44,7 @@ export function nftSpriteName(n: { id?: string; name?: string; species?: string;
 }
 
 export function mythArt(sprite: MythSprite) {
-  return MYTH_IMG[sprite] || "";
+  return "/myth/" + sprite + ".jpg";
 }
 
 export function nftPortrait(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite; kind?: string }) {
