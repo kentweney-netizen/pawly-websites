@@ -61,6 +61,23 @@ exports.handler = async (event) => {
       };
     }
     const outAmount = String(quote.data.outputAmount || quote.data.otherAmountThreshold || "");
+    const route0 = (quote.data.routePlan && quote.data.routePlan[0]) || {};
+    if (body.quoteOnly) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          outAmount,
+          outputAmount: outAmount,
+          priceImpactPct: quote.data.priceImpactPct,
+          poolId: route0.poolId || "",
+          venue: "raydium",
+          inputMint,
+          outputMint,
+          inputAmount: String(quote.data.inputAmount || amount),
+        }),
+      };
+    }
     const payloads = [quote.data, quote];
     const requestedWrap = body.wrapSol === true;
     const wraps = isSolIn ? (requestedWrap ? [true, false] : [false, true]) : [false];
