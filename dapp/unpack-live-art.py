@@ -167,4 +167,31 @@ def write_we_love_animals():
                 shutil.copyfile(mp3_src, out)
             print("bgm-mp3", out, out.stat().st_size)
 
+
+# v0.2.37 Rescue body sprites (text b64 so GitHub API can push them).
+rescue_names = (
+    "orangutan", "sunbear", "malayan-tiger", "seaturtle",
+    "hornbill", "asian-elephant", "pangolin", "gibbon",
+)
+for name in rescue_names:
+    raw = None
+    for pth in (
+        dapp / "game-art" / (name + ".png.b64"),
+        root / "pets-b64" / (name + ".png.b64"),
+        art / (name + ".png.b64"),
+    ):
+        if pth.exists() and pth.is_file():
+            raw = base64.b64decode("".join(pth.read_text().split()))
+            break
+    png = root / "pets" / (name + ".png")
+    if raw is None and png.exists():
+        raw = png.read_bytes()
+    if raw is None:
+        print("missing rescue sprite", name)
+        continue
+    for folder in (pets_root, pets_pub):
+        out = folder / (name + ".png")
+        out.write_bytes(raw)
+        print("rescue", out, len(raw))
+
 write_we_love_animals()
