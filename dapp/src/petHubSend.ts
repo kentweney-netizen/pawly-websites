@@ -32,6 +32,17 @@ function txToB64(tx: VersionedTransaction) {
   for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + 8192)));
   return btoa(s);
 }
+function b64ToBytes(b64: string) {
+  let s = String(b64 || "").trim();
+  const comma = s.indexOf(",");
+  if (s.slice(0, 5) === "data:" && comma >= 0) s = s.slice(comma + 1);
+  s = s.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
 async function resolveTokenProgramId(conn: Connection, mint: PublicKey) {
   try {
     const info = await conn.getAccountInfo(mint, "confirmed");
@@ -62,18 +73,22 @@ async function findPawlySource(conn: Connection, owner: PublicKey, rawAmt: numbe
   const haveUi = ((best && best.have > 0 ? best.have : (canonAmt > 0 ? canonAmt : 0)) / 1e6);
   throw new Error("Need " + (rawAmt / 1e6).toFixed(2) + " PAWLY, wallet has " + haveUi.toFixed(2));
 }
-async function postSponsor(signed: VersionedTransaction, feePawly: number) {
+async function postSponsor(tx: VersionedTransaction, feePawly: number, mode: "prepare" | "send") {
   const ctrl = new AbortController();
   const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 12000);
   try {
     const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-      body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1) }),
+      body: JSON.stringify({ transaction: txToB64(tx), feePawly: Math.max(1, feePawly || 1), mode }),
       signal: ctrl.signal,
     });
-    const d = await r.json().catch(() => ({})) as { signature?: string; error?: string };
-    if (r.ok && d.signature) return String(d.signature);
+    const d = await r.json().catch(() => ({})) as { signature?: string; transaction?: string; error?: string };
+    if (mode === "prepare") {
+      if (r.ok && d.transaction) return { transaction: String(d.transaction), signature: "" };
+      throw new Error(String(d.error || ("Sponsor prepare HTTP " + r.status)));
+    }
+    if (r.ok && d.signature) return { transaction: "", signature: String(d.signature) };
     throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
   } catch (e) {
     if (String((e as { name?: string })?.name || "") === "AbortError") throw new Error("Sponsor timeout 12s / 代付超时，请再试一次（已签名勿连点）");
@@ -126,7 +141,7 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
   let tx: VersionedTransaction;
   if (opts.coin !== "PAWLY") {
-    say("build", "Build " + opts.coin + " → PAWLY → till (one sign)");
+    say("build", "Build " + opts.coin + " → PAWLY → till");
     const mod = await import("./petHubSwap");
     tx = await mod.buildSwapTillTx({ from: opts.from, coin: opts.coin, coinAmount: opts.amount, listPawly: Number(opts.listPawly || 0) });
   } else {
@@ -149,10 +164,13 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
       ],
     }).compileToV0Message());
   }
+  say("sponsor", "Shop pre-sign...");
+  const prepared = await postSponsor(tx, 1, "prepare");
+  tx = VersionedTransaction.deserialize(b64ToBytes(prepared.transaction));
   say("sign", "Sign once in wallet");
   const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
   say("sponsor", "Broadcast...");
-  const sig = await postSponsor(signed, 1);
-  say("confirm", "On-chain " + sig.slice(0, 8) + "...");
-  return sig;
+  const sent = await postSponsor(signed, 1, "send");
+  say("confirm", "On-chain " + sent.signature.slice(0, 8) + "...");
+  return sent.signature;
 }
