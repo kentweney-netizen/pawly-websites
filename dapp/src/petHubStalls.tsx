@@ -9,8 +9,7 @@ import {
 } from "./petHubMarket";
 import type { StallRec, NftRec } from "./petHubMarket";
 import { payPeer } from "./petHubPeer";
-import { nftPortrait, nftSpriteName, mythArt } from "./petHubNftArt";
-import { MYTH_KIND, MYTH_NAME } from "./petHubMythSprites";
+import { nftPortrait, nftSpriteName } from "./petHubNftArt";
 
 type WalletBag = {
   publicKey?: PublicKey | null;
@@ -86,7 +85,7 @@ function ZoomCard({ n }: { n: NftRec }) {
       <img
         alt={nftSpriteName(n)}
         src={nftPortrait(n)}
-        style={{ display: "block", width: 220, height: 220, maxWidth: "72vw", margin: "0 auto", objectFit: "cover", borderRadius: 14, border: "2px solid rgba(0,255,157,0.45)", cursor: "zoom-out" }}
+        style={{ display: "block", width: 160, height: 160, maxWidth: "48vw", margin: "0 auto", objectFit: "cover", borderRadius: 12, border: "2px solid rgba(0,255,157,0.45)", cursor: "zoom-out" }}
       />
       <div style={{ textAlign: "center", color: "#00ff9d", fontWeight: 800, fontSize: 13, marginTop: 4 }}>{nftSpriteName(n)}</div>
     </button>
@@ -152,7 +151,7 @@ export function StallLayer(props: LayerProps) {
   if (props.where === "tabs") {
     return (
       <>
-        <button type="button" onClick={() => setStore({ tab: s.tab === "stalls" ? "play" : "stalls", zoom: null })} style={{ ...ghost, flex: "0 0 auto", background: s.tab === "stalls" ? "rgba(0,255,157,0.28)" : ghost.background }}>Stalls</button>
+        <button type="button" onClick={() => setStore({ tab: s.tab === "stalls" ? "play" : "stalls", zoom: null, openStall: s.tab === "stalls" ? null : s.openStall })} style={{ ...ghost, flex: "0 0 auto", background: s.tab === "stalls" ? "rgba(0,255,157,0.28)" : ghost.background }}>Stalls</button>
         <button type="button" onClick={() => setStore({ tab: s.tab === "rank" ? "play" : "rank", zoom: null })} style={{ ...ghost, flex: "0 0 auto", background: s.tab === "rank" ? "rgba(0,255,157,0.28)" : ghost.background }}>Rank</button>
       </>
     );
@@ -164,7 +163,7 @@ export function StallLayer(props: LayerProps) {
   const ranks = rankingOf(s.allNfts);
   const mineIds = new Set(s.myNfts.map((n) => n.id));
   const sales = listedOf(s.allNfts).filter((n) => n.owner !== addr && !mineIds.has(n.id));
-  const sel = s.openStall ? sales.filter((n) => n.owner === s.openStall?.wallet) : sales;
+  const sel = s.openStall && s.openStall.wallet !== addr ? sales.filter((n) => n.owner === s.openStall?.wallet) : sales;
 
   const payOpen = async () => {
     if (!props.wallet.publicKey) { props.setNote("Connect wallet in dApp first"); return; }
@@ -194,7 +193,7 @@ export function StallLayer(props: LayerProps) {
       const nextPets = props.pets.filter((p) => p.id !== a.id && p.id !== b.id);
       props.setPets(nextPets); savePets(addr, nextPets);
       flush(s.myStall, [...s.myNfts, nft]);
-      setStore({ pickA: "", pickB: "", zoom: nft });
+      setStore({ pickA: "", pickB: "", zoom: null });
       props.setLastSig(sig); props.setLastPaid(BREED_PAWLY); props.setLastTitle("NFT " + nft.name); props.setNote("");
     } catch (e) { props.setNote(String((e as { message?: string }).message || e)); } finally { props.setBusy(false); }
   };
@@ -222,17 +221,9 @@ export function StallLayer(props: LayerProps) {
         <div style={{ width: "100%", marginTop: 4 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13 }}>{s.myStall ? "My stall" : "Open stall"}</div>
-            <button type="button" style={tiny} onClick={() => setStore({ tab: "play", zoom: null })}>Close</button>
+            <button type="button" style={tiny} onClick={() => setStore({ tab: "play", zoom: null, openStall: null })}>Close</button>
           </div>
           {s.zoom ? <ZoomCard n={s.zoom} /> : null}
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 8, paddingBottom: 2 }}>
-            {MYTH_KIND.map((k) => (
-              <div key={k} style={{ flex: "0 0 auto", textAlign: "center", width: 52 }}>
-                <img alt={MYTH_NAME[k]} src={mythArt(k)} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(0,255,157,0.3)" }} />
-                <div style={{ fontSize: 8, color: "#9f8", marginTop: 2, whiteSpace: "nowrap" }}>{MYTH_NAME[k]}</div>
-              </div>
-            ))}
-          </div>
           {!s.myStall ? (
             <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
               {(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (
@@ -260,7 +251,7 @@ export function StallLayer(props: LayerProps) {
           </div>
           {s.myNfts.map((n) => (
             <div key={n.id} style={card}>
-              <NftThumb n={n} size={64} />
+              <NftThumb n={n} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nftSpriteName(n)}</div>
                 <div style={{ fontSize: 10, color: "#9f8" }}>{"g" + Number(n.gen || 1) + " · " + priceLabel(n)}</div>
@@ -270,9 +261,10 @@ export function StallLayer(props: LayerProps) {
                 : <button type="button" style={tiny} onClick={() => { const price = Number(s.listPrice); if (!(price > 0)) { props.setNote("Set your own PAWLY price"); return; } flush(s.myStall, s.myNfts.map((x) => x.id === n.id ? { ...x, listed: true, pricePawly: price, highPrice: Math.max(Number(x.highPrice || 0), price) } : x)); }}>List</button>}
             </div>
           ))}
+          <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13, margin: "10px 0 6px" }}>{s.openStall && s.openStall.wallet !== addr ? "This stall" : "Market"}</div>
           {sel.map((n) => (
             <div key={n.id} style={card}>
-              <NftThumb n={n} size={64} />
+              <NftThumb n={n} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 13 }}>{nftSpriteName(n)}</div>
                 <div style={{ fontSize: 10, color: "#9f8" }}>{n.owner.slice(0, 4) + "... · " + priceLabel(n)}</div>
@@ -280,6 +272,7 @@ export function StallLayer(props: LayerProps) {
               <button type="button" style={{ ...tiny, borderColor: "#00ff9d", color: "#00ff9d" }} disabled={props.busy} onClick={() => void buyNft(n)}>Buy</button>
             </div>
           ))}
+          {!sel.length ? <div style={{ fontSize: 12, color: "#8aa", marginBottom: 8 }}>No listed NFT to buy yet.</div> : null}
         </div>
       ) : null}
       {s.tab === "rank" ? (
