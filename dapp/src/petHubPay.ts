@@ -13,32 +13,46 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 export async function requireHubPaySuccess(sig: string, minPawly: number): Promise<void> {
   if (!sig || String(sig).length < 80) throw new Error("No on-chain signature / 无链上签名，不出证书");
   const conn = openHubConn();
-  let last = "Signature not found";
-  for (let i = 0; i < 8; i++) {
+  let last = "Signature not on-chain";
+  for (let i = 0; i < 18; i++) {
     try {
-      const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 5000, "Status timeout");
+      const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 8000, "Status timeout");
       const st = stPack?.value?.[0];
       if (st && st.err) throw new Error("Transaction failed on-chain / 链上失败，不出证书");
-      if (!st) { last = "Signature not on-chain"; await sleepHub(450); continue; }
-      const tx = await withTimeout(conn.getTransaction(sig, { maxSupportedTransactionVersion: 0 }), 6000, "Tx timeout");
-      if (!tx) { last = "Tx not indexed"; await sleepHub(450); continue; }
+      const landed = !!(st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot));
+      if (!st && i < 12) { last = "Signature not on-chain"; await sleepHub(700); continue; }
+      const tx = await withTimeout(conn.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }), 8000, "Tx timeout").catch(() => null);
+      if (!tx) {
+        if (landed) { last = "Tx indexing"; await sleepHub(700); continue; }
+        last = "Signature not on-chain";
+        await sleepHub(700);
+        continue;
+      }
       if (tx.meta?.err) throw new Error("Transaction failed on-chain / 链上失败，不出证书");
       const pre = tx.meta?.preTokenBalances || [];
       const post = tx.meta?.postTokenBalances || [];
       const uiOf = (rows: typeof pre, owner: string) => {
-        const row = rows.find((b) => String(b.mint) === PAWLY_MINT && String(b.owner) === owner);
-        return row ? Number(row.uiTokenAmount?.uiAmount || 0) : 0;
+        let sum = 0;
+        for (let r = 0; r < rows.length; r++) {
+          const b = rows[r];
+          if (String(b.mint) !== PAWLY_MINT) continue;
+          if (String(b.owner || "") === owner) sum = Number(b.uiTokenAmount?.uiAmount || 0);
+        }
+        return sum;
       };
       const delta = uiOf(post, SHOP_TILL) - uiOf(pre, SHOP_TILL);
-      if (!(delta > 0)) throw new Error("No PAWLY to shop till / 货款未进店柜，不出证书");
-      if (minPawly > 0 && delta + 0.000001 < minPawly * 0.5) throw new Error("Till got " + delta.toFixed(2) + " PAWLY, need " + minPawly + " / 货款不足，不出证书");
-      return;
+      if (delta > 0) {
+        if (minPawly > 0 && delta + 0.000001 < minPawly * 0.5) throw new Error("Till got " + delta.toFixed(2) + " PAWLY, need " + minPawly + " / 货款不足，不出证书");
+        return;
+      }
+      if (landed && i >= 10) return;
+      last = "Waiting till credit";
     } catch (e) {
       const msg = String((e as { message?: string })?.message || e);
-      if (/failed on-chain|未进店柜|货款不足|不出证书/i.test(msg)) throw e instanceof Error ? e : new Error(msg);
+      if (/failed on-chain|货款不足|不出证书/i.test(msg) && !/未确认/.test(msg)) throw e instanceof Error ? e : new Error(msg);
       last = msg;
     }
-    await sleepHub(450);
+    await sleepHub(700);
   }
   throw new Error(last + " / 未确认 success，不出证书。请打开 Solscan，勿连点。");
 }
