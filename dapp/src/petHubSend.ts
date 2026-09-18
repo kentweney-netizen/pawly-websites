@@ -25,12 +25,23 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
     p.then((v) => { window.clearTimeout(t); resolve(v); }, (e) => { window.clearTimeout(t); reject(e); });
   });
 }
+function sleepHub(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 function txToB64(tx: VersionedTransaction) {
   const raw = tx.serialize();
   const u8 = raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayLike<number>);
   let s = "";
   for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + 8192)));
   return btoa(s);
+}
+async function waitSigOk(conn: Connection, sig: string) {
+  for (let i = 0; i < 18; i++) {
+    const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 8000, "Status timeout");
+    const st = stPack && stPack.value ? stPack.value[0] : null;
+    if (st && st.err) throw new Error("Transaction failed on-chain / 链上失败");
+    if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) return;
+    await sleepHub(800);
+  }
+  throw new Error("Signature not on-chain");
 }
 async function resolveTokenProgramId(conn: Connection, mint: PublicKey) {
   try {
@@ -135,7 +146,7 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
     });
   }
   const conn = openHubConn();
-  say("build", "2/2 Pay PAWLY to till");
+  say("build", "Pay PAWLY to till");
   const mint = new PublicKey(PAWLY_MINT);
   const rawAmt = Math.round(opts.amount * 1e6);
   const tokenProgramId = await resolveTokenProgramId(conn, mint);
@@ -152,10 +163,11 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
       createTransferCheckedInstruction(found.source, mint, toAta, opts.from, rawAmt, 6, [], found.program),
     ],
   }).compileToV0Message());
-  say("sign", "2/2 Sign PAWLY to hot wallet");
+  say("sign", "Sign PAWLY to hot wallet");
   const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
   say("sponsor", "Broadcast till pay...");
   const sig = await sponsorBroadcast(signed, 1);
-  say("confirm", "On-chain " + sig.slice(0, 8) + "...");
+  say("confirm", "Confirming " + sig.slice(0, 8) + "...");
+  await waitSigOk(conn, sig);
   return sig;
 }
