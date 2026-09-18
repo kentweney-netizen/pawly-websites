@@ -14,20 +14,16 @@ export async function requireHubPaySuccess(sig: string, minPawly: number): Promi
   if (!sig || String(sig).length < 80) throw new Error("No on-chain signature / 无链上签名，不出证书");
   const conn = openHubConn();
   let last = "Signature not on-chain";
-  for (let i = 0; i < 18; i++) {
+  let sawLanded = false;
+  for (let i = 0; i < 20; i++) {
     try {
       const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 8000, "Status timeout");
       const st = stPack?.value?.[0];
       if (st && st.err) throw new Error("Transaction failed on-chain / 链上失败，不出证书");
-      const landed = !!(st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot));
-      if (!st && i < 12) { last = "Signature not on-chain"; await sleepHub(700); continue; }
+      if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) sawLanded = true;
+      if (!st) { last = "Signature not on-chain"; await sleepHub(800); continue; }
       const tx = await withTimeout(conn.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }), 8000, "Tx timeout").catch(() => null);
-      if (!tx) {
-        if (landed) { last = "Tx indexing"; await sleepHub(700); continue; }
-        last = "Signature not on-chain";
-        await sleepHub(700);
-        continue;
-      }
+      if (!tx) { last = sawLanded ? "Tx indexing" : "Signature not on-chain"; await sleepHub(800); continue; }
       if (tx.meta?.err) throw new Error("Transaction failed on-chain / 链上失败，不出证书");
       const pre = tx.meta?.preTokenBalances || [];
       const post = tx.meta?.postTokenBalances || [];
@@ -45,14 +41,13 @@ export async function requireHubPaySuccess(sig: string, minPawly: number): Promi
         if (minPawly > 0 && delta + 0.000001 < minPawly * 0.5) throw new Error("Till got " + delta.toFixed(2) + " PAWLY, need " + minPawly + " / 货款不足，不出证书");
         return;
       }
-      if (landed && i >= 10) return;
       last = "Waiting till credit";
     } catch (e) {
       const msg = String((e as { message?: string })?.message || e);
       if (/failed on-chain|货款不足|不出证书/i.test(msg) && !/未确认/.test(msg)) throw e instanceof Error ? e : new Error(msg);
       last = msg;
     }
-    await sleepHub(700);
+    await sleepHub(800);
   }
   throw new Error(last + " / 未确认 success，不出证书。请打开 Solscan，勿连点。");
 }
