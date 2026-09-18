@@ -32,17 +32,6 @@ function txToB64(tx: VersionedTransaction) {
   for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + 8192)));
   return btoa(s);
 }
-function b64ToBytes(b64: string) {
-  let s = String(b64 || "").trim();
-  const comma = s.indexOf(",");
-  if (s.slice(0, 5) === "data:" && comma >= 0) s = s.slice(comma + 1);
-  s = s.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
-  while (s.length % 4) s += "=";
-  const bin = atob(s);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
 async function resolveTokenProgramId(conn: Connection, mint: PublicKey) {
   try {
     const info = await conn.getAccountInfo(mint, "confirmed");
@@ -73,25 +62,21 @@ async function findPawlySource(conn: Connection, owner: PublicKey, rawAmt: numbe
   const haveUi = ((best && best.have > 0 ? best.have : (canonAmt > 0 ? canonAmt : 0)) / 1e6);
   throw new Error("Need " + (rawAmt / 1e6).toFixed(2) + " PAWLY, wallet has " + haveUi.toFixed(2));
 }
-async function postSponsor(tx: VersionedTransaction, feePawly: number, mode: "prepare" | "send") {
+async function sponsorBroadcast(signed: VersionedTransaction, feePawly: number) {
   const ctrl = new AbortController();
-  const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 12000);
+  const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 20000);
   try {
     const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-      body: JSON.stringify({ transaction: txToB64(tx), feePawly: Math.max(1, feePawly || 1), mode }),
+      body: JSON.stringify({ transaction: txToB64(signed), feePawly: Math.max(1, feePawly || 1), mode: "send" }),
       signal: ctrl.signal,
     });
-    const d = await r.json().catch(() => ({})) as { signature?: string; transaction?: string; error?: string };
-    if (mode === "prepare") {
-      if (r.ok && d.transaction) return { transaction: String(d.transaction), signature: "" };
-      throw new Error(String(d.error || ("Sponsor prepare HTTP " + r.status)));
-    }
-    if (r.ok && d.signature) return { transaction: "", signature: String(d.signature) };
+    const d = await r.json().catch(() => ({})) as { signature?: string; error?: string };
+    if (r.ok && d.signature) return String(d.signature);
     throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
   } catch (e) {
-    if (String((e as { name?: string })?.name || "") === "AbortError") throw new Error("Sponsor timeout 12s / 代付超时，请再试一次（已签名勿连点）");
+    if (String((e as { name?: string })?.name || "") === "AbortError") throw new Error("Sponsor timeout / 代付超时，请再试一次（已签名勿连点）");
     throw e;
   } finally { window.clearTimeout(timer); }
 }
@@ -111,13 +96,14 @@ async function userPartialSign(tx: VersionedTransaction, wallet?: HubWallet | nu
   if (typeof signTransaction === "function") {
     try { return await tryOne(signTransaction); } catch (e) {
       if (isUserCancel(e)) throw e;
-      if (isSimErr(e)) { const alt = await tryAll(); if (alt) return alt; }
+      const alt = await tryAll(); if (alt) return alt;
+      if (!isSimErr(e)) throw e;
     }
   }
   if (adapter && typeof adapter.signTransaction === "function") {
     try { return await tryOne(adapter.signTransaction); } catch (e) {
       if (isUserCancel(e)) throw e;
-      if (isSimErr(e)) { const alt = await tryAll(); if (alt) return alt; }
+      const alt = await tryAll(); if (alt) return alt;
       throw e;
     }
   }
@@ -152,25 +138,22 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
     const tokenProgramId = await resolveTokenProgramId(conn, mint);
     const found = await findPawlySource(conn, opts.from, rawAmt, tokenProgramId, mint);
     const toAta = await getAssociatedTokenAddress(mint, till, false, found.program, ASSOCIATED_TOKEN_PROGRAM_ID);
-    const { blockhash } = await withTimeout(conn.getLatestBlockhash(), 8000, "RPC timeout");
+    const { blockhash } = await withTimeout(conn.getLatestBlockhash("confirmed"), 8000, "RPC timeout");
     tx = new VersionedTransaction(new TransactionMessage({
       payerKey: sponsor,
       recentBlockhash: blockhash,
       instructions: [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 120000 }),
-        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 20000 }),
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
+        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
         createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, found.program, ASSOCIATED_TOKEN_PROGRAM_ID),
         createTransferCheckedInstruction(found.source, mint, toAta, opts.from, rawAmt, 6, [], found.program),
       ],
     }).compileToV0Message());
   }
-  say("sponsor", "Shop pre-sign...");
-  const prepared = await postSponsor(tx, 1, "prepare");
-  tx = VersionedTransaction.deserialize(b64ToBytes(prepared.transaction));
   say("sign", "Sign once in wallet");
   const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
   say("sponsor", "Broadcast...");
-  const sent = await postSponsor(signed, 1, "send");
-  say("confirm", "On-chain " + sent.signature.slice(0, 8) + "...");
-  return sent.signature;
+  const sig = await sponsorBroadcast(signed, 1);
+  say("confirm", "On-chain " + sig.slice(0, 8) + "...");
+  return sig;
 }
