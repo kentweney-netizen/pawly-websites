@@ -1,8 +1,5 @@
 /**
- * PAWLY Pet Hub v0.2.37 page — Solscan + adopt/rescue cert + wallet cloud roster.
- * Lv0 small emoji head only. Lv1+ full body stroll. No fused 3D heads.
- * Enter page loops BGM we-love-animals with no toggle.
- * USDC/USDT/SOL market-swap to PAWLY on official pool, then PAWLY to shop till.
+ * PAWLY Pet Hub v0.4.0 — v0.2.37 street + live stalls + NFT breed/market.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -16,8 +13,9 @@ import {
   COMPANIONS, RESCUES, FOODS, TITLE, SHOPS, CLIP, ghost, primary, rowBtn,
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
+import { StallLayer } from "./petHubStalls";
 
-const VER = "v0.2.37";
+const VER = "v0.4.0";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
@@ -112,6 +110,7 @@ export function PetHubPage() {
   };
   const walkers = pets.filter((p) => Number(p.level || 0) >= 1).slice(0, PET_SLOT_CAP);
   const sep = " - ";
+  const stallProps = { addr, wallet: wallet as never, pets, setPets: setPets as never, payCoin, setPayCoin, px, busy, setBusy, setNote, setLastSig, setLastPaid, setLastTitle };
   return (
     <div style={{ height: "100dvh", overflow: "hidden", background: "#070b10", color: "#e8eef7", display: "flex", flexDirection: "column", position: "relative", maxWidth: 430, margin: "0 auto" }}>
       <style>{PET_RIG_CSS}</style>
@@ -121,10 +120,11 @@ export function PetHubPage() {
       </audio>
       <div style={{ padding: "calc(env(safe-area-inset-top, 16px) + 18px) 10px 8px" }}>
         <div style={{ color: "#00ff9d", fontWeight: 800 }}>{TITLE[scene] + sep + VER}</div>
-        <div style={{ color: "#8aa", fontSize: 11 }}>{hint}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{sep}3-layer</div>
+        <div style={{ color: "#8aa", fontSize: 11 }}>{hint}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{sep}stalls</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#0a1016" }}>
         <video key={scene} src={asset(CLIP[scene])} autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        {scene === "street" ? <StallLayer where="pins" {...stallProps} /> : null}
         {scene === "street" && walkers.map((p, i) => (
           <button key={p.id} type="button" className={"pawly-stroll pawly-stroll-" + (i % 10)} onClick={() => { setFocusId(p.id); setFeedWarn(true); }}>
             <PetRig pet={{ species: p.species, level: Math.max(1, Number(p.level || 1)), emoji: p.emoji, name: p.name }} size={64} moving />
@@ -146,7 +146,9 @@ export function PetHubPage() {
         <div style={{ display: "flex", gap: 4, overflowX: "auto", marginBottom: 8 }}>
           <button type="button" onClick={() => { setScene("street"); setShopView("home"); }} style={{ ...ghost, flex: "0 0 auto", background: scene === "street" ? "rgba(0,255,157,0.28)" : ghost.background }}>Street</button>
           {SHOPS.map((s) => (<button key={s.id} type="button" onClick={() => { setScene(s.id); setShopView("home"); }} style={{ ...ghost, flex: "0 0 auto", background: scene === s.id ? "rgba(0,255,157,0.28)" : ghost.background }}>{s.label}</button>))}
+          <StallLayer where="tabs" {...stallProps} />
         </div>
+        <StallLayer where="panel" {...stallProps} />
         {scene === "shop" && shopView === "home" && (<div><button type="button" style={{ ...primary, width: "100%", marginBottom: 8 }} onClick={() => setShopView("adopt")}>Choose your pets</button><button type="button" style={{ ...primary, width: "100%" }} onClick={() => setShopView("food")}>Pets food</button></div>)}
         {scene === "shop" && shopView === "adopt" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>Back to Shop</button>{COMPANIONS.map((c) => (<button key={c.species} type="button" style={rowBtn} onClick={() => openCart({ title: "Adopt " + c.label, amount: c.pricePawly, kind: "adopt", species: c.species, emoji: c.emoji })}><span style={{ display: "flex", alignItems: "center", gap: 8 }}><PetRig pet={{ species: c.species, level: 1, emoji: c.emoji, name: c.label }} size={28} />{c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
         {scene === "shop" && shopView === "food" && (<div><button type="button" style={{ ...ghost, marginBottom: 8 }} onClick={() => setShopView("home")}>Back to Shop</button>{FOODS.map((c) => (<button key={c.id} type="button" style={rowBtn} onClick={() => openCart({ title: c.label, amount: c.pricePawly, kind: "food", emoji: c.emoji, petId: focusId || (pets[0] && pets[0].id) || undefined })}><span>{c.emoji + " " + c.label}</span><span>{c.pricePawly} PAWLY</span></button>))}</div>)}
