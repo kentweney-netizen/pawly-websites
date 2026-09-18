@@ -9,7 +9,7 @@ import {
 } from "./petHubMarket";
 import type { StallRec, NftRec } from "./petHubMarket";
 import { payPeer } from "./petHubPeer";
-import { nftPortrait } from "./petHubNftArt";
+import { nftPortrait, nftSpriteName } from "./petHubNftArt";
 
 type WalletBag = {
   publicKey?: PublicKey | null;
@@ -44,11 +44,12 @@ type Store = {
   pickB: string;
   listPrice: string;
   openStall: StallRec | null;
+  zoom: NftRec | null;
 };
 const listeners = new Set<() => void>();
 let store: Store = {
   tab: "play", stalls: [], allNfts: [], myNfts: [], myStall: null,
-  pickA: "", pickB: "", listPrice: "200", openStall: null,
+  pickA: "", pickB: "", listPrice: "200", openStall: null, zoom: null,
 };
 function setStore(patch: Partial<Store>) {
   store = { ...store, ...patch };
@@ -64,11 +65,18 @@ function useStore() {
   return store;
 }
 
-export function setHubTab(tab: Store["tab"]) { setStore({ tab }); }
+export function setHubTab(tab: Store["tab"]) { setStore({ tab, zoom: null }); }
 
 function NftThumb({ n, size }: { n: NftRec; size: number }) {
-  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name, n.kind]);
-  return <img alt={n.name} src={src} style={{ width: size, height: size, borderRadius: 8, objectFit: "cover", flex: "0 0 auto", border: "1px solid rgba(0,255,157,0.35)" }} />;
+  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name]);
+  return (
+    <img
+      alt={n.name}
+      src={src}
+      onClick={(e) => { e.stopPropagation(); setStore({ zoom: n }); }}
+      style={{ width: size, height: size, borderRadius: 8, objectFit: "cover", flex: "0 0 auto", border: "1px solid rgba(0,255,157,0.35)", cursor: "zoom-in" }}
+    />
+  );
 }
 
 const card: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 8px", marginBottom: 6, borderRadius: 10, border: "1px solid rgba(0,255,157,0.28)", background: "#0c1410", color: "#e8eef7", textAlign: "left" };
@@ -102,15 +110,16 @@ export function StallLayer(props: LayerProps) {
     return () => { live = false; window.clearInterval(id); };
   }, [addr, props.where]);
 
-  const flush = (nextStall: StallRec | null, nextNfts: NftRec[]) => {
+  const flush = (nextStall: StallRec | null, nextNfts: NftRec[], dropIds?: string[]) => {
     if (!addr) return;
     saveLocalStall(addr, nextStall);
     saveLocalNfts(addr, nextNfts);
     setStore({ myStall: nextStall, myNfts: nextNfts });
     void pushMarketRow(addr, nextStall, nextNfts);
+    const gone = new Set(dropIds || []);
     setStore({
       stalls: nextStall ? [...s.stalls.filter((x) => x.wallet !== addr), nextStall] : s.stalls.filter((x) => x.wallet !== addr),
-      allNfts: [...s.allNfts.filter((n) => n.owner !== addr), ...nextNfts],
+      allNfts: [...s.allNfts.filter((n) => n.owner !== addr && !gone.has(n.id)), ...nextNfts],
     });
   };
 
@@ -129,17 +138,18 @@ export function StallLayer(props: LayerProps) {
   if (props.where === "tabs") {
     return (
       <>
-        <button type="button" onClick={() => setStore({ tab: s.tab === "stalls" ? "play" : "stalls" })} style={{ ...ghost, flex: "0 0 auto", background: s.tab === "stalls" ? "rgba(0,255,157,0.28)" : ghost.background }}>Stalls</button>
-        <button type="button" onClick={() => setStore({ tab: s.tab === "rank" ? "play" : "rank" })} style={{ ...ghost, flex: "0 0 auto", background: s.tab === "rank" ? "rgba(0,255,157,0.28)" : ghost.background }}>Rank</button>
+        <button type="button" onClick={() => setStore({ tab: s.tab === "stalls" ? "play" : "stalls", zoom: null })} style={{ ...ghost, flex: "0 0 auto", background: s.tab === "stalls" ? "rgba(0,255,157,0.28)" : ghost.background }}>Stalls</button>
+        <button type="button" onClick={() => setStore({ tab: s.tab === "rank" ? "play" : "rank", zoom: null })} style={{ ...ghost, flex: "0 0 auto", background: s.tab === "rank" ? "rgba(0,255,157,0.28)" : ghost.background }}>Rank</button>
       </>
     );
   }
 
-  if (s.tab === "play") return null;
+  if (s.tab === "play" && !s.zoom) return null;
 
   const ready = level1Pets(props.pets);
   const ranks = rankingOf(s.allNfts);
-  const sales = listedOf(s.allNfts).filter((n) => n.owner !== addr);
+  const mineIds = new Set(s.myNfts.map((n) => n.id));
+  const sales = listedOf(s.allNfts).filter((n) => n.owner !== addr && !mineIds.has(n.id));
   const sel = s.openStall ? sales.filter((n) => n.owner === s.openStall?.wallet) : sales;
 
   const payOpen = async () => {
@@ -170,7 +180,7 @@ export function StallLayer(props: LayerProps) {
       const nextPets = props.pets.filter((p) => p.id !== a.id && p.id !== b.id);
       props.setPets(nextPets); savePets(addr, nextPets);
       flush(s.myStall, [...s.myNfts, nft]);
-      setStore({ pickA: "", pickB: "" });
+      setStore({ pickA: "", pickB: "", zoom: nft });
       props.setLastSig(sig); props.setLastPaid(BREED_PAWLY); props.setLastTitle("NFT " + nft.name); props.setNote("");
     } catch (e) { props.setNote(String((e as { message?: string }).message || e)); } finally { props.setBusy(false); }
   };
@@ -183,15 +193,20 @@ export function StallLayer(props: LayerProps) {
       const sig = await payPeer({ from: props.wallet.publicKey, to: n.owner, amount: n.pricePawly, signTransaction: props.wallet.signTransaction, wallet: props.wallet as never });
       const sold = { ...n, owner: addr, listed: false, highPrice: Math.max(Number(n.highPrice || 0), n.pricePawly) };
       void pushMarketRow(n.owner, s.stalls.find((x) => x.wallet === n.owner) || null, s.allNfts.filter((x) => x.owner === n.owner && x.id !== n.id));
-      flush(s.myStall, [...s.myNfts, sold]);
-      props.setLastSig(sig); props.setLastPaid(n.pricePawly); props.setLastTitle("Buy " + n.name); props.setNote("");
+      flush(s.myStall, [...s.myNfts, sold], [n.id]);
+      props.setLastSig(sig); props.setLastPaid(n.pricePawly); props.setLastTitle("Buy " + nftSpriteName(n)); props.setNote("");
     } catch (e) { props.setNote(String((e as { message?: string }).message || e)); } finally { props.setBusy(false); }
   };
 
   return (
-    <div style={{ width: "100%", marginTop: 4 }}>
+    <>
+      {s.zoom ? (
+        <div onClick={() => setStore({ zoom: null })} style={{ position: "fixed", inset: 0, zIndex: 20, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <img alt={nftSpriteName(s.zoom)} src={nftPortrait(s.zoom)} style={{ width: "min(92vw, 420px)", maxHeight: "78vh", objectFit: "contain", borderRadius: 16, border: "2px solid rgba(0,255,157,0.45)", cursor: "zoom-out" }} />
+        </div>
+      ) : null}
       {s.tab === "stalls" ? (
-        <div>
+        <div style={{ width: "100%", marginTop: 4 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13 }}>{s.myStall ? "My stall" : "Open stall"}</div>
             <button type="button" style={tiny} onClick={() => setStore({ tab: "play" })}>Close</button>
@@ -223,10 +238,10 @@ export function StallLayer(props: LayerProps) {
           </div>
           {s.myNfts.map((n) => (
             <div key={n.id} style={card}>
-              <NftThumb n={n} size={56} />
+              <NftThumb n={n} size={64} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.name}</div>
-                <div style={{ fontSize: 10, color: "#9f8" }}>{"g" + Number(n.gen || 1) + " " + (n.kind || "myth") + " · " + priceLabel(n)}</div>
+                <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nftSpriteName(n)}</div>
+                <div style={{ fontSize: 10, color: "#9f8" }}>{"g" + Number(n.gen || 1) + " · " + priceLabel(n)}</div>
               </div>
               {n.listed
                 ? <button type="button" style={tiny} onClick={() => flush(s.myStall, s.myNfts.map((x) => x.id === n.id ? { ...x, listed: false } : x))}>Unlist</button>
@@ -234,18 +249,19 @@ export function StallLayer(props: LayerProps) {
             </div>
           ))}
           {sel.map((n) => (
-            <button key={n.id} type="button" style={card} onClick={() => void buyNft(n)}>
-              <NftThumb n={n} size={56} />
+            <div key={n.id} style={card}>
+              <NftThumb n={n} size={64} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: 13 }}>{n.name}</div>
+                <div style={{ fontWeight: 800, fontSize: 13 }}>{nftSpriteName(n)}</div>
                 <div style={{ fontSize: 10, color: "#9f8" }}>{n.owner.slice(0, 4) + "... · " + priceLabel(n)}</div>
               </div>
-            </button>
+              <button type="button" style={{ ...tiny, borderColor: "#00ff9d", color: "#00ff9d" }} disabled={props.busy} onClick={() => void buyNft(n)}>Buy</button>
+            </div>
           ))}
         </div>
       ) : null}
       {s.tab === "rank" ? (
-        <div>
+        <div style={{ width: "100%", marginTop: 4 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800, fontSize: 13 }}>Highest user price</div>
             <button type="button" style={tiny} onClick={() => setStore({ tab: "play" })}>Close</button>
@@ -253,13 +269,13 @@ export function StallLayer(props: LayerProps) {
           {ranks.map((r, i) => (
             <div key={r.wallet} style={card}>
               <div style={{ width: 28, fontWeight: 800, color: "#00ff9d" }}>#{i + 1}</div>
-              <div style={{ flex: 1 }}>{r.name}</div>
+              <div style={{ flex: 1 }}>{r.name === "Mini-Stray" || String(r.name).indexOf("hybrid") >= 0 ? r.species : r.name}</div>
               <div style={{ color: "#c8ffe8", fontSize: 12 }}>{r.highPrice}</div>
             </div>
           ))}
           {!ranks.length ? <div style={{ fontSize: 12, color: "#8aa" }}>No priced NFT yet.</div> : null}
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

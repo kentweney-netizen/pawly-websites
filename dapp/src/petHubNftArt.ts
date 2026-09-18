@@ -23,12 +23,14 @@ export function mythicFrom(a: string, b: string, sig: string): MythSpec {
   return { name, species: kind + "-" + sprite, kind, seed, sprite };
 }
 
-export function nftPortrait(n: { id?: string; name?: string; species?: string; breedSig?: string; kind?: string }) {
-  const seed = hash(String(n.breedSig || n.id || n.name || "pawly"));
-  return MYTH_IMG[spriteOf(seed)];
+function seedOf(n: { id?: string; name?: string; species?: string; breedSig?: string }) {
+  return hash(String(n.breedSig || n.id || n.species || n.name || "pawly"));
 }
 
-export function nftSpriteName(n: { id?: string; name?: string; breedSig?: string }) {
-  const seed = hash(String(n.breedSig || n.id || n.name || "pawly"));
-  return MYTH_NAME[spriteOf(seed)];
+export function nftPortrait(n: { id?: string; name?: string; species?: string; breedSig?: string; kind?: string }) {
+  return MYTH_IMG[spriteOf(seedOf(n))];
+}
+
+export function nftSpriteName(n: { id?: string; name?: string; species?: string; breedSig?: string }) {
+  return MYTH_NAME[spriteOf(seedOf(n))];
 }
