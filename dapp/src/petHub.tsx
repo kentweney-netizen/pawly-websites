@@ -88,7 +88,7 @@ export function PetHubPage() {
     if (payCoin !== "PAWLY" && payAmt.amount <= 0) { setNote("No live price, use PAWLY"); return; }
     setBusy(true); setNote(payCoin === "PAWLY" ? "Paying PAWLY to till..." : "Swap " + payCoin + " to PAWLY, then till");
     try {
-      const sig = await payHub({ from: wallet.publicKey, coin: payCoin, amount: payAmt.amount, signTransaction: wallet.signTransaction, sendTransaction: wallet.sendTransaction, wallet: wallet as never, onProgress: setNote });
+      const sig = await payHub({ from: wallet.publicKey, coin: payCoin, amount: payAmt.amount, signTransaction: wallet.signTransaction, sendTransaction: wallet.sendTransaction, wallet: wallet as never });
       if (cart.kind === "adopt" || cart.kind === "rescue") {
         const next: PetRec[] = [...pets, { id: "pet_" + Date.now(), kind: cart.kind === "rescue" ? "rescued" : "adopted", species: cart.species || "dog", name: cart.title.replace(/^(Adopt|Rescue)\s+/i, ""), emoji: cart.emoji || "\ud83d\udc3e", hunger: 70, health: 80, streak: 0, pricePawly: cart.amount, sig, feedsTotal: 0, level: 0 }].slice(0, PET_SLOT_CAP);
         setPets(next); savePets(addr, next);
