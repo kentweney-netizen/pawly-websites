@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.4.10 — other-token swap quote + fast USDC/USDT/SOL pay.
+ * PAWLY Pet Hub v0.4.11 — certificate only after on-chain success + PAWLY to till.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,13 +9,13 @@ import { PetRig, PET_RIG_CSS } from "./petAvatar";
 import {
   PET_SLOT_CAP, FEED_DAY_MAX, sgDay, feedsTodayOf, pickFeedPet,
   loadPets, savePets, mergePetLists, pullCloudPets, loadEmail, saveEmail,
-  drawPetPhotoPng, drawCertPng, downloadDataUrl, asset, fetchHubPx, quoteCoin, quoteHubSwap, payHub, HUB_POOL,
+  drawPetPhotoPng, drawCertPng, downloadDataUrl, asset, fetchHubPx, quoteCoin, quoteHubSwap, payHub, requireHubPaySuccess, HUB_POOL,
   COMPANIONS, RESCUES, FOODS, TITLE, SHOPS, CLIP, ghost, primary, rowBtn,
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 import { StallLayer } from "./petHubStalls";
 
-const VER = "v0.4.10";
+const VER = "v0.4.11";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
@@ -97,13 +97,15 @@ export function PetHubPage() {
     const watchdog = window.setTimeout(() => {
       setBusy(false);
       setNote("Network slow / 网络慢。若钱包已签名请到 Solscan 核对，勿连点付款。");
-    }, payCoin === "PAWLY" ? 16000 : 28000);
+    }, payCoin === "PAWLY" ? 22000 : 34000);
     try {
       const sig = await payHub({
         from: wallet.publicKey, coin: payCoin, amount: payAmt.amount, listPawly: cart.amount,
         signTransaction: wallet.signTransaction, sendTransaction: wallet.sendTransaction, wallet: wallet as never,
         onPhase: (_p, label) => setNote(label),
       });
+      setNote("Checking on-chain...");
+      await requireHubPaySuccess(sig, cart.amount);
       if (cart.kind === "adopt" || cart.kind === "rescue") {
         const next: PetRec[] = [...pets, { id: "pet_" + Date.now(), kind: cart.kind === "rescue" ? "rescued" : "adopted", species: cart.species || "dog", name: cart.title.replace(/^(Adopt|Rescue)\s+/i, ""), emoji: cart.emoji || "\ud83d\udc3e", hunger: 70, health: 80, streak: 0, pricePawly: cart.amount, sig, feedsTotal: 0, level: 0 }].slice(0, PET_SLOT_CAP);
         setPets(next); savePets(addr, next);
