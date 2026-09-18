@@ -58,23 +58,39 @@ export async function payPeer(opts: {
   let have = 0;
   try { have = Number((await conn.getTokenAccountBalance(fromAta)).value.uiAmount || 0); } catch { have = 0; }
   if (have + 0.000001 < opts.amount) throw new Error("Need " + opts.amount.toFixed(2) + " PAWLY, wallet has " + have.toFixed(2));
-  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
+  const { blockhash } = await conn.getLatestBlockhash();
   const ixs = [
     createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, dest, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
     createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID),
   ];
   const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
   const signed = await signTx(tx, opts.wallet, opts.signTransaction);
-  const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-    body: JSON.stringify({ transaction: txToB64(signed), feePawly: 1 }),
-  });
+  if (opts.onProgress) opts.onProgress("Paying seller...");
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = window.setTimeout(() => { try { ctrl && ctrl.abort(); } catch { /* ignore */ } }, 12000);
+  let r: Response;
+  try {
+    r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
+      body: JSON.stringify({ transaction: txToB64(signed), feePawly: 1 }),
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+  } catch (e) {
+    window.clearTimeout(timer);
+    if (String((e as { name?: string })?.name || "") === "AbortError") throw new Error("Sponsor timeout 12s / 代付超时，勿连点");
+    throw e;
+  }
+  window.clearTimeout(timer);
   const d = (await r.json().catch(() => ({}))) as { signature?: string; error?: string };
   if (!r.ok || !d.signature) throw new Error(String(d.error || ("Sponsor HTTP " + r.status)));
   const sig = String(d.signature);
-  try { await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }); } catch { /* ignore */ }
-  const st = (await conn.getSignatureStatuses([sig], { searchTransactionHistory: true })).value?.[0];
-  if (st && st.err) throw new Error("Transaction failed on-chain");
+  if (opts.onProgress) opts.onProgress("On-chain " + sig.slice(0, 8) + "...");
+  try {
+    const st = (await conn.getSignatureStatuses([sig], { searchTransactionHistory: true })).value?.[0];
+    if (st && st.err) throw new Error("Transaction failed on-chain");
+  } catch (e) {
+    if (/failed on-chain/i.test(String((e as { message?: string })?.message || e))) throw e;
+  }
   return sig;
 }
