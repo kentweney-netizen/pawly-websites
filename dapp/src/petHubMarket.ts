@@ -1,10 +1,10 @@
 /**
  * PAWLY Pet Hub v0.3 net + v0.4 stall/NFT.
- * v0.3 = live stalls visible to any wallet in Pet Hub (PWA dApp or external wallet).
- * v0.4 = open stall 200 PAWLY to till, breed two Lv1 pets into a species NFT, user-priced P2P.
- * Team does not price listings. Ranking = highest user list/sale price.
+ * New species NFT = sacred/weird mythic, not real-world animals.
  */
 import type { PetRec, PayCoin } from "./petHubLib";
+import { mythicFrom } from "./petHubNftArt";
+import type { MythKind } from "./petHubNftArt";
 
 export const STALL_PAWLY = 200;
 export const BREED_PAWLY = 80;
@@ -20,6 +20,7 @@ export type NftRec = {
   species: string;
   name: string;
   emoji: string;
+  kind?: MythKind;
   parents: string[];
   gen: number;
   breedSig: string;
@@ -91,31 +92,20 @@ export function level1Pets(list: PetRec[]) {
   return list.filter((p) => Number(p.level || 0) >= 1);
 }
 
-export function hybridSpecies(a: string, b: string) {
-  const x = [String(a || "pet"), String(b || "pet")].map((s) => s.toLowerCase().replace(/\s+/g, "-").replace(/^hybrid-/, "")).sort();
-  return "hybrid-" + x[0].slice(0, 10) + "-" + x[1].slice(0, 10);
-}
-
-export function hybridName(a: PetRec, b: PetRec) {
-  const left = String(a.name || a.species || "A").split(" ")[0];
-  const right = String(b.name || b.species || "B").split(" ")[0];
-  return left + "-" + right;
-}
-
 export function makeNft(opts: { owner: string; a: PetRec; b: PetRec; sig: string }): NftRec {
-  const species = hybridSpecies(opts.a.species, opts.b.species);
-  const price = 0;
+  const myth = mythicFrom(opts.a.species, opts.b.species, opts.sig);
   return {
     id: "nft_" + Date.now() + "_" + Math.floor(Math.random() * 9999),
     owner: opts.owner,
-    species,
-    name: hybridName(opts.a, opts.b),
-    emoji: opts.a.emoji || opts.b.emoji || "✨",
+    species: myth.species,
+    name: myth.name,
+    emoji: myth.kind === "sacred" ? "✨" : "👾",
+    kind: myth.kind,
     parents: [opts.a.species, opts.b.species],
     gen: Math.max(1, Number((opts.a as { gen?: number }).gen || 0), Number((opts.b as { gen?: number }).gen || 0)) + 1,
     breedSig: opts.sig,
     listed: false,
-    pricePawly: price,
+    pricePawly: 0,
     highPrice: 0,
     createdAt: new Date().toISOString(),
   };
@@ -142,7 +132,13 @@ export function stallLabel(s: StallRec, mine: string) {
 
 export type MarketPayKind = "stall" | "breed" | "buy";
 export function marketPayHint(kind: MarketPayKind, coin: PayCoin) {
-  if (kind === "buy") return "P2P: PAWLY goes to the seller wallet. Team takes 0.";
-  if (coin === "PAWLY") return "PAWLY goes to shop till BPFiVa5.";
-  return coin + " swaps to PAWLY on the official pool, then PAWLY to shop till.";
+  if (kind === "buy") return "P2P to seller. Team 0.";
+  if (coin === "PAWLY") return "PAWLY to till.";
+  return coin + " -> PAWLY -> till.";
+}
+
+export function priceLabel(n: NftRec) {
+  const p = Number(n.pricePawly);
+  if (n.listed && p > 0) return p + " PAWLY";
+  return "unlisted";
 }
