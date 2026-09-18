@@ -106,7 +106,15 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
   const say = (phase: PayPhase, label: string) => { try { opts.onPhase && opts.onPhase(phase, label); } catch { /* ignore */ } };
   if (!opts.from) throw new Error("Connect wallet first");
   if (!(opts.amount > 0)) throw new Error("Amount too small");
-  if (opts.coin !== "PAWLY") throw new Error("Use PAWLY for this build / 请先用 PAWLY 付款");
+  if (opts.coin !== "PAWLY") {
+    say("swap", "Swap " + opts.coin + " → PAWLY");
+    const mod = await import("./petHubSwap");
+    return await mod.swapCoinToTill({
+      from: opts.from, coin: opts.coin, coinAmount: opts.amount,
+      signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction,
+      wallet: opts.wallet || undefined, pawlyList: Number(opts.listPawly || 0), onPhase: opts.onPhase,
+    });
+  }
   const till = new PublicKey(SHOP_TILL);
   const sponsor = new PublicKey(SHOP_TILL);
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
