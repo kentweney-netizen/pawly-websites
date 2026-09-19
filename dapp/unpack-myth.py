@@ -12,20 +12,27 @@ src = dapp / "src"
 
 SPRITES = ("fox", "moth", "wyrm", "boar", "cat", "toad", "lynx", "rose")
 
-def b64jpeg(raw: str):
+def try_decode(raw: str):
     raw = re.sub(r"\s+", "", raw or "").replace('"', "")
-    if not raw:
+    if len(raw) < 200:
         return None
+    variants = [raw, raw + "=", raw + "==", raw + "==="]
     if len(raw) % 4 == 1:
-        raw = raw[:-1]
-    raw += "=" * ((4 - len(raw) % 4) % 4)
-    try:
-        data = base64.b64decode(raw)
-    except Exception:
-        return None
-    if len(data) < 800 or data[:2] != b"\xff\xd8":
-        return None
-    return data
+        variants.append(raw[:-1])
+    best = None
+    best_score = (-1, -1)
+    for item in variants:
+        pad = item + ("=" * ((4 - len(item) % 4) % 4))
+        try:
+            data = base64.b64decode(pad)
+        except Exception:
+            continue
+        if len(data) < 800 or data[:2] != b"\xff\xd8":
+            continue
+        sc = (1 if data.endswith(b"\xff\xd9") else 0, len(data))
+        if sc > best_score:
+            best, best_score = data, sc
+    return best
 
 def read_text(path: Path) -> str:
     return path.read_text(errors="ignore") if path.exists() else ""
@@ -44,20 +51,20 @@ def from_split(sprite: str):
     blob = ""
     for suffix in ("1.b64", "2.b64", "3.b64", "A.b64", "B.b64", ".jpg.b64"):
         blob += read_text(art / ("myth-" + sprite + suffix))
-    return b64jpeg(blob)
+    return try_decode(blob)
 
 def from_ts(sprite: str):
     text = read_text(src / ("petHubMyth" + sprite[:1].upper() + sprite[1:] + ".ts"))
     found = re.findall(r"/9j/[A-Za-z0-9+/=]+", text)
-    data = b64jpeg("".join(found)) if found else None
+    data = try_decode("".join(found)) if found else None
     m = re.search(r"data:image/jpeg;base64,([A-Za-z0-9+/=\s]+)", text)
-    return better(data, b64jpeg(m.group(1)) if m else None)
+    return better(data, try_decode(m.group(1)) if m else None)
 
 def from_toad_parts():
     blob = ""
     for name in ("petHubMythToadA.ts", "petHubMythToadB.ts", "petHubMythToadC.ts"):
         blob += "".join(re.findall(r"\"([A-Za-z0-9+/=]+)\"", read_text(src / name)))
-    return b64jpeg(blob)
+    return try_decode(blob)
 
 for sprite in SPRITES:
     data = from_split(sprite)
