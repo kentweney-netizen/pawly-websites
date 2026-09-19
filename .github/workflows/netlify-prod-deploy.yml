@@ -1,0 +1,29 @@
+name: netlify-prod-deploy
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/netlify-prod-deploy.yml"
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Trigger Netlify production build
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "missing NETLIFY_AUTH_TOKEN"
+            exit 1
+          fi
+          SITE=${NETLIFY_SITE_ID:-3a6a03f5-dcb0-4b38-8b97-2fd7c79033ec}
+          echo "triggering build for $SITE"
+          curl -fsS -X POST "https://api.netlify.com/api/v1/sites/${SITE}/builds" \
+            -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"clear_cache":true}'
