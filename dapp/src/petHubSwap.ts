@@ -1,4 +1,4 @@
-import { AddressLookupTableAccount, Connection, PublicKey, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { AddressLookupTableAccount, Connection, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import type { HubSign, HubSend, HubWallet, PayCoin, PayPhaseFn } from "./petHubSend";
 
@@ -108,6 +108,24 @@ function rewriteAtaPayer(ixs: { programId: PublicKey; keys: { pubkey: PublicKey;
     if (ixs[i].keys[0].pubkey.equals(user)) { ixs[i].keys[0].pubkey = sponsor; ixs[i].keys[0].isSigner = false; }
   }
 }
+function u32le(data: Uint8Array) {
+  if (!data || data.length < 4) return -1;
+  return data[0] + data[1] * 256 + data[2] * 65536 + data[3] * 16777216;
+}
+function rewriteWrapSourceAndClose(ixs: { programId: PublicKey; data: Uint8Array; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user: PublicKey, sponsor: PublicKey, wsolAta: PublicKey) {
+  const sys = SystemProgram.programId;
+  for (let i = 0; i < ixs.length; i++) {
+    const ix = ixs[i];
+    if (ix.programId.equals(sys) && (u32le(ix.data) === 2 || u32le(ix.data) === 0) && ix.keys[0] && ix.keys[1]) {
+      const fromSponsor = ix.keys[0].pubkey.equals(sponsor);
+      const toWrap = ix.keys[1].pubkey.equals(wsolAta);
+      if (fromSponsor && toWrap) { ix.keys[0].pubkey = user; ix.keys[0].isSigner = true; }
+    }
+    if (ix.programId.equals(TOKEN_PROGRAM_ID) && ix.data && ix.data.length >= 1 && ix.data[0] === 9 && ix.keys[1]) {
+      if (ix.keys[1].pubkey.equals(user)) ix.keys[1].pubkey = sponsor;
+    }
+  }
+}
 async function jupSwapTx(opts: { inputMint: string; amount: string; user: string; slippageBps: number }) {
   const q = "?inputMint=" + opts.inputMint + "&outputMint=" + PAWLY_MINT + "&amount=" + opts.amount + "&slippageBps=" + opts.slippageBps + "&swapMode=ExactIn";
   let quote: Record<string, unknown> | null = null;
@@ -143,7 +161,7 @@ async function raySwapTx(opts: { inputMint: string; amount: string; user: string
   }
   throw new Error(last);
 }
-async function sponsorize(rawB64: string, user: PublicKey, sponsor: PublicKey) {
+async function sponsorize(rawB64: string, user: PublicKey, sponsor: PublicKey, wrapLamports = 0) {
   const c = conn();
   const rawTx = VersionedTransaction.deserialize(b64ToBytes(rawB64));
   const lookups = ((rawTx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
@@ -158,7 +176,15 @@ async function sponsorize(rawB64: string, user: PublicKey, sponsor: PublicKey) {
     } catch { /* ignore */ }
   }
   const ixs = TransactionMessage.decompile(rawTx.message, { addressLookupTableAccounts: alts }).instructions;
+  const wsolAta = await getAssociatedTokenAddress(new PublicKey(WSOL_MINT), user, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
   rewriteAtaPayer(ixs, user, sponsor);
+  rewriteWrapSourceAndClose(ixs as { programId: PublicKey; data: Uint8Array; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user, sponsor, wsolAta);
+  if (wrapLamports > 0) {
+    let at = 0;
+    const ataProg = new PublicKey(ATA_PROG);
+    for (let i = 0; i < ixs.length; i++) { if (ixs[i].programId.equals(ataProg)) at = i + 1; }
+    ixs.splice(at, 0, SystemProgram.transfer({ fromPubkey: user, toPubkey: wsolAta, lamports: wrapLamports }));
+  }
   const { blockhash } = await c.getLatestBlockhash("confirmed");
   return new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts));
 }
@@ -198,7 +224,7 @@ export async function swapCoinToPawly(opts: {
   for (let i = 0; i < tries.length; i++) {
     try {
       say("1/2 Sign " + opts.coin + " → PAWLY");
-      const vtx = await sponsorize(await tries[i](), opts.from, sponsor);
+      const vtx = await sponsorize(await tries[i](), opts.from, sponsor, isSol ? rawIn : 0);
       swapSig = await broadcast(await userSign(vtx, opts.wallet, opts.signTransaction));
       last = "";
       break;
