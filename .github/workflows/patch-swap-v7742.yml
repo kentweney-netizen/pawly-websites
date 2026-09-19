@@ -1,0 +1,29 @@
+name: patch-swap-v7742
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/patch-swap-v7742.yml"
+      - "dapp/patch-swap-v7742.py"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch App.tsx
+        run: python3 dapp/patch-swap-v7742.py
+      - name: Commit and push
+        run: |
+          git config user.name "kentweney-netizen"
+          git config user.email "kentweney@gmail.com"
+          git add dapp/src/App.tsx
+          if git diff --cached --quiet; then
+            echo "App.tsx unchanged"
+            exit 0
+          fi
+          git commit -m "fix(swap): v7.7.42 one-sign SOL, no separate pre-wrap"
+          git push origin HEAD:main
