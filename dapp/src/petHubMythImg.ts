@@ -1,6 +1,6 @@
 /** Live 16-bit portraits. Files unpacked to dapp/public/myth and served via /dapp/myth/*.jpg */
 const BASE = "/dapp/myth/";
-const V = "?v=3";
+const V = "?v=4";
 export const MYTH_IMG = {
   fox: BASE + "fox.jpg" + V,
   moth: BASE + "moth.jpg" + V,
