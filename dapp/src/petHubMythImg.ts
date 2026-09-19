@@ -1,20 +1,12 @@
-import fox from "./petHubMythFox";
-import moth from "./petHubMythMoth";
-import wyrm from "./petHubMythWyrm";
-import boar from "./petHubMythBoar";
-import cat from "./petHubMythCat";
-import toad from "./petHubMythToad";
-import lynx from "./petHubMythLynx";
-import rose from "./petHubMythRose";
-
-/** Full-body 16-bit portraits (myth-cards-v044). Species chosen by breedSig, not a gallery strip. */
+/** Live 16-bit portraits. Files unpacked to dapp/public/myth and served via /dapp/myth/*.jpg */
+const BASE = "/dapp/myth/";
 export const MYTH_IMG = {
-  fox,
-  moth,
-  wyrm,
-  boar,
-  cat,
-  toad,
-  lynx,
-  rose,
+  fox: BASE + "fox.jpg",
+  moth: BASE + "moth.jpg",
+  wyrm: BASE + "wyrm.jpg",
+  boar: BASE + "boar.jpg",
+  cat: BASE + "cat.jpg",
+  toad: BASE + "toad.jpg",
+  lynx: BASE + "lynx.jpg",
+  rose: BASE + "rose.jpg",
 } as const;
