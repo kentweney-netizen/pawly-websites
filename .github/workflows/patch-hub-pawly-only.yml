@@ -1,0 +1,29 @@
+name: patch-hub-pawly-only
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/patch-hub-pawly-only.yml"
+      - "dapp/patch-hub-pawly-only.py"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch Pet Hub PAWLY-only checkout
+        run: python3 dapp/patch-hub-pawly-only.py
+      - name: Commit and push
+        run: |
+          git config user.name "kentweney-netizen"
+          git config user.email "kentweney@gmail.com"
+          git add dapp/src/petHub.tsx dapp/src/petHubStalls.tsx dapp/src/petHubSend.ts
+          if git diff --cached --quiet; then
+            echo unchanged
+            exit 0
+          fi
+          git commit -m "fix(pet): Pet Hub checkout PAWLY only v0.4.13"
+          git push origin HEAD:main
