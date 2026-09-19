@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * PAWLY DApp — 09.09.2026 v7.7.41 pre-wrap SOL sponsored + SW-safe fetch. From v7.7.40.
+ * PAWLY DApp — 19.09.2026 v7.7.42 one-sign SOL swap (no separate pre-wrap). Flexi Jupiter↔Raydium.
  * Phantom / Solflare / Trust / Coinbase / Bitget / Jupiter / MWA:
  *  1) local simulateTransaction(sigVerify:false)
  *  2) prefer adapter.signAndSendTransaction
@@ -1879,16 +1879,6 @@ async function executeOnVenue(venueId, ctx) {
   if (venueId === "raydium") {
     const raw = quote && quote.routeId === "raydium" ? quote.raw : null;
     const pack = raw || (await raydiumQuoteOnce(fromToken, toToken, uiAmount, 150)).raw;
-    if (fromToken === "SOL" && sponsorLive()) {
-      const lamports = Number((pack && (pack.inputAmount || pack.inAmount)) || toRawAmount(uiAmount, "SOL"));
-      await ensureUserWsolSponsored({
-        publicKey,
-        wallet,
-        signTransaction,
-        lamports: lamports,
-      });
-      if (pack) pack._prewrappedSol = true;
-    }
     return await executeRaydiumSwap({
       publicKey,
       sendTransaction,
