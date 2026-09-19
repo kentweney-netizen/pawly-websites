@@ -1,5 +1,5 @@
 import { ComputeBudgetProgram, Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
 export type PayCoin = "PAWLY" | "USDC" | "USDT" | "SOL";
 export type PayPhase = "build" | "sign" | "sponsor" | "confirm" | "swap" | "till";
 export type PayPhaseFn = (phase: PayPhase, label: string) => void;
@@ -34,48 +34,17 @@ function txToB64(tx: VersionedTransaction) {
   return btoa(s);
 }
 async function waitSigOk(conn: Connection, sig: string) {
-  for (let i = 0; i < 18; i++) {
-    const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 8000, "Status timeout");
+  for (let i = 0; i < 8; i++) {
+    const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 4000, "Status timeout");
     const st = stPack && stPack.value ? stPack.value[0] : null;
     if (st && st.err) throw new Error("Transaction failed on-chain / 链上失败");
     if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) return;
-    await sleepHub(800);
+    await sleepHub(350);
   }
-  throw new Error("Signature not on-chain");
-}
-async function resolveTokenProgramId(conn: Connection, mint: PublicKey) {
-  try {
-    const info = await conn.getAccountInfo(mint, "confirmed");
-    if (info && info.owner) return info.owner;
-  } catch { /* ignore */ }
-  return TOKEN_PROGRAM_ID;
-}
-async function findPawlySource(conn: Connection, owner: PublicKey, rawAmt: number, tokenProgramId: PublicKey, mint: PublicKey) {
-  const canon = await getAssociatedTokenAddress(mint, owner, false, tokenProgramId, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const readAmt = async (ata: PublicKey) => {
-    try { const b = await conn.getTokenAccountBalance(ata); return Number(b.value.amount || 0); } catch { return -1; }
-  };
-  const canonAmt = await readAmt(canon);
-  if (canonAmt >= rawAmt) return { source: canon, program: tokenProgramId, have: canonAmt };
-  const programs = [tokenProgramId, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID];
-  let best: { source: PublicKey; program: PublicKey; have: number } | null = canonAmt > 0 ? { source: canon, program: tokenProgramId, have: canonAmt } : null;
-  for (let p = 0; p < programs.length; p++) {
-    try {
-      const listed = await conn.getParsedTokenAccountsByOwner(owner, { mint, programId: programs[p] });
-      const rows = listed && listed.value ? listed.value : [];
-      for (let i = 0; i < rows.length; i++) {
-        const amt = Number(rows[i].account?.data?.parsed?.info?.tokenAmount?.amount || 0);
-        if (amt > (best ? best.have : -1)) best = { source: rows[i].pubkey, program: programs[p], have: amt };
-      }
-    } catch { /* ignore */ }
-  }
-  if (best && best.have >= rawAmt) return best;
-  const haveUi = ((best && best.have > 0 ? best.have : (canonAmt > 0 ? canonAmt : 0)) / 1e6);
-  throw new Error("Need " + (rawAmt / 1e6).toFixed(2) + " PAWLY, wallet has " + haveUi.toFixed(2));
 }
 async function sponsorBroadcast(signed: VersionedTransaction, feePawly: number) {
   const ctrl = new AbortController();
-  const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 20000);
+  const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 16000);
   try {
     const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
       method: "POST",
@@ -146,28 +115,26 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
     });
   }
   const conn = openHubConn();
-  say("build", "Pay PAWLY to till");
+  say("sign", "2/2 Sign PAWLY to till");
   const mint = new PublicKey(PAWLY_MINT);
   const rawAmt = Math.round(opts.amount * 1e6);
-  const tokenProgramId = await resolveTokenProgramId(conn, mint);
-  const found = await findPawlySource(conn, opts.from, rawAmt, tokenProgramId, mint);
-  const toAta = await getAssociatedTokenAddress(mint, till, false, found.program, ASSOCIATED_TOKEN_PROGRAM_ID);
-  const { blockhash } = await withTimeout(conn.getLatestBlockhash("confirmed"), 8000, "RPC timeout");
+  const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const toAta = await getAssociatedTokenAddress(mint, till, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const { blockhash } = await withTimeout(conn.getLatestBlockhash("confirmed"), 5000, "RPC timeout");
   const tx = new VersionedTransaction(new TransactionMessage({
     payerKey: sponsor,
     recentBlockhash: blockhash,
     instructions: [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
-      createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, found.program, ASSOCIATED_TOKEN_PROGRAM_ID),
-      createTransferCheckedInstruction(found.source, mint, toAta, opts.from, rawAmt, 6, [], found.program),
+      createAssociatedTokenAccountIdempotentInstruction(sponsor, toAta, till, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
+      createTransferCheckedInstruction(fromAta, mint, toAta, opts.from, rawAmt, 6, [], TOKEN_PROGRAM_ID),
     ],
   }).compileToV0Message());
-  say("sign", "Sign PAWLY to hot wallet");
   const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
-  say("sponsor", "Broadcast till pay...");
+  say("sponsor", "Broadcast till...");
   const sig = await sponsorBroadcast(signed, 1);
-  say("confirm", "Confirming " + sig.slice(0, 8) + "...");
+  say("confirm", sig.slice(0, 8) + "...");
   await waitSigOk(conn, sig);
   return sig;
 }
