@@ -49,17 +49,19 @@ const MYTH_FALLBACK: Record<string, string> = {
 };
 
 export function mythKey(species: string): string | null {
-  const raw = String(species || "").trim().toLowerCase();
+  const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
+  const name = String(species || "").trim();
   for (const k of MYTH_KIND) {
-    if (raw === k || raw.endsWith("-" + k) || raw.indexOf(k) >= 0) return k;
-    if (raw === String(MYTH_NAME[k]).toLowerCase()) return k;
+    if (raw === k) return k;
+    if (raw === "sacred-" + k || raw === "weird-" + k || raw === "myth-" + k) return k;
+    if (name === MYTH_NAME[k] || raw === String(MYTH_NAME[k]).toLowerCase()) return k;
   }
   return null;
 }
 
 export function spriteKey(species: string): string | null {
   const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
-  const myth = mythKey(raw);
+  const myth = mythKey(raw) || mythKey(String(species || ""));
   if (myth) return myth;
   return SPRITE[raw] || null;
 }
@@ -71,7 +73,7 @@ export function spriteFor(species: string): string | null {
 
 export function spriteCandidates(species: string): string[] {
   const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
-  const myth = mythKey(raw);
+  const myth = mythKey(raw) || mythKey(String(species || ""));
   const out: string[] = [];
   const add = (p: string) => { if (p && out.indexOf(p) < 0) out.push(p); };
   if (myth) {
@@ -94,5 +96,5 @@ export function spriteCandidates(species: string): string[] {
 }
 
 export function isMythWalk(species: string) {
-  return !!mythKey(species);
+  return !!(mythKey(species) || mythKey(String(species || "").toLowerCase()));
 }
