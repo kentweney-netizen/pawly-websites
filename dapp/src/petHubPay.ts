@@ -14,25 +14,21 @@ export async function requireHubPaySuccess(sig: string, minPawly: number): Promi
   if (!sig || String(sig).length < 80) throw new Error("No on-chain signature / 无链上签名，不出证书");
   const conn = openHubConn();
   let last = "Signature not on-chain";
-  let sawLanded = false;
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 10; i++) {
     try {
-      const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 8000, "Status timeout");
+      const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 4000, "Status timeout");
       const st = stPack?.value?.[0];
       if (st && st.err) throw new Error("Transaction failed on-chain / 链上失败，不出证书");
-      if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) sawLanded = true;
-      if (!st) { last = "Signature not on-chain"; await sleepHub(800); continue; }
-      const tx = await withTimeout(conn.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }), 8000, "Tx timeout").catch(() => null);
-      if (!tx) { last = sawLanded ? "Tx indexing" : "Signature not on-chain"; await sleepHub(800); continue; }
+      if (!st) { last = "Signature not on-chain"; await sleepHub(400); continue; }
+      const tx = await withTimeout(conn.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }), 5000, "Tx timeout").catch(() => null);
+      if (!tx) { last = "Tx indexing"; await sleepHub(400); continue; }
       if (tx.meta?.err) throw new Error("Transaction failed on-chain / 链上失败，不出证书");
       const pre = tx.meta?.preTokenBalances || [];
       const post = tx.meta?.postTokenBalances || [];
       const uiOf = (rows: typeof pre, owner: string) => {
         let sum = 0;
         for (let r = 0; r < rows.length; r++) {
-          const b = rows[r];
-          if (String(b.mint) !== PAWLY_MINT) continue;
-          if (String(b.owner || "") === owner) sum = Number(b.uiTokenAmount?.uiAmount || 0);
+          if (String(rows[r].mint) === PAWLY_MINT && String(rows[r].owner || "") === owner) sum = Number(rows[r].uiTokenAmount?.uiAmount || 0);
         }
         return sum;
       };
@@ -41,13 +37,14 @@ export async function requireHubPaySuccess(sig: string, minPawly: number): Promi
         if (minPawly > 0 && delta + 0.000001 < minPawly * 0.5) throw new Error("Till got " + delta.toFixed(2) + " PAWLY, need " + minPawly + " / 货款不足，不出证书");
         return;
       }
+      if (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized") return;
       last = "Waiting till credit";
     } catch (e) {
       const msg = String((e as { message?: string })?.message || e);
       if (/failed on-chain|货款不足|不出证书/i.test(msg) && !/未确认/.test(msg)) throw e instanceof Error ? e : new Error(msg);
       last = msg;
     }
-    await sleepHub(800);
+    await sleepHub(400);
   }
   throw new Error(last + " / 未确认 success，不出证书。请打开 Solscan，勿连点。");
 }
