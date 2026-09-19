@@ -1,5 +1,5 @@
 [build]
-  command = "python3 dapp/unpack-live-art.py && cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
+  command = "python3 dapp/unpack-live-art.py && python3 dapp/unpack-myth.py && cd dapp && npm install --legacy-peer-deps && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
   publish = "."
 
 [build.environment]
@@ -32,6 +32,12 @@
 [[redirects]]
   from = "/dapp/game/*"
   to = "/dapp/dist/game/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dapp/myth/*"
+  to = "/dapp/dist/myth/:splat"
   status = 200
   force = true
 
