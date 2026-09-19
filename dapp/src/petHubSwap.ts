@@ -94,26 +94,21 @@ async function waitSwapOk(c: Connection, sig: string, owner: PublicKey, before: 
     if (st && st.err) throw new Error("Swap failed on-chain / 兑换失败");
     const after = await pawlyUi(c, owner);
     if (after > before + 0.000001) return after - before;
-    if (st && st.confirmationStatus && st.confirmationStatus !== "processed") {
-      const tx = await c.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);
-      if (tx && tx.meta && tx.meta.err) throw new Error("Swap failed on-chain / 兑换失败");
-    }
     await sleep(800);
   }
   const have = await pawlyUi(c, owner);
   if (have > before + 0.000001) return have - before;
   throw new Error("Swap not confirmed / " + sig.slice(0, 8));
 }
-function rewriteAtaPayer(ixs: { programId: PublicKey; keys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[] }[], user: PublicKey, sponsor: PublicKey) {
+function rewriteAtaPayer(ixs: { programId: PublicKey; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user: PublicKey, sponsor: PublicKey) {
   const ata = new PublicKey(ATA_PROG);
   for (let i = 0; i < ixs.length; i++) {
-    const ix = ixs[i];
-    if (!ix.programId.equals(ata) || !ix.keys[0]) continue;
-    if (ix.keys[0].pubkey.equals(user)) { ix.keys[0].pubkey = sponsor; ix.keys[0].isSigner = false; }
+    if (!ixs[i].programId.equals(ata) || !ixs[i].keys[0]) continue;
+    if (ixs[i].keys[0].pubkey.equals(user)) { ixs[i].keys[0].pubkey = sponsor; ixs[i].keys[0].isSigner = false; }
   }
 }
 async function jupSwapTx(opts: { inputMint: string; amount: string; user: string; slippageBps: number }) {
-  const q = "?inputMint=" + opts.inputMint + "&outputMint=" + PAWLY_MINT + "&amount=" + opts.amount + "&slippageBps=" + opts.slippageBps + "&swapMode=ExactIn&restrictIntermediateTokens=true";
+  const q = "?inputMint=" + opts.inputMint + "&outputMint=" + PAWLY_MINT + "&amount=" + opts.amount + "&slippageBps=" + opts.slippageBps + "&swapMode=ExactIn";
   let quote: Record<string, unknown> | null = null;
   for (let i = 0; i < JUP_Q.length; i++) {
     try {
@@ -193,19 +188,17 @@ export async function swapCoinToPawly(opts: {
   const before = await pawlyUi(c, opts.from);
   let last = "swap failed";
   let swapSig = "";
-  const venues: Array<() => Promise<string>> = [
+  const tries: Array<() => Promise<string>> = [
     () => jupSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), slippageBps: 400 }),
     () => raySwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: 400, wrapSol: isSol }),
     () => jupSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), slippageBps: 800 }),
     () => raySwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: 800, wrapSol: isSol }),
   ];
-  for (let i = 0; i < venues.length; i++) {
+  for (let i = 0; i < tries.length; i++) {
     try {
       say("1/2 Sign " + opts.coin + " → PAWLY");
-      const b64 = await venues[i]();
-      const vtx = await sponsorize(b64, opts.from, sponsor);
-      const signed = await userSign(vtx, opts.wallet, opts.signTransaction);
-      swapSig = await broadcast(signed);
+      const vtx = await sponsorize(await tries[i](), opts.from, sponsor);
+      swapSig = await broadcast(await userSign(vtx, opts.wallet, opts.signTransaction));
       last = "";
       break;
     } catch (e) {
