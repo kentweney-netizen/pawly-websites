@@ -89,7 +89,7 @@ export function openStallRec(w: string, sig: string): StallRec {
 }
 
 export function level1Pets(list: PetRec[]) {
-  return list.filter((p) => Number(p.level || 0) >= 1);
+  return list.filter((p) => Number(p.level || 0) >= 1 && p.kind !== "myth");
 }
 
 export function makeNft(opts: { owner: string; a: PetRec; b: PetRec; sig: string }): NftRec {
@@ -99,7 +99,7 @@ export function makeNft(opts: { owner: string; a: PetRec; b: PetRec; sig: string
     owner: opts.owner,
     species: myth.species,
     name: myth.name,
-    emoji: myth.kind === "sacred" ? "✨" : "👾",
+    emoji: myth.kind === "sacred" ? "\u2728" : "\ud83d\udc7e",
     kind: myth.kind,
     parents: [opts.a.species, opts.b.species],
     gen: Math.max(1, Number((opts.a as { gen?: number }).gen || 0), Number((opts.b as { gen?: number }).gen || 0)) + 1,
@@ -109,6 +109,43 @@ export function makeNft(opts: { owner: string; a: PetRec; b: PetRec; sig: string
     highPrice: 0,
     createdAt: new Date().toISOString(),
   };
+}
+
+export function nftAsPet(n: NftRec): PetRec {
+  return {
+    id: n.id,
+    kind: "myth",
+    species: n.species,
+    name: n.name,
+    emoji: n.emoji || "\u2728",
+    hunger: 80,
+    health: 90,
+    streak: 0,
+    feedsTotal: 10,
+    level: 1,
+    sig: n.breedSig,
+  };
+}
+
+export function liveRoster(pets: PetRec[], nfts: NftRec[], spent: string[]): PetRec[] {
+  const gone = new Set(spent);
+  const need = new Map<string, number>();
+  for (const n of nfts) {
+    for (const sp of n.parents || []) need.set(sp, (need.get(sp) || 0) + 1);
+  }
+  const keep: PetRec[] = [];
+  for (const p of pets) {
+    if (!p || gone.has(p.id) || p.kind === "myth") continue;
+    const left = need.get(p.species) || 0;
+    if (left > 0) { need.set(p.species, left - 1); continue; }
+    keep.push(p);
+  }
+  const ids = new Set(keep.map((p) => p.id));
+  for (const n of nfts) {
+    const pet = nftAsPet(n);
+    if (!ids.has(pet.id)) { keep.push(pet); ids.add(pet.id); }
+  }
+  return keep.slice(0, 10);
 }
 
 export function rankingOf(nfts: NftRec[]): RankRow[] {
