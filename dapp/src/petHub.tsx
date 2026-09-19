@@ -1,5 +1,5 @@
 /**
- * PAWLY Pet Hub v0.4.12 — checkout uses dApp Payment/Transfer sign path.
+ * PAWLY Pet Hub v0.4.13 — shop till PAWLY only. Swap other coins in dApp Swap.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,13 +9,13 @@ import { PetRig, PET_RIG_CSS } from "./petAvatar";
 import {
   PET_SLOT_CAP, FEED_DAY_MAX, sgDay, feedsTodayOf, pickFeedPet,
   loadPets, savePets, mergePetLists, pullCloudPets, loadEmail, saveEmail,
-  drawPetPhotoPng, drawCertPng, downloadDataUrl, asset, fetchHubPx, quoteCoin, quoteHubSwap, payHub, requireHubPaySuccess, HUB_POOL,
+  drawPetPhotoPng, drawCertPng, downloadDataUrl, asset, fetchHubPx, payHub, requireHubPaySuccess, HUB_POOL,
   COMPANIONS, RESCUES, FOODS, TITLE, SHOPS, CLIP, ghost, primary, rowBtn,
 } from "./petHubLib";
 import type { SceneId, PetRec, CartItem, CertJob, PayCoin } from "./petHubLib";
 import { StallLayer } from "./petHubStalls";
 
-const VER = "v0.4.12";
+const VER = "v0.4.13";
 const BGM_MP3 = asset("we-love-animals.mp3");
 const BGM_WAV = asset("we-love-animals.wav");
 
@@ -32,7 +32,6 @@ export function PetHubPage() {
   const [cart, setCart] = useState<CartItem | null>(null);
   const [payCoin, setPayCoin] = useState<PayCoin>("PAWLY");
   const [px, setPx] = useState({ pawlyUsd: 0, solUsd: 0, pawlyPerUsdc: 0, src: "" });
-  const [swapQ, setSwapQ] = useState<{ outPawly: number; impact: number; poolId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [lastSig, setLastSig] = useState("");
@@ -42,14 +41,6 @@ export function PetHubPage() {
   const [email, setEmail] = useState(() => loadEmail());
   const hint = useMemo(() => (addr ? addr.slice(0, 4) + "..." + addr.slice(-4) : "connect wallet"), [addr]);
   useEffect(() => { void fetchHubPx().then(setPx); const id = window.setInterval(() => { void fetchHubPx().then(setPx); }, 45000); return () => window.clearInterval(id); }, []);
-  useEffect(() => {
-    if (!cart || payCoin === "PAWLY") { setSwapQ(null); return; }
-    const coinAmt = quoteCoin(cart.amount, payCoin, px).amount;
-    if (!(coinAmt > 0)) { setSwapQ(null); return; }
-    let live = true;
-    void quoteHubSwap(payCoin, coinAmt).then((q) => { if (live) setSwapQ(q.outPawly > 0 ? q : null); });
-    return () => { live = false; };
-  }, [cart, payCoin, px.pawlyUsd, px.solUsd]);
   useEffect(() => {
     if (!addr) { setPets([]); return; }
     setPets(loadPets(addr));
@@ -91,16 +82,14 @@ export function PetHubPage() {
     if (!cart) return;
     if (!wallet.publicKey) { setNote("Connect wallet in dApp first"); return; }
     if ((cart.kind === "adopt" || cart.kind === "rescue") && pets.length >= PET_SLOT_CAP) { setNote("Max 10 pets"); return; }
-    const payAmt = quoteCoin(cart.amount, payCoin, px);
-    if (payCoin !== "PAWLY" && payAmt.amount <= 0) { setNote("No live price, use PAWLY"); return; }
-    setBusy(true); setNote("Sign " + payCoin + " like Payment");
+    setBusy(true); setNote("Sign PAWLY to shop till");
     const watchdog = window.setTimeout(() => {
       setBusy(false);
       setNote("Network slow / 网络慢。若钱包已签名请到 Solscan 核对，勿连点付款。");
     }, 28000);
     try {
       const sig = await payHub({
-        from: wallet.publicKey, coin: payCoin, amount: payAmt.amount, listPawly: cart.amount,
+        from: wallet.publicKey, coin: "PAWLY", amount: cart.amount, listPawly: cart.amount,
         signTransaction: wallet.signTransaction, sendTransaction: wallet.sendTransaction, wallet: wallet as never,
         onPhase: (_p, label) => setNote(label),
       });
@@ -202,18 +191,15 @@ export function PetHubPage() {
         <div style={{ position: "absolute", inset: 0, zIndex: 6, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "flex-end" }} onClick={() => !busy && setCart(null)}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: "#101820", borderRadius: "16px 16px 0 0", padding: 16 }}>
             <div style={{ color: "#00ff9d", fontWeight: 800 }}>Pet Hub checkout</div>
-            <div style={{ fontSize: 11, color: "#8aa", marginTop: 4 }}>Same as dApp Payment / Transfer. One signature. PAWLY / USDC / USDT / SOL goes to shop till BPFiVa5.</div>
+            <div style={{ fontSize: 11, color: "#8aa", marginTop: 4 }}>Shop till accepts PAWLY only. One signature. Need other coins? Swap to PAWLY in dApp first.</div>
             <div style={{ margin: "8px 0 4px" }}>{cart.emoji ? cart.emoji + " " : ""}{cart.title}</div>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>{(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (<button key={c} type="button" onClick={() => setPayCoin(c)} style={{ ...ghost, borderColor: payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>))}</div>
             <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 6 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{px.src ? sep + px.src : ""}</div>
-            {px.pawlyPerUsdc ? <div style={{ fontSize: 11, color: "#9f8", marginBottom: 4 }}>{"1 USDC ≈ " + px.pawlyPerUsdc.toFixed(2) + " PAWLY on-chain"}</div> : null}
-            {payCoin !== "PAWLY" ? (
               <div style={{ fontSize: 11, color: "#c8ffe8", marginBottom: 8, lineHeight: 1.35 }}>
                 {"Pay " + payCoin + " direct to shop till — same as Payment page."}
               </div>
             ) : null}
-            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? (note || "Paying...") : "Confirm - " + quoteCoin(cart.amount, payCoin, px).label}</button>
+            <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? (note || "Paying...") : "Confirm - " + cart.amount + " PAWLY"}</button>
             {busy ? <div style={{ fontSize: 11, color: "#c8ffe8", marginTop: 8 }}>Sign once in wallet. Do not tap twice.</div> : null}
             <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => { setBusy(false); setCart(null); }}>{busy ? "Unlock / 解锁" : "Cancel"}</button>
           </div>

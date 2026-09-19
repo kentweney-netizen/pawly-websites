@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
-import { payHub, quoteCoin, ghost, primary, savePets } from "./petHubLib";
+import { payHub, ghost, primary, savePets } from "./petHubLib";
 import type { PetRec, PayCoin } from "./petHubLib";
 import {
   STALL_PAWLY, BREED_PAWLY, pullMarket, pushMarketRow, openStallRec,
@@ -233,11 +233,9 @@ export function StallLayer(props: LayerProps) {
   const payOpen = async () => {
     if (!props.wallet.publicKey) { props.setNote("Connect wallet in dApp first"); return; }
     if (s.myStall) { props.setNote("Stall already open"); return; }
-    const payAmt = quoteCoin(STALL_PAWLY, props.payCoin, props.px);
-    if (props.payCoin !== "PAWLY" && payAmt.amount <= 0) { props.setNote("No live price, use PAWLY"); return; }
-    props.setBusy(true); props.setNote("Opening stall...");
+    props.setBusy(true); props.setNote("Opening stall with PAWLY...");
     try {
-      const sig = await payHub({ from: props.wallet.publicKey, coin: props.payCoin, amount: payAmt.amount, signTransaction: props.wallet.signTransaction, sendTransaction: props.wallet.sendTransaction, wallet: props.wallet as never });
+      const sig = await payHub({ from: props.wallet.publicKey, coin: "PAWLY", amount: STALL_PAWLY, signTransaction: props.wallet.signTransaction, sendTransaction: props.wallet.sendTransaction, wallet: props.wallet as never });
       flush(openStallRec(addr, sig), s.myNfts);
       props.setLastSig(sig); props.setLastPaid(STALL_PAWLY); props.setLastTitle("Open stall"); props.setNote("");
     } catch (e) { props.setNote(String((e as { message?: string }).message || e)); } finally { props.setBusy(false); }
@@ -249,11 +247,9 @@ export function StallLayer(props: LayerProps) {
     const b = props.pets.find((p) => p.id === s.pickB);
     if (!a || !b || a.id === b.id) { props.setNote("Pick two different Lv1 pets"); return; }
     if (Number(a.level || 0) < 1 || Number(b.level || 0) < 1) { props.setNote("Both pets must be Lv1+"); return; }
-    const payAmt = quoteCoin(BREED_PAWLY, props.payCoin, props.px);
-    if (props.payCoin !== "PAWLY" && payAmt.amount <= 0) { props.setNote("No live price, use PAWLY"); return; }
-    props.setBusy(true); props.setNote("Minting species NFT...");
+    props.setBusy(true); props.setNote("Minting species NFT with PAWLY...");
     try {
-      const sig = await payHub({ from: props.wallet.publicKey, coin: props.payCoin, amount: payAmt.amount, signTransaction: props.wallet.signTransaction, sendTransaction: props.wallet.sendTransaction, wallet: props.wallet as never });
+      const sig = await payHub({ from: props.wallet.publicKey, coin: "PAWLY", amount: BREED_PAWLY, signTransaction: props.wallet.signTransaction, sendTransaction: props.wallet.sendTransaction, wallet: props.wallet as never });
       const nft = makeNft({ owner: addr, a, b, sig });
       const nextPets = props.pets.filter((p) => p.id !== a.id && p.id !== b.id);
       props.setPets(nextPets); savePets(addr, nextPets);
@@ -291,9 +287,6 @@ export function StallLayer(props: LayerProps) {
           {s.zoom ? <ZoomCard n={s.zoom} /> : null}
           {!s.myStall ? (
             <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-              {(["PAWLY", "USDC", "USDT", "SOL"] as PayCoin[]).map((c) => (
-                <button key={c} type="button" onClick={() => props.setPayCoin(c)} style={{ ...tiny, borderColor: props.payCoin === c ? "#00ff9d" : "rgba(255,255,255,0.2)", color: props.payCoin === c ? "#00ff9d" : "#c8ffe8" }}>{c}</button>
-              ))}
               <button type="button" disabled={props.busy || !addr} style={{ ...primary, flex: 1, padding: "8px 10px", opacity: props.busy ? 0.6 : 1 }} onClick={() => void payOpen()}>{props.busy ? "Paying..." : "200 PAWLY"}</button>
             </div>
           ) : (
@@ -309,7 +302,7 @@ export function StallLayer(props: LayerProps) {
               <button type="button" disabled={props.busy} style={{ ...primary, padding: "8px 10px", opacity: props.busy ? 0.6 : 1 }} onClick={() => void payBreed()}>{props.busy ? "..." : "Mint 80"}</button>
             </div>
           )}
-          <div style={{ fontSize: 10, color: "#8aa", margin: "-4px 0 8px" }}>{marketPayHint(s.myStall ? "breed" : "stall", props.payCoin)}</div>
+          <div style={{ fontSize: 10, color: "#8aa", margin: "-4px 0 8px" }}>"Pay PAWLY only. Swap other coins in dApp Swap first."</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <input value={s.listPrice} onChange={(e) => setStore({ listPrice: e.target.value })} placeholder="price" style={{ width: 88, padding: "6px 8px", borderRadius: 8, border: "1px solid rgba(0,255,157,0.35)", background: "#0b1610", color: "#e8eef7", fontSize: 12 }} />
             <div style={{ fontSize: 11, color: "#8aa", alignSelf: "center" }}>your PAWLY price</div>

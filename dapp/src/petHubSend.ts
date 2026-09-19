@@ -248,6 +248,7 @@ export async function payHub(opts: {
   const say = (phase: PayPhase, label: string) => { try { opts.onPhase && opts.onPhase(phase, label); } catch { /* ignore */ } };
   if (!opts.from) throw new Error("Connect wallet first");
   if (!(opts.amount > 0)) throw new Error("Amount too small");
+  if (opts.coin !== "PAWLY") throw new Error("Pet Hub accepts PAWLY only. Swap first in dApp.");
   const till = new PublicKey(SHOP_TILL);
   const sponsor = new PublicKey(SHOP_TILL);
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
