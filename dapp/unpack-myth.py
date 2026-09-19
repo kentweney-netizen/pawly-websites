@@ -19,50 +19,50 @@ def b64jpeg(raw: str):
         data = base64.b64decode(raw)
     except Exception:
         return None
-    if len(data) < 200 or data[:2] != b"\xff\xd8":
+    if len(data) < 800 or data[:2] != b"\xff\xd8":
         return None
     return data
 
-def quoted(path: Path):
-    if not path.exists():
-        return ""
-    text = path.read_text(errors="ignore")
-    parts = re.findall(r"\"(/9j/[A-Za-z0-9+/=]+)\"", text)
-    return "".join(parts)
+def read_text(path: Path) -> str:
+    return path.read_text(errors="ignore") if path.exists() else ""
 
-def decode_ts(path: Path):
-    if not path.exists():
-        return None
-    text = path.read_text(errors="ignore")
+def from_split(sprite: str):
+    blob = read_text(art / ("myth-" + sprite + "A.b64")) + read_text(art / ("myth-" + sprite + "B.b64"))
+    blob += read_text(art / ("myth-" + sprite + ".jpg.b64"))
+    return b64jpeg(blob)
+
+def from_ts(sprite: str):
+    path = src / ("petHubMyth" + sprite[:1].upper() + sprite[1:] + ".ts")
+    text = read_text(path)
+    found = re.findall(r"/9j/[A-Za-z0-9+/=]+", text)
+    if found:
+        return b64jpeg("".join(found))
     m = re.search(r"data:image/jpeg;base64,([A-Za-z0-9+/=\s]+)", text)
-    if not m:
-        return None
-    return b64jpeg(m.group(1))
+    return b64jpeg(m.group(1)) if m else None
 
-def decode_toad():
-    blob = quoted(src / "petHubMythToadA.ts") + quoted(src / "petHubMythToadB.ts") + quoted(src / "petHubMythToadC.ts")
+def from_toad_parts():
+    blob = ""
+    for name in ("petHubMythToadA.ts", "petHubMythToadB.ts", "petHubMythToadC.ts"):
+        blob += "".join(re.findall(r"/9j/[A-Za-z0-9+/=]+|[A-Za-z0-9+/=]{40,}", read_text(src / name)))
     return b64jpeg(blob)
 
 for sprite in SPRITES:
-    data = None
-    for cand in (
-        art / ("myth-" + sprite + ".jpg.b64"),
-        root / "myth-cards-v044" / (sprite + ".jpg"),
-        root / "myth" / (sprite + ".jpg"),
-        out / (sprite + ".jpg"),
-    ):
-        if cand.suffix == ".b64" and cand.exists():
-            data = b64jpeg(cand.read_text(errors="ignore"))
-        elif cand.exists() and cand.is_file() and cand.stat().st_size > 200:
-            raw = cand.read_bytes()
-            if raw[:2] == b"\xff\xd8":
-                data = raw
-        if data:
-            break
-    if data is None and sprite == "toad":
-        data = decode_toad()
+    data = from_split(sprite)
     if data is None:
-        data = decode_ts(src / ("petHubMyth" + sprite[:1].upper() + sprite[1:] + ".ts"))
+        for cand in (
+            root / "myth-cards-v044" / (sprite + ".jpg"),
+            root / "myth" / (sprite + ".jpg"),
+            art / (sprite + ".jpg"),
+        ):
+            if cand.exists() and cand.stat().st_size > 800:
+                raw = cand.read_bytes()
+                if raw[:2] == b"\xff\xd8":
+                    data = raw
+                    break
+    if data is None and sprite == "toad":
+        data = from_toad_parts()
+    if data is None:
+        data = from_ts(sprite)
     if data is None and sprite == "moth":
         fox = out / "fox.jpg"
         if fox.exists():
