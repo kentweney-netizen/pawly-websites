@@ -7,9 +7,12 @@ const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 const WSOL_MINT = "So11111111111111111111111111111111111111112";
 const SHOP_TILL = "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3VR4C7Z";
+const ATA_PROG = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const RPC = "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
+const JUP_Q = ["https://lite-api.jup.ag/swap/v1/quote", "https://quote-api.jup.ag/v6/quote"];
+const JUP_S = ["https://lite-api.jup.ag/swap/v1/swap", "https://quote-api.jup.ag/v6/swap"];
 
 function conn() { return new Connection(RPC, "confirmed"); }
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
@@ -86,41 +89,82 @@ async function pawlyUi(c: Connection, owner: PublicKey) {
   return total;
 }
 async function waitSwapOk(c: Connection, sig: string, owner: PublicKey, before: number) {
-  let last = "Swap confirming";
   for (let i = 0; i < 20; i++) {
-    try {
-      const st = (await c.getSignatureStatuses([sig], { searchTransactionHistory: true })).value[0];
-      if (st && st.err) throw new Error("Swap failed on-chain / 兑换失败");
-      const after = await pawlyUi(c, owner);
-      if (after > before + 0.000001) return after - before;
-      if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) {
-        const tx = await c.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);
-        if (tx && tx.meta && tx.meta.err) throw new Error("Swap failed on-chain / 兑换失败");
-      }
-    } catch (e) {
-      const msg = String((e as { message?: string })?.message || e);
-      if (/failed on-chain|兑换失败/i.test(msg)) throw e instanceof Error ? e : new Error(msg);
-      last = msg;
+    const st = (await c.getSignatureStatuses([sig], { searchTransactionHistory: true })).value[0];
+    if (st && st.err) throw new Error("Swap failed on-chain / 兑换失败");
+    const after = await pawlyUi(c, owner);
+    if (after > before + 0.000001) return after - before;
+    if (st && st.confirmationStatus && st.confirmationStatus !== "processed") {
+      const tx = await c.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);
+      if (tx && tx.meta && tx.meta.err) throw new Error("Swap failed on-chain / 兑换失败");
     }
     await sleep(800);
   }
   const have = await pawlyUi(c, owner);
   if (have > before + 0.000001) return have - before;
-  throw new Error(last + " / swap " + sig.slice(0, 8));
+  throw new Error("Swap not confirmed / " + sig.slice(0, 8));
 }
-async function buildSwapTx(opts: { inputMint: string; amount: string; user: string; inputAccount?: string; slippageBps: number; wrapSol: boolean }) {
-  const paths = ["/.netlify/functions/hub-jup-swap", "/.netlify/functions/hub-jup-swap/", "/dapp/.netlify/functions/hub-jup-swap"];
-  const payload = { inputMint: opts.inputMint, outputMint: PAWLY_MINT, amount: opts.amount, userPublicKey: opts.user, inputAccount: opts.inputAccount || "", slippageBps: opts.slippageBps, wrapSol: opts.wrapSol };
-  let last = "swap proxy failed";
+function rewriteAtaPayer(ixs: { programId: PublicKey; keys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[] }[], user: PublicKey, sponsor: PublicKey) {
+  const ata = new PublicKey(ATA_PROG);
+  for (let i = 0; i < ixs.length; i++) {
+    const ix = ixs[i];
+    if (!ix.programId.equals(ata) || !ix.keys[0]) continue;
+    if (ix.keys[0].pubkey.equals(user)) { ix.keys[0].pubkey = sponsor; ix.keys[0].isSigner = false; }
+  }
+}
+async function jupSwapTx(opts: { inputMint: string; amount: string; user: string; slippageBps: number }) {
+  const q = "?inputMint=" + opts.inputMint + "&outputMint=" + PAWLY_MINT + "&amount=" + opts.amount + "&slippageBps=" + opts.slippageBps + "&swapMode=ExactIn&restrictIntermediateTokens=true";
+  let quote: Record<string, unknown> | null = null;
+  for (let i = 0; i < JUP_Q.length; i++) {
+    try {
+      const pack = await fetchJson(JUP_Q[i] + q, { method: "GET" }, 10000, "Jup quote timeout");
+      if (pack.r.ok && (pack.d as { outAmount?: string }).outAmount) { quote = pack.d as Record<string, unknown>; break; }
+    } catch { /* next */ }
+  }
+  if (!quote) throw new Error("Jupiter no quote");
+  for (let i = 0; i < JUP_S.length; i++) {
+    try {
+      const pack = await fetchJson(JUP_S[i], {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quoteResponse: quote, userPublicKey: opts.user, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: 50000 }),
+      }, 12000, "Jup swap timeout");
+      const tx = String((pack.d as { swapTransaction?: string }).swapTransaction || "");
+      if (pack.r.ok && tx) return tx;
+    } catch { /* next */ }
+  }
+  throw new Error("Jupiter no swap tx");
+}
+async function raySwapTx(opts: { inputMint: string; amount: string; user: string; inputAccount?: string; slippageBps: number; wrapSol: boolean }) {
+  const paths = ["/.netlify/functions/hub-jup-swap", "/dapp/.netlify/functions/hub-jup-swap"];
+  let last = "Raydium failed";
   for (const path of paths) {
     try {
-      const pack = await fetchJson(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, 12000, "Swap timeout 12s");
-      const d = pack.d as { swapTransaction?: string; error?: string };
-      if (pack.r.ok && d.swapTransaction) return d;
-      last = String(d.error || ("HTTP " + pack.r.status));
+      const pack = await fetchJson(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inputMint: opts.inputMint, outputMint: PAWLY_MINT, amount: opts.amount, userPublicKey: opts.user, inputAccount: opts.inputAccount || "", slippageBps: opts.slippageBps, wrapSol: opts.wrapSol }) }, 12000, "Raydium timeout");
+      const tx = String((pack.d as { swapTransaction?: string }).swapTransaction || "");
+      if (pack.r.ok && tx) return tx;
+      last = String((pack.d as { error?: string }).error || last);
     } catch (e) { last = String((e as { message?: string })?.message || e); }
   }
   throw new Error(last);
+}
+async function sponsorize(rawB64: string, user: PublicKey, sponsor: PublicKey) {
+  const c = conn();
+  const rawTx = VersionedTransaction.deserialize(b64ToBytes(rawB64));
+  const lookups = ((rawTx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
+  const alts: AddressLookupTableAccount[] = [];
+  for (let a = 0; a < lookups.length; a++) {
+    const rawKey = lookups[a] && lookups[a].accountKey;
+    if (!rawKey) continue;
+    try {
+      const key = rawKey instanceof PublicKey ? rawKey : new PublicKey(String(rawKey));
+      const acc = await c.getAddressLookupTable(key);
+      if (acc.value) alts.push(acc.value);
+    } catch { /* ignore */ }
+  }
+  const ixs = TransactionMessage.decompile(rawTx.message, { addressLookupTableAccounts: alts }).instructions;
+  rewriteAtaPayer(ixs, user, sponsor);
+  const { blockhash } = await c.getLatestBlockhash("confirmed");
+  return new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts));
 }
 
 export async function swapCoinToPawly(opts: {
@@ -142,33 +186,24 @@ export async function swapCoinToPawly(opts: {
     if (info) inputAccount = ata.toBase58();
     else {
       const listed = await c.getTokenAccountsByOwner(opts.from, { mint: inMint });
-      if (!listed.value.length) throw new Error("No " + opts.coin + " token account");
+      if (!listed.value.length) throw new Error("No " + opts.coin + " in wallet");
       inputAccount = listed.value[0].pubkey.toBase58();
     }
   }
   const before = await pawlyUi(c, opts.from);
   let last = "swap failed";
   let swapSig = "";
-  const slips = [300, 500, 800];
-  for (let i = 0; i < slips.length; i++) {
+  const venues: Array<() => Promise<string>> = [
+    () => jupSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), slippageBps: 400 }),
+    () => raySwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: 400, wrapSol: isSol }),
+    () => jupSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), slippageBps: 800 }),
+    () => raySwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: 800, wrapSol: isSol }),
+  ];
+  for (let i = 0; i < venues.length; i++) {
     try {
-      say("1/2 Sign swap " + opts.coin + " → PAWLY");
-      const pack = await buildSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: slips[i], wrapSol: isSol });
-      const rawTx = VersionedTransaction.deserialize(b64ToBytes(String(pack.swapTransaction)));
-      const lookups = ((rawTx.message as { addressTableLookups?: { accountKey?: PublicKey }[] }).addressTableLookups) || [];
-      const alts: AddressLookupTableAccount[] = [];
-      for (let a = 0; a < lookups.length; a++) {
-        const rawKey = lookups[a] && lookups[a].accountKey;
-        if (!rawKey) continue;
-        try {
-          const key = rawKey instanceof PublicKey ? rawKey : new PublicKey(String(rawKey));
-          const acc = await c.getAddressLookupTable(key);
-          if (acc.value) alts.push(acc.value);
-        } catch { /* ignore */ }
-      }
-      const ixs = TransactionMessage.decompile(rawTx.message, { addressLookupTableAccounts: alts }).instructions;
-      const { blockhash } = await c.getLatestBlockhash("confirmed");
-      const vtx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts));
+      say("1/2 Sign " + opts.coin + " → PAWLY");
+      const b64 = await venues[i]();
+      const vtx = await sponsorize(b64, opts.from, sponsor);
       const signed = await userSign(vtx, opts.wallet, opts.signTransaction);
       swapSig = await broadcast(signed);
       last = "";
@@ -176,11 +211,11 @@ export async function swapCoinToPawly(opts: {
     } catch (e) {
       if (isCancel(e)) throw e;
       last = String((e as { message?: string })?.message || e);
-      await sleep(400);
+      await sleep(300);
     }
   }
-  if (!swapSig) throw new Error(last || "Swap failed");
-  say("1/2 Confirming swap " + swapSig.slice(0, 8));
+  if (!swapSig) throw new Error(last || "USDC/USDT/SOL swap failed");
+  say("1/2 Confirming " + swapSig.slice(0, 8));
   const gained = await waitSwapOk(c, swapSig, opts.from, before);
   return { sig: swapSig, gained, have: before + gained };
 }
@@ -196,8 +231,8 @@ export async function swapThenTill(opts: {
   const list = Number(opts.listPawly || 0);
   const have = hop1.have > 0 ? hop1.have : hop1.gained;
   const payAmt = list > 0 ? Math.min(list, have > 0 ? have : list) : hop1.gained;
-  if (!(payAmt > 0)) throw new Error("No PAWLY to send to till");
-  try { opts.onPhase && opts.onPhase("till", "2/2 Sign pay " + payAmt.toFixed(2) + " PAWLY to till"); } catch { /* ignore */ }
+  if (!(payAmt > 0)) throw new Error("No PAWLY after swap");
+  try { opts.onPhase && opts.onPhase("till", "2/2 Sign " + payAmt.toFixed(2) + " PAWLY to till"); } catch { /* ignore */ }
   const { payHub } = await import("./petHubSend");
   return await payHub({
     from: opts.from, coin: "PAWLY", amount: payAmt,
