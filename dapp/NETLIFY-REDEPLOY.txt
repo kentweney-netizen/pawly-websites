@@ -1,5 +1,7 @@
-Pet Hub pay = v0.2 style.
-If wallet PAWLY >= price: one signature, PAWLY to till BPFiVa5, sponsor gas.
-Do not use Jupiter wrap when PAWLY is enough.
-Rebuild trigger 2026-09-19 17:42 +08
-commit after 009a9953
+v7.7.42 + Pet Hub v0.4.12
+Swap: do NOT call ensureUserWsolSponsored before Raydium.
+Wrap SOL inside the same swap tx (wrapSol:true).
+Pet Hub: one-sign selected coin to till BPFiVa5.
+Codespace: copy artifacts App.tsx-19.09.2026-v7.7.42-one-sign-sol-swap.txt over dapp/src/App.tsx OR delete the ensureUserWsolSponsored block in executeOnVenue.
+Netlify production is stuck on 2862c42 (API deploy). Must Redeploy latest GitHub main with clear cache.
+Rebuild trigger 2026-09-19 20:05 +08
