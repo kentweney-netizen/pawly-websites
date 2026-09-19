@@ -17,6 +17,7 @@ export function feedsTodayOf(p?: { feedDay?: string; feedsToday?: number } | nul
 export function pickFeedPet(list: PetRec[], id?: string) { return list.find((x) => x.id === id) || list[0]; }
 const STORE = "pawly_pet_hub_v1_";
 const SPENT = "pawly_pet_hub_spent_v1_";
+const STORE_NFT = "pawly_pet_hub_nft_v1_";
 const EMAIL_KEY = "pawly_pet_hub_email_v1";
 export type PayCoin = "PAWLY" | "USDC" | "USDT" | "SOL";
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
@@ -70,6 +71,15 @@ export const CLIP: Record<SceneId, string> = { street: "pet-hub-street-walk.mp4"
 function rosterHdr() {
   return { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json" };
 }
+type MintNft = { id: string; species: string; name: string; emoji?: string; parents?: string[]; breedSig?: string };
+function localNfts(w: string): MintNft[] {
+  if (!w) return [];
+  try {
+    const raw = localStorage.getItem(STORE_NFT + w);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter((n) => n && n.id) : [];
+  } catch { return []; }
+}
 export function loadSpent(w: string): string[] {
   if (!w) return [];
   try { const raw = localStorage.getItem(SPENT + w); const list = raw ? JSON.parse(raw) : []; return Array.isArray(list) ? list.filter((x) => typeof x === "string") : []; } catch { return []; }
@@ -79,34 +89,56 @@ export function addSpent(w: string, ids: string[]) {
   const next = Array.from(new Set(loadSpent(w).concat(ids.filter(Boolean))));
   try { localStorage.setItem(SPENT + w, JSON.stringify(next)); } catch { /* ignore */ }
 }
+export function applyMinted(w: string, list: PetRec[]): PetRec[] {
+  const spent = new Set(loadSpent(w));
+  const nfts = localNfts(w);
+  const need = new Map<string, number>();
+  for (const n of nfts) for (const sp of n.parents || []) need.set(sp, (need.get(sp) || 0) + 1);
+  const keep: PetRec[] = [];
+  for (const p of list || []) {
+    if (!p || !p.id || spent.has(p.id) || p.kind === "myth") continue;
+    const left = need.get(p.species) || 0;
+    if (left > 0) { need.set(p.species, left - 1); continue; }
+    keep.push(p);
+  }
+  const ids = new Set(keep.map((p) => p.id));
+  for (const n of nfts) {
+    if (ids.has(n.id)) continue;
+    keep.push({
+      id: n.id, kind: "myth", species: n.species, name: n.name,
+      emoji: n.emoji || "\u2728", hunger: 80, health: 90, streak: 0,
+      feedsTotal: 10, level: 1, sig: n.breedSig,
+    });
+    ids.add(n.id);
+  }
+  return keep.slice(0, PET_SLOT_CAP);
+}
 export function loadPets(w: string): PetRec[] {
   if (!w) return [];
   try {
     const raw = localStorage.getItem(STORE + w);
     const list = raw ? JSON.parse(raw) : [];
-    const spent = new Set(loadSpent(w));
-    return Array.isArray(list) ? (list as PetRec[]).filter((p) => p && p.id && !spent.has(p.id)) : [];
-  } catch { return []; }
+    return applyMinted(w, Array.isArray(list) ? list as PetRec[] : []);
+  } catch { return applyMinted(w, []); }
 }
 export function mergePetLists(a: PetRec[], b: PetRec[]): PetRec[] {
   return [...a, ...b].filter((p, i, arr) => p && p.id && arr.findIndex((x) => x && x.id === p.id) === i).slice(0, PET_SLOT_CAP);
 }
 export function dropSpent(w: string, list: PetRec[]): PetRec[] {
-  const spent = new Set(loadSpent(w));
-  return list.filter((p) => p && p.id && !spent.has(p.id));
+  return applyMinted(w, list);
 }
 export async function pullCloudPets(w: string): Promise<PetRec[]> {
   if (!w) return [];
   try {
     const r = await fetch(SUPABASE_URL + "/rest/v1/pet_hub_roster?wallet=eq." + encodeURIComponent(w) + "&select=pets", { headers: rosterHdr() });
     const rows = (await r.json()) as { pets?: PetRec[] }[];
-    const spent = new Set(loadSpent(w));
-    return rows && rows[0] && Array.isArray(rows[0].pets) ? rows[0].pets.filter((p) => p && (p.id || p.sig) && !spent.has(String(p.id || ""))) : [];
-  } catch { return []; }
+    const raw = rows && rows[0] && Array.isArray(rows[0].pets) ? rows[0].pets.filter((p) => p && (p.id || p.sig)) : [];
+    return applyMinted(w, raw);
+  } catch { return applyMinted(w, []); }
 }
 export function savePets(w: string, list: PetRec[]) {
   if (!w) return;
-  const clean = dropSpent(w, list).slice(0, PET_SLOT_CAP);
+  const clean = applyMinted(w, list);
   try { localStorage.setItem(STORE + w, JSON.stringify(clean)); } catch { /* ignore */ }
   void fetch(SUPABASE_URL + "/rest/v1/pet_hub_roster", {
     method: "POST",
