@@ -1,5 +1,4 @@
-/** Lv1+ body sprites. Adopt + Rescue both map to /pets/*.png. Myth NFTs use /dapp/myth. */
-import { MYTH_IMG } from "./petHubMythImg";
+/** Lv1+ body sprites. Street walkers are side-view quadrupeds. NFT cards stay in stall. */
 import { MYTH_KIND, MYTH_NAME } from "./petHubMythSprites";
 
 const SPRITE: Record<string, string> = {
@@ -38,7 +37,18 @@ const SPRITE: Record<string, string> = {
   gibbon: "gibbon",
 };
 
-function mythKey(species: string): keyof typeof MYTH_IMG | null {
+const MYTH_FALLBACK: Record<string, string> = {
+  fox: "dog",
+  toad: "minipig",
+  rose: "minipig",
+  cat: "cat",
+  boar: "minipig",
+  wyrm: "dog",
+  moth: "cat",
+  lynx: "cat",
+};
+
+export function mythKey(species: string): string | null {
   const raw = String(species || "").trim().toLowerCase();
   for (const k of MYTH_KIND) {
     if (raw === k || raw.endsWith("-" + k) || raw.indexOf(k) >= 0) return k;
@@ -55,23 +65,34 @@ export function spriteKey(species: string): string | null {
 }
 
 export function spriteFor(species: string): string | null {
-  const myth = mythKey(species);
-  if (myth) return MYTH_IMG[myth];
-  const key = spriteKey(species);
-  if (!key) return null;
-  return "/pets/" + key + ".png";
+  const c = spriteCandidates(species);
+  return c[0] || null;
 }
 
 export function spriteCandidates(species: string): string[] {
-  const myth = mythKey(species);
   const raw = String(species || "").trim().toLowerCase().replace(/\s+/g, "-");
+  const myth = mythKey(raw);
   const out: string[] = [];
   const add = (p: string) => { if (p && out.indexOf(p) < 0) out.push(p); };
-  if (myth) add(MYTH_IMG[myth]);
+  if (myth) {
+    add("/dapp/pets/walk-" + myth + ".jpg?v=1");
+    add("/pets/walk-" + myth + ".jpg?v=1");
+    add("/dapp/game/walk-" + myth + ".jpg?v=1");
+    const fb = MYTH_FALLBACK[myth];
+    if (fb) {
+      add("/pets/" + fb + ".png");
+      add("/dapp/pets/" + fb + ".png");
+    }
+    return out;
+  }
   const key = SPRITE[raw];
   if (key) {
     add("/pets/" + key + ".png");
     add("/dapp/pets/" + key + ".png");
   }
   return out;
+}
+
+export function isMythWalk(species: string) {
+  return !!mythKey(species);
 }
