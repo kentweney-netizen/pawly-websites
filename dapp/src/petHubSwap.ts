@@ -89,16 +89,17 @@ async function pawlyUi(c: Connection, owner: PublicKey) {
   return total;
 }
 async function waitSwapOk(c: Connection, sig: string, owner: PublicKey, before: number) {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 4; i++) {
     const st = (await c.getSignatureStatuses([sig], { searchTransactionHistory: true })).value[0];
     if (st && st.err) throw new Error("Swap failed on-chain / 兑换失败");
+    if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) break;
+    await sleep(220);
+  }
+  try {
     const after = await pawlyUi(c, owner);
     if (after > before + 0.000001) return after - before;
-    await sleep(800);
-  }
-  const have = await pawlyUi(c, owner);
-  if (have > before + 0.000001) return have - before;
-  throw new Error("Swap not confirmed / " + sig.slice(0, 8));
+  } catch { /* hop2 uses listed PAWLY */ }
+  return 0;
 }
 function rewriteAtaPayer(ixs: { programId: PublicKey; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user: PublicKey, sponsor: PublicKey) {
   const ata = new PublicKey(ATA_PROG);
@@ -223,7 +224,7 @@ export async function swapThenTill(opts: {
   });
   const list = Number(opts.listPawly || 0);
   const have = hop1.have > 0 ? hop1.have : hop1.gained;
-  const payAmt = list > 0 ? Math.min(list, have > 0 ? have : list) : hop1.gained;
+  const payAmt = list > 0 ? list : (hop1.gained > 0 ? hop1.gained : have);
   if (!(payAmt > 0)) throw new Error("No PAWLY after swap");
   try { opts.onPhase && opts.onPhase("till", "2/2 Sign " + payAmt.toFixed(2) + " PAWLY to till"); } catch { /* ignore */ }
   const { payHub } = await import("./petHubSend");
