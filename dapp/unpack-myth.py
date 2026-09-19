@@ -47,9 +47,12 @@ def better(cur, nxt):
         return nxt
     return cur
 
+def from_single(sprite: str):
+    return try_decode(read_text(art / ("myth-" + sprite + ".jpg.b64")))
+
 def from_split(sprite: str):
     blob = ""
-    for suffix in ("1.b64", "2.b64", "3.b64", "A.b64", "B.b64", ".jpg.b64"):
+    for suffix in ("1.b64", "2.b64", "3.b64", "A.b64", "B.b64"):
         blob += read_text(art / ("myth-" + sprite + suffix))
     return try_decode(blob)
 
@@ -67,7 +70,7 @@ def from_toad_parts():
     return try_decode(blob)
 
 for sprite in SPRITES:
-    data = from_split(sprite)
+    data = from_single(sprite)
     for cand in (
         root / "myth-cards-v044" / (sprite + ".jpg"),
         root / "myth" / (sprite + ".jpg"),
@@ -77,6 +80,7 @@ for sprite in SPRITES:
             raw = cand.read_bytes()
             if raw[:2] == b"\xff\xd8":
                 data = better(data, raw)
+    data = better(data, from_split(sprite))
     if sprite == "toad":
         data = better(data, from_toad_parts())
     data = better(data, from_ts(sprite))
