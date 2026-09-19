@@ -1,0 +1,5 @@
+Pet Hub pay = v0.2 style.
+If wallet PAWLY >= price: one signature, PAWLY to till BPFiVa5, sponsor gas.
+Do not use Jupiter wrap when PAWLY is enough.
+Rebuild trigger 2026-09-19 17:42 +08
+commit after 009a9953
