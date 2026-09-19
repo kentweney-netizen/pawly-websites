@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { spriteCandidates } from "./petSprites";
+import { spriteCandidates, isMythWalk } from "./petSprites";
 
 export type PetRigPet = {
   species: string;
@@ -19,32 +19,32 @@ function normSpecies(species: string) {
 }
 
 const FACE: Record<string, string> = {
-  dog: "🐶",
-  cat: "🐱",
-  rabbit: "🐰",
-  hamster: "🐹",
-  parrot: "🦜",
-  chicken: "🐔",
-  duck: "🦆",
-  minipig: "🐷",
-  pig: "🐷",
-  alpaca: "🦙",
-  lizard: "🦎",
-  gecko: "🦎",
-  snake: "🐍",
-  beetle: "🪲",
-  tarantula: "🕷",
-  mantis: "🦗",
-  "stray-cat": "🐱",
-  "stray-dog": "🐶",
-  orangutan: "🦧",
-  sunbear: "🐻",
-  "malayan-tiger": "🐯",
-  seaturtle: "🐢",
-  hornbill: "🦅",
-  "asian-elephant": "🐘",
-  pangolin: "🦔",
-  gibbon: "🐒",
+  dog: "\ud83d\udc36",
+  cat: "\ud83d\udc31",
+  rabbit: "\ud83d\udc30",
+  hamster: "\ud83d\udc39",
+  parrot: "\ud83e\udd9c",
+  chicken: "\ud83d\udc14",
+  duck: "\ud83e\udd86",
+  minipig: "\ud83d\udc37",
+  pig: "\ud83d\udc37",
+  alpaca: "\ud83e\udd99",
+  lizard: "\ud83e\udd8e",
+  gecko: "\ud83e\udd8e",
+  snake: "\ud83d\udc0d",
+  beetle: "\ud83e\udeb2",
+  tarantula: "\ud83d\udd77",
+  mantis: "\ud83e\udd97",
+  "stray-cat": "\ud83d\udc31",
+  "stray-dog": "\ud83d\udc36",
+  orangutan: "\ud83e\udda7",
+  sunbear: "\ud83d\udc3b",
+  "malayan-tiger": "\ud83d\udc2f",
+  seaturtle: "\ud83d\udc22",
+  hornbill: "\ud83e\udd85",
+  "asian-elephant": "\ud83d\udc18",
+  pangolin: "\ud83e\udd94",
+  gibbon: "\ud83d\udc12",
 };
 
 function FaceBadge(props: { face: string; size: number }) {
@@ -75,18 +75,21 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
   const cands = spriteCandidates(props.pet.species);
   const size = props.size || 36;
   const moving = !!props.moving;
-  const face = props.pet.emoji || FACE[key] || "🐾";
+  const myth = isMythWalk(props.pet.species);
+  const face = props.pet.emoji || FACE[key] || "\ud83d\udc3e";
   const [idx, setIdx] = useState(0);
   const src = cands[idx] || "";
   if (lv <= 0 || !src) {
     return <FaceBadge face={face} size={lv <= 0 ? Math.min(size, 36) : size} />;
   }
+  const w = myth ? Math.round(size * 1.45) : size;
+  const h = myth ? Math.round(size * 0.95) : Math.round(size * 1.15);
   return (
     <div
       className={moving ? "pawly-rig pawly-bob" : "pawly-rig"}
       style={{
-        width: size,
-        height: Math.round(size * 1.15),
+        width: w,
+        height: h,
         overflow: "visible",
         display: "inline-block",
         background: "transparent",
@@ -102,7 +105,9 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
           height: "100%",
           objectFit: "contain",
           objectPosition: "center bottom",
-          imageRendering: "auto",
+          imageRendering: "pixelated",
+          background: "transparent",
+          mixBlendMode: myth ? "lighten" : "normal",
         }}
       />
     </div>
