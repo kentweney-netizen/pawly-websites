@@ -30,16 +30,20 @@ def b64jpeg(raw: str):
 def read_text(path: Path) -> str:
     return path.read_text(errors="ignore") if path.exists() else ""
 
+def score(d: bytes):
+    return (1 if d.endswith(b"\xff\xd9") else 0, len(d))
+
 def better(cur, nxt):
     if nxt is None:
         return cur
-    if cur is None or len(nxt) > len(cur):
+    if cur is None or score(nxt) > score(cur):
         return nxt
     return cur
 
 def from_split(sprite: str):
-    blob = read_text(art / ("myth-" + sprite + "A.b64")) + read_text(art / ("myth-" + sprite + "B.b64"))
-    blob += read_text(art / ("myth-" + sprite + ".jpg.b64"))
+    blob = ""
+    for suffix in ("1.b64", "2.b64", "3.b64", "A.b64", "B.b64", ".jpg.b64"):
+        blob += read_text(art / ("myth-" + sprite + suffix))
     return b64jpeg(blob)
 
 def from_ts(sprite: str):
@@ -52,9 +56,7 @@ def from_ts(sprite: str):
 def from_toad_parts():
     blob = ""
     for name in ("petHubMythToadA.ts", "petHubMythToadB.ts", "petHubMythToadC.ts"):
-        text = read_text(src / name)
-        parts = re.findall(r"\"([A-Za-z0-9+/=]+)\"", text)
-        blob += "".join(parts)
+        blob += "".join(re.findall(r"\"([A-Za-z0-9+/=]+)\"", read_text(src / name)))
     return b64jpeg(blob)
 
 for sprite in SPRITES:
@@ -80,4 +82,4 @@ for sprite in SPRITES:
         continue
     dest = out / (sprite + ".jpg")
     dest.write_bytes(data)
-    print("myth", dest, dest.stat().st_size)
+    print("myth", dest, dest.stat().st_size, "eoi" if data.endswith(b"\xff\xd9") else "NO-EOI")
