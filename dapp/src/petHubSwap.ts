@@ -1,5 +1,5 @@
 import { AddressLookupTableAccount, Connection, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createSyncNativeInstruction } from "@solana/spl-token";
 import type { HubSign, HubSend, HubWallet, PayCoin, PayPhaseFn } from "./petHubSend";
 
 const PAWLY_MINT = "88cCF4cDTayhz36fWndgRfPfgVSLhNZe3ndYS8MdWn87";
@@ -88,19 +88,6 @@ async function pawlyUi(c: Connection, owner: PublicKey) {
   }
   return total;
 }
-async function waitSwapOk(c: Connection, sig: string, owner: PublicKey, before: number) {
-  for (let i = 0; i < 4; i++) {
-    const st = (await c.getSignatureStatuses([sig], { searchTransactionHistory: true })).value[0];
-    if (st && st.err) throw new Error("Swap failed on-chain / 兑换失败");
-    if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) break;
-    await sleep(220);
-  }
-  try {
-    const after = await pawlyUi(c, owner);
-    if (after > before + 0.000001) return after - before;
-  } catch { /* hop2 uses listed PAWLY */ }
-  return 0;
-}
 function rewriteAtaPayer(ixs: { programId: PublicKey; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user: PublicKey, sponsor: PublicKey) {
   const ata = new PublicKey(ATA_PROG);
   for (let i = 0; i < ixs.length; i++) {
@@ -112,21 +99,19 @@ function u32le(data: Uint8Array) {
   if (!data || data.length < 4) return -1;
   return data[0] + data[1] * 256 + data[2] * 65536 + data[3] * 16777216;
 }
-function rewriteWrapSourceAndClose(ixs: { programId: PublicKey; data: Uint8Array; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user: PublicKey, sponsor: PublicKey, wsolAta: PublicKey) {
-  const sys = SystemProgram.programId;
+function rewriteCloseToSponsor(ixs: { programId: PublicKey; data: Uint8Array; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user: PublicKey, sponsor: PublicKey) {
   for (let i = 0; i < ixs.length; i++) {
     const ix = ixs[i];
-    if (ix.programId.equals(sys) && (u32le(ix.data) === 2 || u32le(ix.data) === 0) && ix.keys[0] && ix.keys[1]) {
-      const fromSponsor = ix.keys[0].pubkey.equals(sponsor);
-      const toWrap = ix.keys[1].pubkey.equals(wsolAta);
-      if (fromSponsor && toWrap) { ix.keys[0].pubkey = user; ix.keys[0].isSigner = true; }
+    const closeTok = ix.programId.equals(TOKEN_PROGRAM_ID) || ix.programId.equals(TOKEN_2022_PROGRAM_ID);
+    if (closeTok && ix.data && ix.data.length >= 1 && ix.data[0] === 9 && ix.keys[1] && ix.keys[1].pubkey.equals(user)) {
+      ix.keys[1].pubkey = sponsor;
     }
-    if (ix.programId.equals(TOKEN_PROGRAM_ID) && ix.data && ix.data.length >= 1 && ix.data[0] === 9 && ix.keys[1]) {
-      if (ix.keys[1].pubkey.equals(user)) ix.keys[1].pubkey = sponsor;
+    if (ix.programId.equals(SystemProgram.programId) && u32le(ix.data) === 2 && ix.keys[1] && ix.keys[1].pubkey.equals(user) && ix.keys[0] && !ix.keys[0].pubkey.equals(user)) {
+      ix.keys[1].pubkey = sponsor;
     }
   }
 }
-async function jupSwapTx(opts: { inputMint: string; amount: string; user: string; slippageBps: number }) {
+async function jupSwapTx(opts: { inputMint: string; amount: string; user: string; slippageBps: number; wrapSol: boolean }) {
   const q = "?inputMint=" + opts.inputMint + "&outputMint=" + PAWLY_MINT + "&amount=" + opts.amount + "&slippageBps=" + opts.slippageBps + "&swapMode=ExactIn";
   let quote: Record<string, unknown> | null = null;
   for (let i = 0; i < JUP_Q.length; i++) {
@@ -140,7 +125,13 @@ async function jupSwapTx(opts: { inputMint: string; amount: string; user: string
     try {
       const pack = await fetchJson(JUP_S[i], {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quoteResponse: quote, userPublicKey: opts.user, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: 50000 }),
+        body: JSON.stringify({
+          quoteResponse: quote,
+          userPublicKey: opts.user,
+          wrapAndUnwrapSol: opts.wrapSol,
+          dynamicComputeUnitLimit: true,
+          prioritizationFeeLamports: 50000,
+        }),
       }, 12000, "Jup swap timeout");
       const tx = String((pack.d as { swapTransaction?: string }).swapTransaction || "");
       if (pack.r.ok && tx) return tx;
@@ -176,14 +167,17 @@ async function sponsorize(rawB64: string, user: PublicKey, sponsor: PublicKey, w
     } catch { /* ignore */ }
   }
   const ixs = TransactionMessage.decompile(rawTx.message, { addressLookupTableAccounts: alts }).instructions;
-  const wsolAta = await getAssociatedTokenAddress(new PublicKey(WSOL_MINT), user, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  const wsolMint = new PublicKey(WSOL_MINT);
+  const wsolAta = await getAssociatedTokenAddress(wsolMint, user, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
   rewriteAtaPayer(ixs, user, sponsor);
-  rewriteWrapSourceAndClose(ixs as { programId: PublicKey; data: Uint8Array; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user, sponsor, wsolAta);
+  rewriteCloseToSponsor(ixs as { programId: PublicKey; data: Uint8Array; keys: { pubkey: PublicKey; isSigner: boolean }[] }[], user, sponsor);
   if (wrapLamports > 0) {
-    let at = 0;
-    const ataProg = new PublicKey(ATA_PROG);
-    for (let i = 0; i < ixs.length; i++) { if (ixs[i].programId.equals(ataProg)) at = i + 1; }
-    ixs.splice(at, 0, SystemProgram.transfer({ fromPubkey: user, toPubkey: wsolAta, lamports: wrapLamports }));
+    const wrapIxs = [
+      createAssociatedTokenAccountIdempotentInstruction(sponsor, wsolAta, user, wsolMint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
+      SystemProgram.transfer({ fromPubkey: user, toPubkey: wsolAta, lamports: wrapLamports }),
+      createSyncNativeInstruction(wsolAta),
+    ];
+    ixs.unshift(...wrapIxs);
   }
   const { blockhash } = await c.getLatestBlockhash("confirmed");
   return new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message(alts));
@@ -201,7 +195,9 @@ export async function swapCoinToPawly(opts: {
   const inputMint = isSol ? WSOL_MINT : opts.coin === "USDT" ? USDT_MINT : USDC_MINT;
   const rawIn = isSol ? Math.max(1, Math.round(opts.coinAmount * LAMPORTS_PER_SOL)) : Math.max(1, Math.round(opts.coinAmount * 1e6));
   let inputAccount = "";
-  if (!isSol) {
+  if (isSol) {
+    inputAccount = (await getAssociatedTokenAddress(new PublicKey(WSOL_MINT), opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID)).toBase58();
+  } else {
     const inMint = new PublicKey(inputMint);
     const ata = await getAssociatedTokenAddress(inMint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
     const info = await c.getAccountInfo(ata);
@@ -215,15 +211,23 @@ export async function swapCoinToPawly(opts: {
   const before = await pawlyUi(c, opts.from);
   let last = "swap failed";
   let swapSig = "";
-  const tries: Array<() => Promise<string>> = [
-    () => jupSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), slippageBps: 400 }),
-    () => raySwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: 400, wrapSol: isSol }),
-    () => jupSwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), slippageBps: 800 }),
-    () => raySwapTx({ inputMint, amount: String(rawIn), user: opts.from.toBase58(), inputAccount, slippageBps: 800, wrapSol: isSol }),
-  ];
+  const user = opts.from.toBase58();
+  const tries: Array<() => Promise<string>> = isSol
+    ? [
+      () => raySwapTx({ inputMint, amount: String(rawIn), user, inputAccount, slippageBps: 400, wrapSol: false }),
+      () => jupSwapTx({ inputMint, amount: String(rawIn), user, slippageBps: 400, wrapSol: false }),
+      () => raySwapTx({ inputMint, amount: String(rawIn), user, inputAccount, slippageBps: 800, wrapSol: false }),
+      () => jupSwapTx({ inputMint, amount: String(rawIn), user, slippageBps: 800, wrapSol: false }),
+    ]
+    : [
+      () => jupSwapTx({ inputMint, amount: String(rawIn), user, slippageBps: 400, wrapSol: false }),
+      () => raySwapTx({ inputMint, amount: String(rawIn), user, inputAccount, slippageBps: 400, wrapSol: false }),
+      () => jupSwapTx({ inputMint, amount: String(rawIn), user, slippageBps: 800, wrapSol: false }),
+      () => raySwapTx({ inputMint, amount: String(rawIn), user, inputAccount, slippageBps: 800, wrapSol: false }),
+    ];
   for (let i = 0; i < tries.length; i++) {
     try {
-      say("1/2 Sign " + opts.coin + " → PAWLY");
+      say("1/2 Sign " + opts.coin + " \u2192 PAWLY");
       const vtx = await sponsorize(await tries[i](), opts.from, sponsor, isSol ? rawIn : 0);
       swapSig = await broadcast(await userSign(vtx, opts.wallet, opts.signTransaction));
       last = "";
@@ -231,27 +235,24 @@ export async function swapCoinToPawly(opts: {
     } catch (e) {
       if (isCancel(e)) throw e;
       last = String((e as { message?: string })?.message || e);
-      await sleep(300);
+      await sleep(200);
     }
   }
   if (!swapSig) throw new Error(last || "USDC/USDT/SOL swap failed");
-  say("1/2 Confirming " + swapSig.slice(0, 8));
-  const gained = await waitSwapOk(c, swapSig, opts.from, before);
-  return { sig: swapSig, gained, have: before + gained };
+  say("2/2 Sign PAWLY to shop now");
+  return { sig: swapSig, gained: 0, have: before };
 }
 
 export async function swapThenTill(opts: {
   from: PublicKey; coin: PayCoin; coinAmount: number; listPawly: number;
   signTransaction?: HubSign; sendTransaction?: HubSend; wallet?: HubWallet | null; onPhase?: PayPhaseFn;
 }): Promise<string> {
-  const hop1 = await swapCoinToPawly({
+  await swapCoinToPawly({
     from: opts.from, coin: opts.coin, coinAmount: opts.coinAmount,
     signTransaction: opts.signTransaction, wallet: opts.wallet, onPhase: opts.onPhase,
   });
-  const list = Number(opts.listPawly || 0);
-  const have = hop1.have > 0 ? hop1.have : hop1.gained;
-  const payAmt = list > 0 ? list : (hop1.gained > 0 ? hop1.gained : have);
-  if (!(payAmt > 0)) throw new Error("No PAWLY after swap");
+  const payAmt = Number(opts.listPawly || 0);
+  if (!(payAmt > 0)) throw new Error("No PAWLY list price");
   try { opts.onPhase && opts.onPhase("till", "2/2 Sign " + payAmt.toFixed(2) + " PAWLY to till"); } catch { /* ignore */ }
   const { payHub } = await import("./petHubSend");
   return await payHub({
