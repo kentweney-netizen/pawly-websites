@@ -16,6 +16,7 @@ export function feedsTodayOf(p?: { feedDay?: string; feedsToday?: number } | nul
 }
 export function pickFeedPet(list: PetRec[], id?: string) { return list.find((x) => x.id === id) || list[0]; }
 const STORE = "pawly_pet_hub_v1_";
+const SPENT = "pawly_pet_hub_spent_v1_";
 const EMAIL_KEY = "pawly_pet_hub_email_v1";
 export type PayCoin = "PAWLY" | "USDC" | "USDT" | "SOL";
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
@@ -66,22 +67,52 @@ export const FOODS = [
 export const TITLE: Record<SceneId, string> = { street: "Tampines pet street", hospital: "Novena Pet Hospital", park: "East Coast park", shop: "Pet Shop", shelter: "Rescue", hotel: "Pet Hotel", groom: "Grooming" };
 export const SHOPS: { id: SceneId; label: string }[] = [{ id: "shop", label: "Shop" }, { id: "hospital", label: "Hospital" }, { id: "shelter", label: "Rescue" }, { id: "hotel", label: "Hotel" }, { id: "groom", label: "Groom" }, { id: "park", label: "Park" }];
 export const CLIP: Record<SceneId, string> = { street: "pet-hub-street-walk.mp4", hospital: "pet-hub-hospital.mp4", park: "pet-hub-park.mp4", shop: "pet-hub-shop.mp4", shelter: "pet-hub-shelter.mp4", hotel: "pet-hub-hotel.mp4", groom: "pet-hub-groom.mp4" };
+function rosterHdr() {
+  return { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json" };
+}
+export function loadSpent(w: string): string[] {
+  if (!w) return [];
+  try { const raw = localStorage.getItem(SPENT + w); const list = raw ? JSON.parse(raw) : []; return Array.isArray(list) ? list.filter((x) => typeof x === "string") : []; } catch { return []; }
+}
+export function addSpent(w: string, ids: string[]) {
+  if (!w) return;
+  const next = Array.from(new Set(loadSpent(w).concat(ids.filter(Boolean))));
+  try { localStorage.setItem(SPENT + w, JSON.stringify(next)); } catch { /* ignore */ }
+}
 export function loadPets(w: string): PetRec[] {
   if (!w) return [];
-  try { const raw = localStorage.getItem(STORE + w); const list = raw ? JSON.parse(raw) : []; return Array.isArray(list) ? (list as PetRec[]).filter((p) => p && p.id) : []; } catch { return []; }
+  try {
+    const raw = localStorage.getItem(STORE + w);
+    const list = raw ? JSON.parse(raw) : [];
+    const spent = new Set(loadSpent(w));
+    return Array.isArray(list) ? (list as PetRec[]).filter((p) => p && p.id && !spent.has(p.id)) : [];
+  } catch { return []; }
 }
-export function mergePetLists(a: PetRec[], b: PetRec[]): PetRec[] { return [...a, ...b].filter((p, i, arr) => p && p.id && arr.findIndex((x) => x && x.id === p.id) === i).slice(0, PET_SLOT_CAP); }
+export function mergePetLists(a: PetRec[], b: PetRec[]): PetRec[] {
+  return [...a, ...b].filter((p, i, arr) => p && p.id && arr.findIndex((x) => x && x.id === p.id) === i).slice(0, PET_SLOT_CAP);
+}
+export function dropSpent(w: string, list: PetRec[]): PetRec[] {
+  const spent = new Set(loadSpent(w));
+  return list.filter((p) => p && p.id && !spent.has(p.id));
+}
 export async function pullCloudPets(w: string): Promise<PetRec[]> {
   if (!w) return [];
   try {
-    const r = await fetch(SUPABASE_URL + "/rest/v1/pet_hub_roster?wallet=eq." + encodeURIComponent(w) + "&select=pets", { headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY } });
+    const r = await fetch(SUPABASE_URL + "/rest/v1/pet_hub_roster?wallet=eq." + encodeURIComponent(w) + "&select=pets", { headers: rosterHdr() });
     const rows = (await r.json()) as { pets?: PetRec[] }[];
-    return rows && rows[0] && Array.isArray(rows[0].pets) ? rows[0].pets.filter((p) => p && (p.id || p.sig)) : [];
+    const spent = new Set(loadSpent(w));
+    return rows && rows[0] && Array.isArray(rows[0].pets) ? rows[0].pets.filter((p) => p && (p.id || p.sig) && !spent.has(String(p.id || ""))) : [];
   } catch { return []; }
 }
 export function savePets(w: string, list: PetRec[]) {
   if (!w) return;
-  try { localStorage.setItem(STORE + w, JSON.stringify(list.slice(0, PET_SLOT_CAP))); } catch { /* ignore */ }
+  const clean = dropSpent(w, list).slice(0, PET_SLOT_CAP);
+  try { localStorage.setItem(STORE + w, JSON.stringify(clean)); } catch { /* ignore */ }
+  void fetch(SUPABASE_URL + "/rest/v1/pet_hub_roster", {
+    method: "POST",
+    headers: { ...rosterHdr(), Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ wallet: w, pets: clean, updated_at: new Date().toISOString() }),
+  }).catch(() => {});
 }
 export function loadEmail() { try { return localStorage.getItem(EMAIL_KEY) || ""; } catch { return ""; } }
 export function saveEmail(v: string) { try { localStorage.setItem(EMAIL_KEY, v); } catch { /* ignore */ } }
