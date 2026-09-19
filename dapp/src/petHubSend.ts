@@ -33,18 +33,29 @@ function txToB64(tx: VersionedTransaction) {
   for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + 8192)));
   return btoa(s);
 }
+export async function readPawlyUi(owner: PublicKey): Promise<number> {
+  const conn = openHubConn();
+  const mint = new PublicKey(PAWLY_MINT);
+  const ata = await getAssociatedTokenAddress(mint, owner, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+  try {
+    const bal = await withTimeout(conn.getTokenAccountBalance(ata, "confirmed"), 4000, "Balance timeout");
+    return Number(bal?.value?.uiAmount || 0);
+  } catch {
+    return 0;
+  }
+}
 async function waitSigOk(conn: Connection, sig: string) {
-  for (let i = 0; i < 8; i++) {
-    const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 4000, "Status timeout");
+  for (let i = 0; i < 6; i++) {
+    const stPack = await withTimeout(conn.getSignatureStatuses([sig], { searchTransactionHistory: true }), 3000, "Status timeout");
     const st = stPack && stPack.value ? stPack.value[0] : null;
     if (st && st.err) throw new Error("Transaction failed on-chain / 链上失败");
     if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" || st.slot)) return;
-    await sleepHub(350);
+    await sleepHub(250);
   }
 }
 async function sponsorBroadcast(signed: VersionedTransaction, feePawly: number) {
   const ctrl = new AbortController();
-  const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 16000);
+  const timer = window.setTimeout(() => { try { ctrl.abort(); } catch { /* ignore */ } }, 14000);
   try {
     const r = await fetch(SUPABASE_URL + "/functions/v1/sponsor-dapp-tx", {
       method: "POST",
@@ -64,7 +75,7 @@ function pickSigned(out: unknown, fallback: VersionedTransaction): VersionedTran
   if (out && typeof out === "object" && typeof (out as VersionedTransaction).serialize === "function") return out as VersionedTransaction;
   return fallback;
 }
-async function userPartialSign(tx: VersionedTransaction, wallet?: HubWallet | null, signTransaction?: HubSign): Promise<VersionedTransaction> {
+export async function userPartialSign(tx: VersionedTransaction, wallet?: HubWallet | null, signTransaction?: HubSign): Promise<VersionedTransaction> {
   const adapter = wallet && (wallet.adapter || (wallet.wallet && wallet.wallet.adapter) || wallet);
   const tryAll = async () => {
     const fn = (adapter && adapter.signAllTransactions) || (wallet && wallet.signAllTransactions);
@@ -105,17 +116,23 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
   const till = new PublicKey(SHOP_TILL);
   const sponsor = new PublicKey(SHOP_TILL);
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
+  const list = Number(opts.listPawly || (opts.coin === "PAWLY" ? opts.amount : 0));
   if (opts.coin !== "PAWLY") {
-    say("swap", "1/2 Swap " + opts.coin + " → PAWLY");
+    const have = await readPawlyUi(opts.from);
+    if (list > 0 && have + 0.000001 >= list) {
+      say("till", "Wallet has " + have.toFixed(2) + " PAWLY \u2014 1 sign to shop");
+      return await payHub({ ...opts, coin: "PAWLY", amount: list, listPawly: list });
+    }
+    say("swap", "1/2 Swap " + opts.coin + " \u2192 PAWLY");
     const mod = await import("./petHubSwap");
     return await mod.swapThenTill({
-      from: opts.from, coin: opts.coin, coinAmount: opts.amount, listPawly: Number(opts.listPawly || 0),
+      from: opts.from, coin: opts.coin, coinAmount: opts.amount, listPawly: list,
       signTransaction: opts.signTransaction, sendTransaction: opts.sendTransaction,
       wallet: opts.wallet || undefined, onPhase: opts.onPhase,
     });
   }
   const conn = openHubConn();
-  say("sign", "2/2 Sign PAWLY to till");
+  say("sign", "Sign " + Number(opts.amount).toFixed(2) + " PAWLY to shop");
   const mint = new PublicKey(PAWLY_MINT);
   const rawAmt = Math.round(opts.amount * 1e6);
   const fromAta = await getAssociatedTokenAddress(mint, opts.from, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
@@ -132,9 +149,9 @@ export async function payHub(opts: { from: PublicKey; coin: PayCoin; amount: num
     ],
   }).compileToV0Message());
   const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
-  say("sponsor", "Broadcast till...");
+  say("sponsor", "Broadcast...");
   const sig = await sponsorBroadcast(signed, 1);
-  say("confirm", sig.slice(0, 8) + "...");
+  say("confirm", "Paid " + sig.slice(0, 8));
   await waitSigOk(conn, sig);
   return sig;
 }
