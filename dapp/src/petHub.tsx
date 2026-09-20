@@ -194,11 +194,7 @@ export function PetHubPage() {
             <div style={{ fontSize: 11, color: "#8aa", marginTop: 4 }}>Shop till accepts PAWLY only. One signature. Need other coins? Swap to PAWLY in dApp first.</div>
             <div style={{ margin: "8px 0 4px" }}>{cart.emoji ? cart.emoji + " " : ""}{cart.title}</div>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{cart.amount} PAWLY</div>
-            <div style={{ fontSize: 14, color: "#c8ffe8", marginBottom: 6 }}>{quoteCoin(cart.amount, payCoin, px).label}{px.pawlyUsd ? sep + "PAWLY $" + px.pawlyUsd.toFixed(4) : ""}{px.src ? sep + px.src : ""}</div>
-              <div style={{ fontSize: 11, color: "#c8ffe8", marginBottom: 8, lineHeight: 1.35 }}>
-                {"Pay " + payCoin + " direct to shop till — same as Payment page."}
-              </div>
-            ) : null}
+            <div style={{ fontSize: 12, color: "#c8ffe8", marginBottom: 8 }}>{px.pawlyUsd ? "PAWLY $" + px.pawlyUsd.toFixed(4) + (px.src ? sep + px.src : "") : "PAWLY to till"}</div>
             <button type="button" disabled={busy} style={{ ...primary, width: "100%", opacity: busy ? 0.6 : 1 }} onClick={() => void confirmPay()}>{busy ? (note || "Paying...") : "Confirm - " + cart.amount + " PAWLY"}</button>
             {busy ? <div style={{ fontSize: 11, color: "#c8ffe8", marginTop: 8 }}>Sign once in wallet. Do not tap twice.</div> : null}
             <button type="button" style={{ ...ghost, width: "100%", marginTop: 8 }} onClick={() => { setBusy(false); setCart(null); }}>{busy ? "Unlock / 解锁" : "Cancel"}</button>
