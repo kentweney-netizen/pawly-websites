@@ -212,10 +212,10 @@ async function buildTransferIxs(opts: {
 }) {
   const raw = Math.round(opts.uiAmount * Math.pow(10, DECIMALS[opts.coin]));
   if (!(raw > 0)) throw new Error("Amount too small");
-  if (opts.coin === "SOL") {
+  if ((opts.coin as string) === "SOL") {
     return [SystemProgram.transfer({ fromPubkey: opts.from, toPubkey: opts.till, lamports: raw })];
   }
-  const mint = new PublicKey(MINTS[opts.coin]);
+  const mint = new PublicKey(MINTS[opts.coin as Exclude<PayCoin, "SOL">]);
   const programId = await resolveTokenProgramId(opts.conn, mint);
   const source = await findSourceAta(opts.conn, mint, opts.from, programId, raw);
   const toAta = await getAssociatedTokenAddress(mint, opts.till, false, programId, ASSOCIATED_TOKEN_PROGRAM_ID);
@@ -253,29 +253,26 @@ export async function payHub(opts: {
   const sponsor = new PublicKey(SHOP_TILL);
   if (opts.from.equals(till)) throw new Error("Shop till is this wallet");
   const conn = openHubConn();
-  say("build", "Pay " + opts.coin + " like dApp Payment");
+  say("build", "Pay PAWLY like dApp Payment");
   const { blockhash } = await withTimeout(conn.getLatestBlockhash("confirmed"), 5000, "RPC timeout");
 
-  const trySponsor = opts.coin !== "SOL";
-  if (trySponsor) {
-    try {
-      say("sign", "Sign " + opts.coin + " to shop (sponsored)");
-      const ixs = await buildTransferIxs({ conn, from: opts.from, till, payer: sponsor, coin: opts.coin, uiAmount: opts.amount });
-      const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
-      const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
-      say("sponsor", "Broadcast...");
-      const sig = await sponsorBroadcast(signed, 1);
-      say("confirm", "Paid " + sig.slice(0, 8));
-      await waitSigOk(conn, sig);
-      return sig;
-    } catch (e) {
-      if (isUserCancel(e)) throw e;
-      say("sign", "Sponsor skipped — wallet send like Payment");
-    }
+  try {
+    say("sign", "Sign PAWLY to shop (sponsored)");
+    const ixs = await buildTransferIxs({ conn, from: opts.from, till, payer: sponsor, coin: "PAWLY", uiAmount: opts.amount });
+    const tx = new VersionedTransaction(new TransactionMessage({ payerKey: sponsor, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+    const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
+    say("sponsor", "Broadcast...");
+    const sig = await sponsorBroadcast(signed, 1);
+    say("confirm", "Paid " + sig.slice(0, 8));
+    await waitSigOk(conn, sig);
+    return sig;
+  } catch (e) {
+    if (isUserCancel(e)) throw e;
+    say("sign", "Sponsor skipped — wallet send like Payment");
   }
 
-  say("sign", "Sign " + opts.coin + " in wallet");
-  const ixs = await buildTransferIxs({ conn, from: opts.from, till, payer: opts.from, coin: opts.coin, uiAmount: opts.amount });
+  say("sign", "Sign PAWLY in wallet");
+  const ixs = await buildTransferIxs({ conn, from: opts.from, till, payer: opts.from, coin: "PAWLY", uiAmount: opts.amount });
   const tx = new VersionedTransaction(new TransactionMessage({ payerKey: opts.from, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
   const sig = await walletSignAndSend({ conn, tx, wallet: opts.wallet, sendTransaction: opts.sendTransaction });
   if (!sig || sig.length < 40) throw new Error("Wallet did not return signature / 钱包未返回签名");
