@@ -1,0 +1,29 @@
+name: alias-sponsor
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/alias-sponsor.yml"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add sponsorSignedTx export
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("dapp/src/petHubSend.ts")
+          t = p.read_text()
+          if "sponsorSignedTx" not in t:
+              t = t.rstrip() + "\nexport const sponsorSignedTx = sponsorBroadcast;\n"
+              p.write_text(t)
+          print("ok", len(t), "sponsorSignedTx" in t)
+          PY
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHubSend.ts
+          git diff --cached --quiet || git commit -m "fix(pet): export sponsorSignedTx alias"
+          git push origin HEAD:main
