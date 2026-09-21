@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { spriteCandidates, isMythWalk, mythKey } from "./petSprites";
 import { MYTH_IMG } from "./petHubMythImg";
+import { mythArt, nftSpriteOf } from "./petHubNftArt";
 
 export type PetRigPet = {
   species: string;
@@ -66,10 +67,23 @@ function ArtBadge(props: { src: string; name?: string; size: number; moving?: bo
       borderRadius: 10, background: "#081018", border: "1px solid rgba(0,255,157,0.35)",
     }}>
       <img alt={props.name || "pet"} src={props.src} draggable={false} style={{
-        width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", background: "transparent",
+        width: "100%", height: "100%", objectFit: "cover", objectPosition: "center",
+        imageRendering: "pixelated", background: "transparent",
       }} />
     </div>
   );
+}
+
+function portraitOf(pet: PetRigPet): string {
+  const sprite = nftSpriteOf({ species: pet.species, name: pet.name });
+  const myth = mythKey(pet.species) || mythKey(pet.name || "") || sprite;
+  if (myth && MYTH_IMG[myth as keyof typeof MYTH_IMG]) return MYTH_IMG[myth as keyof typeof MYTH_IMG];
+  const painted = mythArt(sprite);
+  if (painted) return painted;
+  const art = String(pet.art || "");
+  if (art.indexOf("data:image") === 0) return "";
+  if (art.indexOf("http") === 0 || art.indexOf("/dapp/") === 0) return art;
+  return "";
 }
 
 export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean }) {
@@ -78,10 +92,7 @@ export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean 
   const size = props.size || 36;
   const moving = !!props.moving;
   const face = props.pet.emoji || FACE[key] || "\ud83d\udc3e";
-  const myth = mythKey(props.pet.species);
-  const cardArt = (props.pet.art && props.pet.art.length > 8)
-    ? props.pet.art
-    : (myth && MYTH_IMG[myth as keyof typeof MYTH_IMG]) || "";
+  const cardArt = portraitOf(props.pet);
   if (lv >= 1 && cardArt) return <ArtBadge src={cardArt} name={props.pet.name} size={size} moving={moving} />;
   const cands = spriteCandidates(props.pet.species);
   const [idx, setIdx] = useState(0);
