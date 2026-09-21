@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply Pet Hub v0.4.17 mint-retry + metadata attach before tsc."""
+"""Apply Pet Hub v0.4.18 art + feed persist before tsc."""
 from pathlib import Path
 root = Path(__file__).resolve().parent
 src = root / "src"
@@ -21,12 +21,35 @@ def patch_path(p: Path, pairs):
         print("no change", p)
 
 patch_path(src / "petHub.tsx", [
-    ("v0.4.14", "v0.4.17"),
-    ("v0.4.15", "v0.4.17"),
-    ("v0.4.16", "v0.4.17"),
-    ("PAWLY till + Studio (parts + doodle + 0-dec mint).", "PAWLY till + Studio + metadata attach."),
-    ("PAWLY till + Studio + Metaplex metadata for Magic Eden / Tensor.", "PAWLY till + Studio + metadata attach."),
-    ("PAWLY till + Studio + on-chain mint retry.", "PAWLY till + Studio + metadata attach."),
+    ("v0.4.14", "v0.4.18"),
+    ("v0.4.15", "v0.4.18"),
+    ("v0.4.16", "v0.4.18"),
+    ("v0.4.17", "v0.4.18"),
+    ("PAWLY till + Studio (parts + doodle + 0-dec mint).", "PAWLY till + Studio + NFT art + saved feeds."),
+    ("PAWLY till + Studio + metadata attach.", "PAWLY till + Studio + NFT art + saved feeds."),
+    ("PAWLY till + Studio + on-chain mint retry.", "PAWLY till + Studio + NFT art + saved feeds."),
+    ("pet={{ species: p.species, level: Math.max(1, Number(p.level || 1)), emoji: p.emoji, name: p.name }}",
+     "pet={{ species: p.species, level: Math.max(1, Number(p.level || 1)), emoji: p.emoji, name: p.name, art: p.art }}"),
+    ("pet={{ species: p.species, level: Number(p.level || 0), emoji: p.emoji, name: p.name }}",
+     "pet={{ species: p.species, level: Number(p.level || 0), emoji: p.emoji, name: p.name, art: p.art }}"),
+])
+
+patch_path(src / "petHubLib.ts", [
+    ("export type PetRec = { id: string; kind: string; species: string; name: string; emoji: string; hunger: number; health: number; streak: number; pricePawly?: number; sig?: string; feedsTotal?: number; feedsToday?: number; feedDay?: string; level?: number };",
+     "export type PetRec = { id: string; kind: string; species: string; name: string; emoji: string; hunger: number; health: number; streak: number; pricePawly?: number; sig?: string; feedsTotal?: number; feedsToday?: number; feedDay?: string; level?: number; art?: string };"),
+    ("const STORE_NFT = \"pawly_pet_hub_nft_v1_\";",
+     "const STORE_NFT = \"pawly_pet_hub_nft_v1_\";\nconst STORE_FEEDS = \"pawly_pet_hub_feeds_v1_\";"),
+    ("type MintNft = { id: string; species: string; name: string; emoji?: string; parents?: string[]; breedSig?: string };",
+     "type MintNft = { id: string; species: string; name: string; emoji?: string; parents?: string[]; breedSig?: string; art?: string };\nfunction loadFeeds(w: string): Record<string, { feedsTotal?: number; feedsToday?: number; feedDay?: string; level?: number; art?: string }> {\n  if (!w) return {};\n  try { const raw = localStorage.getItem(STORE_FEEDS + w); const row = raw ? JSON.parse(raw) : {}; return row && typeof row === \"object\" ? row : {}; } catch { return {}; }\n}\nfunction saveFeeds(w: string, list: PetRec[]) {\n  if (!w) return;\n  const row: Record<string, { feedsTotal?: number; feedsToday?: number; feedDay?: string; level?: number; art?: string }> = loadFeeds(w);\n  for (const p of list || []) {\n    if (!p || !p.id) continue;\n    row[p.id] = { feedsTotal: p.feedsTotal, feedsToday: p.feedsToday, feedDay: p.feedDay, level: p.level, art: p.art };\n  }\n  try { localStorage.setItem(STORE_FEEDS + w, JSON.stringify(row)); } catch { /* ignore */ }\n}"),
+    ("    keep.push({\n      id: n.id, kind: \"myth\", species: n.species, name: n.name,\n      emoji: n.emoji || \"\\u2728\", hunger: 80, health: 90, streak: 0,\n      feedsTotal: 10, level: 1, sig: n.breedSig,\n    });",
+     "    const old = (list || []).find((p) => p && p.id === n.id);\n    const snap = loadFeeds(w)[n.id] || {};\n    keep.push({\n      id: n.id, kind: \"myth\", species: n.species, name: n.name,\n      emoji: n.emoji || \"\\u2728\", hunger: old && old.hunger != null ? old.hunger : 80, health: old && old.health != null ? old.health : 90, streak: old && old.streak != null ? old.streak : 0,\n      feedsTotal: Number((old && old.feedsTotal) ?? snap.feedsTotal ?? 10),\n      feedsToday: Number((old && old.feedsToday) ?? snap.feedsToday ?? 0),\n      feedDay: (old && old.feedDay) || snap.feedDay,\n      level: Number((old && old.level) ?? snap.level ?? 1),\n      sig: n.breedSig,\n      art: n.art || (old && old.art) || snap.art,\n    });"),
+    ("  const clean = applyMinted(w, list);\n  try { localStorage.setItem(STORE + w, JSON.stringify(clean)); } catch { /* ignore */ }",
+     "  const clean = applyMinted(w, list);\n  try { localStorage.setItem(STORE + w, JSON.stringify(clean)); } catch { /* ignore */ }\n  saveFeeds(w, clean);"),
+])
+
+patch_path(src / "petHubMarket.ts", [
+    ("    feedsTotal: 10,\n    level: 1,\n    sig: n.breedSig,\n  };",
+     "    feedsTotal: 10,\n    level: 1,\n    sig: n.breedSig,\n    art: n.art,\n  };"),
 ])
 
 patch_path(src / "petHubStudio.tsx", [
@@ -38,18 +61,6 @@ patch_path(src / "petHubStudio.tsx", [
      "          paySig: sig,\n          species: label,\n          source: \"studio\",\n          image: nftImageOf(label, body),\n          wallet: props.wallet as never,"),
     ("      } catch {\n        memoSig = \"\";\n      }",
      "      } catch (e) {\n        const extra = e as { mint?: string; sig?: string; message?: string };\n        if (extra && extra.mint) { mint = extra.mint; memoSig = extra.sig || \"\"; }\n        props.setNote(String(extra && extra.message || e));\n      }"),
-    ("On-chain 0-dec mint + memo when wallet can sign.",
-     "Pay 80 once. Retry mint attaches name/image to the token already in this wallet."),
-    ('props.setNote(mint ? "Studio NFT minted on-chain" : "Studio NFT saved (chain mint skipped)");',
-     'props.setNote(mint ? "Studio mint live. Open Solscan Token before Magic Eden / Tensor." : "Paid. Card saved. Tap Retry mint — no second 80.");'),
 ])
 
-patch_path(src / "petHubStalls.tsx", [
-    ('import { StudioPanel } from "./petHubStudio";',
-     'import { StudioPanel } from "./petHubStudio";\nimport { mintHubNft } from "./petHubMintOnchain";\nimport { marketLinks } from "./petHubMeta";'),
-    ("      const nft = makeNft({ owner: addr, a, b, sig });\n      const nextPets = props.pets.filter((p) => p.id !== a.id && p.id !== b.id);",
-     "      const nft = makeNft({ owner: addr, a, b, sig });\n      try {\n        props.setNote(\"Signing on-chain mint...\");\n        const on = await mintHubNft({\n          owner: props.wallet.publicKey,\n          label: nft.name,\n          paySig: sig,\n          species: nft.species,\n          source: \"breed\",\n          wallet: props.wallet as never,\n          signTransaction: props.wallet.signTransaction,\n        });\n        nft.mint = on.mint;\n        nft.memoSig = on.sig;\n      } catch (e) {\n        const extra = e as { mint?: string; sig?: string; message?: string };\n        if (extra && extra.mint) { nft.mint = extra.mint; nft.memoSig = extra.sig || \"\"; }\n        props.setNote(String(extra && extra.message || e));\n      }\n      const nextPets = props.pets.filter((p) => p.id !== a.id && p.id !== b.id);"),
-    ('                <div style={{ fontSize: 10, color: "#9f8" }}>{"g" + Number(n.gen || 1) + " \\u00b7 " + priceLabel(n)}</div>\n              </div>\n              {n.listed',
-     '                <div style={{ fontSize: 10, color: "#9f8" }}>{"g" + Number(n.gen || 1) + " \\u00b7 " + priceLabel(n)}</div>\n                {n.mint ? (\n                  <div style={{ display: "flex", gap: 6, marginTop: 2 }}>\n                    {marketLinks(n.mint).map((l) => (\n                      <button key={l.label} type="button" style={{ ...tiny, padding: "2px 6px", fontSize: 9 }} onClick={() => window.open(l.href, "_blank")}>{l.label}</button>\n                    ))}\n                  </div>\n                ) : null}\n              </div>\n              {!n.mint\n                ? <button type="button" style={tiny} disabled={props.busy} onClick={() => void (async () => {\n                    if (!props.wallet.publicKey) { props.setNote("Connect wallet in dApp first"); return; }\n                    props.setBusy(true); props.setNote("Retry mint — no extra PAWLY");\n                    try {\n                      const on = await mintHubNft({\n                        owner: props.wallet.publicKey,\n                        label: nftSpriteName(n),\n                        paySig: n.breedSig || n.memoSig || n.id,\n                        species: n.species,\n                        source: (n.source === "studio" ? "studio" : "breed"),\n                        wallet: props.wallet as never,\n                        signTransaction: props.wallet.signTransaction,\n                      });\n                      flush(s.myStall, s.myNfts.map((x) => x.id === n.id ? { ...x, mint: on.mint, memoSig: on.sig } : x));\n                      props.setLastSig(on.sig); props.setNote("Mint live " + on.mint);\n                    } catch (e) {\n                      const extra = e as { mint?: string; sig?: string; message?: string };\n                      if (extra && extra.mint) {\n                        flush(s.myStall, s.myNfts.map((x) => x.id === n.id ? { ...x, mint: extra.mint, memoSig: extra.sig || x.memoSig } : x));\n                      }\n                      props.setNote(String(extra && extra.message || e));\n                    } finally { props.setBusy(false); }\n                  })()}>Retry mint</button>\n                : n.listed'),
-])
-print("v0.4.17 patch done")
+print("v0.4.18 patch done")
