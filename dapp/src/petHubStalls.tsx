@@ -4,12 +4,13 @@ import { payHub, ghost, primary, savePets } from "./petHubLib";
 import type { PetRec, PayCoin } from "./petHubLib";
 import {
   STALL_PAWLY, BREED_PAWLY, pullMarket, pushMarketRow, openStallRec,
-  level1Pets, makeNft, rankingOf, listedOf, marketPayHint, priceLabel,
+  level1Pets, makeNft, nftAsPet, rankingOf, listedOf, marketPayHint, priceLabel,
   loadLocalNfts, saveLocalNfts, loadLocalStall, saveLocalStall,
 } from "./petHubMarket";
 import type { StallRec, NftRec } from "./petHubMarket";
 import { payPeer } from "./petHubPeer";
 import { nftPortrait, nftSpriteName, nftIdleKind, ensureIdleCss } from "./petHubNftArt";
+import { StudioPanel } from "./petHubStudio";
 
 type WalletBag = {
   publicKey?: PublicKey | null;
@@ -69,7 +70,7 @@ export function setHubTab(tab: Store["tab"]) { setStore({ tab, zoom: null }); }
 
 function NftLive({ n, size, onClick }: { n: NftRec; size: number; onClick?: (e: React.MouseEvent) => void }) {
   useEffect(() => { ensureIdleCss(); }, []);
-  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name, n.species]);
+  const src = useMemo(() => nftPortrait(n), [n.id, n.breedSig, n.name, n.species, n.art]);
   const idle = nftIdleKind(n);
   return (
     <img
@@ -167,13 +168,18 @@ export function StallLayer(props: LayerProps) {
         if (!live) return;
         const mine = addr ? m.nfts.filter((n) => n.owner === addr) : [];
         const cloudStall = addr ? m.stalls.find((x) => x.wallet === addr) || null : null;
+        const keepArt = (list: NftRec[]) => list.map((n) => {
+          const loc = store.myNfts.find((x) => x.id === n.id);
+          return loc && loc.art && !n.art ? { ...n, art: loc.art } : n;
+        });
+        const nextMine = mine.length ? keepArt(mine) : store.myNfts;
         setStore({
           stalls: m.stalls,
-          allNfts: m.nfts,
-          myNfts: mine.length ? mine : store.myNfts,
+          allNfts: keepArt(m.nfts),
+          myNfts: nextMine,
           myStall: cloudStall || store.myStall,
         });
-        if (addr && mine.length) saveLocalNfts(addr, mine);
+        if (addr && nextMine.length) saveLocalNfts(addr, nextMine);
         if (addr && cloudStall) saveLocalStall(addr, cloudStall);
       });
     };
@@ -302,6 +308,25 @@ export function StallLayer(props: LayerProps) {
               <button type="button" disabled={props.busy} style={{ ...primary, padding: "8px 10px", opacity: props.busy ? 0.6 : 1 }} onClick={() => void payBreed()}>{props.busy ? "..." : "Mint 80"}</button>
             </div>
           )}
+          {s.myStall ? (
+            <StudioPanel
+              addr={addr}
+              hasStall={!!s.myStall}
+              busy={props.busy}
+              wallet={props.wallet}
+              setBusy={props.setBusy}
+              setNote={props.setNote}
+              setLastSig={props.setLastSig}
+              setLastPaid={props.setLastPaid}
+              setLastTitle={props.setLastTitle}
+              onMinted={(nft) => {
+                flush(s.myStall, [...s.myNfts, nft]);
+                const next = [...props.pets.filter((p) => p.id !== nft.id), nftAsPet(nft)].slice(0, 10);
+                props.setPets(next);
+                savePets(addr, next);
+              }}
+            />
+          ) : null}
           <div style={{ fontSize: 10, color: "#8aa", margin: "-4px 0 8px" }}>"Pay PAWLY only. Swap other coins in dApp Swap first."</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <input value={s.listPrice} onChange={(e) => setStore({ listPrice: e.target.value })} placeholder="price" style={{ width: 88, padding: "6px 8px", borderRadius: 8, border: "1px solid rgba(0,255,157,0.35)", background: "#0b1610", color: "#e8eef7", fontSize: 12 }} />
