@@ -1,4 +1,4 @@
-import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from "@solana/web3.js";
 import { Buffer } from "buffer";
 
 export const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
@@ -69,7 +69,12 @@ export function createMetadataV3Ix(opts: {
 }): TransactionInstruction {
   const metadata = metadataPda(opts.mint);
   const creators = opts.creators || [];
-  const chunks: Buffer[] = [Buffer.from([33]), borshString(opts.name.slice(0, 32)), borshString(opts.symbol.slice(0, 10)), borshString(opts.uri.slice(0, 200))];
+  const chunks: Buffer[] = [
+    Buffer.from([33]),
+    borshString(opts.name.slice(0, 32)),
+    borshString(opts.symbol.slice(0, 10)),
+    borshString(opts.uri.slice(0, 200)),
+  ];
   const fee = Buffer.alloc(2);
   fee.writeUInt16LE(opts.sellerFeeBasisPoints || 0, 0);
   chunks.push(fee);
@@ -83,7 +88,7 @@ export function createMetadataV3Ix(opts: {
   } else {
     chunks.push(Buffer.from([0]));
   }
-  chunks.push(Buffer.from([0, 0, 0, 0]));
+  chunks.push(Buffer.from([0, 0, 1, 0]));
   return new TransactionInstruction({
     programId: TOKEN_METADATA_PROGRAM_ID,
     keys: [
@@ -93,6 +98,7 @@ export function createMetadataV3Ix(opts: {
       { pubkey: opts.payer, isSigner: true, isWritable: true },
       { pubkey: opts.updateAuthority, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],
     data: Buffer.concat(chunks),
   });
@@ -119,6 +125,7 @@ export function createMasterEditionV3Ix(opts: {
       { pubkey: metadataPda(opts.mint), isSigner: false, isWritable: true },
       { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],
     data,
   });

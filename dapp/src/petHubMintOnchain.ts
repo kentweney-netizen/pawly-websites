@@ -21,7 +21,14 @@ import {
 } from "@solana/spl-token";
 import { sponsorSignedTx } from "./petHubSend";
 import type { HubSign, HubWallet } from "./petHubSend";
-import { createMasterEditionV3Ix, createMetadataV3Ix, nftImageOf, nftUri, publishNftMeta } from "./petHubMeta";
+import {
+  createMasterEditionV3Ix,
+  createMetadataV3Ix,
+  metadataPda,
+  nftImageOf,
+  nftUri,
+  publishNftMeta,
+} from "./petHubMeta";
 
 const RPC = "https://mainnet.helius-rpc.com/?api-key=a0821dec-85d2-4ba6-b2e8-24ca0da547c2";
 const SPONSOR = "BPFiVa5trVtS9CQcaeQ9aNA8ZpBAbbvH8qcyZ3VR4C7Z";
@@ -46,6 +53,32 @@ export async function mintAccountLive(mint: string): Promise<boolean> {
     return !!(info && info.data && info.data.length >= MINT_SIZE);
   } catch {
     return false;
+  }
+}
+
+export async function metadataAccountLive(mint: string): Promise<boolean> {
+  if (!mint) return false;
+  try {
+    const info = await openConn().getAccountInfo(metadataPda(new PublicKey(mint)), "confirmed");
+    return !!(info && info.data && info.data.length > 10);
+  } catch {
+    return false;
+  }
+}
+
+export async function findOwnedZeroDec(owner: PublicKey): Promise<string[]> {
+  try {
+    const res = await openConn().getParsedTokenAccountsByOwner(owner, { programId: TOKEN_PROGRAM_ID }, "confirmed");
+    const out: string[] = [];
+    for (const row of res.value || []) {
+      const info = row.account.data.parsed && row.account.data.parsed.info;
+      if (!info) continue;
+      const amt = info.tokenAmount || {};
+      if (Number(amt.decimals) === 0 && Number(amt.uiAmount || 0) === 1 && info.mint) out.push(String(info.mint));
+    }
+    return out;
+  } catch {
+    return [];
   }
 }
 
@@ -94,28 +127,63 @@ export async function attachHubMetadata(opts: {
   const conn = openConn();
   const sponsor = new PublicKey(SPONSOR);
   const uri = nftUri(opts.mint.toBase58());
-  const ixs = [
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 300000 }),
-    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
-    createMetadataV3Ix({
-      mint: opts.mint,
-      mintAuthority: sponsor,
-      payer: sponsor,
-      updateAuthority: sponsor,
-      name: opts.label.slice(0, 32),
-      symbol: "PHUB",
-      uri,
-      sellerFeeBasisPoints: 0,
-      creators: [{ address: opts.owner, verified: false, share: 100 }],
-    }),
-    createMasterEditionV3Ix({
-      mint: opts.mint,
-      updateAuthority: sponsor,
-      mintAuthority: sponsor,
-      payer: sponsor,
-    }),
-  ];
-  return sendSponsorOnly({ conn, sponsor, ixs });
+  const metaIx = createMetadataV3Ix({
+    mint: opts.mint,
+    mintAuthority: sponsor,
+    payer: sponsor,
+    updateAuthority: sponsor,
+    name: opts.label.slice(0, 32),
+    symbol: "PHUB",
+    uri,
+    sellerFeeBasisPoints: 0,
+    creators: [{ address: opts.owner, verified: false, share: 100 }],
+  });
+  const sig = await sendSponsorOnly({
+    conn,
+    sponsor,
+    ixs: [
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 250000 }),
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
+      metaIx,
+    ],
+  });
+  try {
+    await sendSponsorOnly({
+      conn,
+      sponsor,
+      ixs: [
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 250000 }),
+        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
+        createMasterEditionV3Ix({
+          mint: opts.mint,
+          updateAuthority: sponsor,
+          mintAuthority: sponsor,
+          payer: sponsor,
+        }),
+      ],
+    });
+  } catch { /* metadata name is enough for Solscan / most indexes */ }
+  return sig;
+}
+
+async function publishAndAttach(opts: {
+  owner: PublicKey;
+  mint: PublicKey;
+  label: string;
+  species?: string;
+  source?: string;
+  image?: string;
+}) {
+  await publishNftMeta({
+    mint: opts.mint.toBase58(),
+    name: opts.label.slice(0, 32),
+    species: opts.species || opts.label,
+    source: opts.source || "studio",
+    owner: opts.owner.toBase58(),
+    image: opts.image || nftImageOf(opts.species, opts.label),
+  });
+  if (await metadataAccountLive(opts.mint.toBase58())) return "";
+  return attachHubMetadata(opts);
 }
 
 export async function mintHubNft(opts: {
@@ -131,6 +199,33 @@ export async function mintHubNft(opts: {
   const conn = openConn();
   const sponsor = new PublicKey(SPONSOR);
   await assertPaidTill(conn, opts.owner, opts.paySig);
+
+  const owned = await findOwnedZeroDec(opts.owner);
+  for (const existing of owned) {
+    const live = await mintAccountLive(existing);
+    if (!live) continue;
+    const mint = new PublicKey(existing);
+    let metaSig = "";
+    try {
+      metaSig = await publishAndAttach({
+        owner: opts.owner,
+        mint,
+        label: opts.label,
+        species: opts.species,
+        source: opts.source,
+        image: opts.image,
+      });
+    } catch (e) {
+      const msg = String((e as { message?: string }).message || e);
+      throw Object.assign(new Error("Mint live " + existing + ". Metadata later: " + msg), {
+        mint: existing,
+        sig: opts.paySig,
+        uri: nftUri(existing),
+      });
+    }
+    return { mint: existing, sig: opts.paySig, uri: nftUri(existing), metaSig };
+  }
+
   const mintKp = Keypair.generate();
   const mint = mintKp.publicKey;
   const rent = await getMinimumBalanceForRentExemptMint(conn);
@@ -154,17 +249,9 @@ export async function mintHubNft(opts: {
   const live = await mintAccountLive(mint.toBase58());
   if (!live) throw new Error("Mint did not land on-chain / 铸币未上链");
   const uri = nftUri(mint.toBase58());
-  await publishNftMeta({
-    mint: mint.toBase58(),
-    name: opts.label.slice(0, 32),
-    species: opts.species || opts.label,
-    source: opts.source || "studio",
-    owner: opts.owner.toBase58(),
-    image: opts.image || nftImageOf(opts.species, opts.label),
-  });
   let metaSig = "";
   try {
-    metaSig = await attachHubMetadata({
+    metaSig = await publishAndAttach({
       owner: opts.owner,
       mint,
       label: opts.label,
