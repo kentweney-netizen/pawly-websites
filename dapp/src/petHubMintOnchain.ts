@@ -19,7 +19,7 @@ import {
   getMinimumBalanceForRentExemptMint,
   MINT_SIZE,
 } from "@solana/spl-token";
-import { userPartialSign, sponsorSignedTx } from "./petHubSend";
+import { sponsorSignedTx } from "./petHubSend";
 import type { HubSign, HubWallet } from "./petHubSend";
 import { createMasterEditionV3Ix, createMetadataV3Ix, nftImageOf, nftUri, publishNftMeta } from "./petHubMeta";
 
@@ -49,13 +49,27 @@ export async function mintAccountLive(mint: string): Promise<boolean> {
   }
 }
 
-async function sendSponsored(opts: {
+function keyList(tx: { transaction?: { message?: { accountKeys?: unknown } } }) {
+  const raw = tx.transaction && tx.transaction.message && tx.transaction.message.accountKeys;
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr.map((a) => (typeof a === "string" ? a : String((a as { pubkey?: string }).pubkey || a)));
+}
+
+async function assertPaidTill(conn: Connection, owner: PublicKey, paySig: string) {
+  if (!paySig || paySig.length < 32) throw new Error("Need the 80 PAWLY payment signature first");
+  const tx = await conn.getParsedTransaction(paySig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" });
+  if (!tx) throw new Error("Payment signature not found on-chain");
+  if (tx.meta && tx.meta.err) throw new Error("Payment signature failed on-chain");
+  const keys = keyList(tx as never);
+  if (keys.indexOf(owner.toBase58()) < 0) throw new Error("Payment is not from this wallet");
+  if (keys.indexOf(SPONSOR) < 0) throw new Error("Payment did not go to Pet Hub till");
+}
+
+async function sendSponsorOnly(opts: {
   conn: Connection;
   sponsor: PublicKey;
   ixs: TransactionInstruction[];
   extra?: Keypair[];
-  wallet?: HubWallet | null;
-  signTransaction?: HubSign;
 }): Promise<string> {
   const { blockhash } = await opts.conn.getLatestBlockhash("confirmed");
   const tx = new VersionedTransaction(new TransactionMessage({
@@ -63,11 +77,8 @@ async function sendSponsored(opts: {
     recentBlockhash: blockhash,
     instructions: opts.ixs,
   }).compileToV0Message());
-  const extra = opts.extra || [];
-  if (extra.length) tx.sign(extra);
-  const signed = await userPartialSign(tx, opts.wallet, opts.signTransaction);
-  if (extra.length) signed.sign(extra);
-  return sponsorSignedTx(signed, 1);
+  if (opts.extra && opts.extra.length) tx.sign(opts.extra);
+  return sponsorSignedTx(tx, 1);
 }
 
 export async function attachHubMetadata(opts: {
@@ -88,23 +99,23 @@ export async function attachHubMetadata(opts: {
     ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }),
     createMetadataV3Ix({
       mint: opts.mint,
-      mintAuthority: opts.owner,
+      mintAuthority: sponsor,
       payer: sponsor,
-      updateAuthority: opts.owner,
+      updateAuthority: sponsor,
       name: opts.label.slice(0, 32),
       symbol: "PHUB",
       uri,
       sellerFeeBasisPoints: 0,
-      creators: [{ address: opts.owner, verified: true, share: 100 }],
+      creators: [{ address: opts.owner, verified: false, share: 100 }],
     }),
     createMasterEditionV3Ix({
       mint: opts.mint,
-      updateAuthority: opts.owner,
-      mintAuthority: opts.owner,
+      updateAuthority: sponsor,
+      mintAuthority: sponsor,
       payer: sponsor,
     }),
   ];
-  return sendSponsored({ conn, sponsor, ixs, wallet: opts.wallet, signTransaction: opts.signTransaction });
+  return sendSponsorOnly({ conn, sponsor, ixs });
 }
 
 export async function mintHubNft(opts: {
@@ -119,6 +130,7 @@ export async function mintHubNft(opts: {
 }): Promise<{ mint: string; sig: string; uri: string; metaSig?: string }> {
   const conn = openConn();
   const sponsor = new PublicKey(SPONSOR);
+  await assertPaidTill(conn, opts.owner, opts.paySig);
   const mintKp = Keypair.generate();
   const mint = mintKp.publicKey;
   const rent = await getMinimumBalanceForRentExemptMint(conn);
@@ -133,19 +145,12 @@ export async function mintHubNft(opts: {
       space: MINT_SIZE,
       programId: TOKEN_PROGRAM_ID,
     }),
-    createInitializeMintInstruction(mint, 0, opts.owner, null, TOKEN_PROGRAM_ID),
+    createInitializeMintInstruction(mint, 0, sponsor, null, TOKEN_PROGRAM_ID),
     createAssociatedTokenAccountIdempotentInstruction(sponsor, ata, opts.owner, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
-    createMintToInstruction(mint, ata, opts.owner, 1, [], TOKEN_PROGRAM_ID),
+    createMintToInstruction(mint, ata, sponsor, 1, [], TOKEN_PROGRAM_ID),
     memoIx("PAWLY|" + opts.label.slice(0, 24) + "|" + opts.paySig.slice(0, 16)),
   ];
-  const sig = await sendSponsored({
-    conn,
-    sponsor,
-    ixs: baseIxs,
-    extra: [mintKp],
-    wallet: opts.wallet,
-    signTransaction: opts.signTransaction,
-  });
+  const sig = await sendSponsorOnly({ conn, sponsor, ixs: baseIxs, extra: [mintKp] });
   const live = await mintAccountLive(mint.toBase58());
   if (!live) throw new Error("Mint did not land on-chain / 铸币未上链");
   const uri = nftUri(mint.toBase58());
@@ -166,12 +171,10 @@ export async function mintHubNft(opts: {
       species: opts.species,
       source: opts.source,
       image: opts.image,
-      wallet: opts.wallet,
-      signTransaction: opts.signTransaction,
     });
   } catch (e) {
     const msg = String((e as { message?: string }).message || e);
-    throw Object.assign(new Error("Mint live. Metadata needs one more sign: " + msg), {
+    throw Object.assign(new Error("Mint live " + mint.toBase58() + ". Metadata later: " + msg), {
       mint: mint.toBase58(),
       sig,
       uri,
