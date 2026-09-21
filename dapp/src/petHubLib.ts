@@ -104,16 +104,19 @@ export function applyMinted(w: string, list: PetRec[]): PetRec[] {
   const ids = new Set(keep.map((p) => p.id));
   for (const n of nfts) {
     if (ids.has(n.id)) continue;
-    const old = (list || []).find((p) => p && p.id === n.id);
+    const prev = (list || []).find((p) => p && p.id === n.id);
     keep.push({
       id: n.id, kind: "myth", species: n.species, name: n.name,
-      emoji: n.emoji || "\u2728", hunger: old && old.hunger != null ? old.hunger : 80, health: old && old.health != null ? old.health : 90, streak: old && old.streak != null ? old.streak : 0,
-      feedsTotal: Number((old && old.feedsTotal) != null ? old.feedsTotal : 10),
-      feedsToday: Number((old && old.feedsToday) != null ? old.feedsToday : 0),
-      feedDay: (old && old.feedDay) || undefined,
-      level: Number((old && old.level) != null ? old.level : 1),
+      emoji: n.emoji || "\u2728",
+      hunger: prev?.hunger ?? 80,
+      health: prev?.health ?? 90,
+      streak: prev?.streak ?? 0,
+      feedsTotal: Number(prev?.feedsTotal ?? 10),
+      feedsToday: Number(prev?.feedsToday ?? 0),
+      feedDay: prev?.feedDay,
+      level: Number(prev?.level ?? 1),
       sig: n.breedSig,
-      art: n.art || (old && old.art) || undefined,
+      art: n.art || prev?.art,
     });
     ids.add(n.id);
   }
