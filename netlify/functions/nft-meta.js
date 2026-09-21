@@ -1,5 +1,6 @@
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
+const RPC = "https://api.mainnet-beta.solana.com";
 const IMG = {
   fox: "https://www.pawlypets.online/dapp/myth/fox.jpg",
   moth: "https://www.pawlypets.online/dapp/myth/moth.jpg",
@@ -12,13 +13,13 @@ const IMG = {
 };
 const FALLBACK = "https://www.pawlypets.online/pawly-token-helps.png";
 
-function cors() {
-  return {
+function cors(extra) {
+  return Object.assign({
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "public, max-age=120",
-  };
+    "Cache-Control": "public, max-age=60",
+  }, extra || {});
 }
 
 function pickMint(event) {
@@ -62,6 +63,20 @@ function asJson(row) {
   };
 }
 
+async function mintExists(mint) {
+  try {
+    const r = await fetch(RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo", params: [mint, { encoding: "base64" }] }),
+    });
+    const d = await r.json();
+    return !!(d && d.result && d.result.value);
+  } catch {
+    return false;
+  }
+}
+
 async function lookup(mint) {
   try {
     const r = await fetch(SUPABASE_URL + "/rest/v1/pet_hub_nft_meta?mint=eq." + encodeURIComponent(mint) + "&select=*", {
@@ -80,13 +95,7 @@ async function lookup(mint) {
         const list = Array.isArray(row.nfts) ? row.nfts : [];
         const hit = list.find((n) => n && n.mint === mint);
         if (hit) {
-          return {
-            mint,
-            name: hit.name,
-            species: hit.species,
-            source: hit.source,
-            owner: hit.owner || row.wallet,
-          };
+          return { mint, name: hit.name, species: hit.species, source: hit.source, owner: hit.owner || row.wallet };
         }
       }
     }
@@ -110,6 +119,10 @@ exports.handler = async (event) => {
         seller_fee_basis_points: 0,
       }),
     };
+  }
+  const live = await mintExists(mint);
+  if (!live) {
+    return { statusCode: 404, headers: cors({ "Cache-Control": "no-store" }), body: JSON.stringify({ error: "mint not on-chain", mint }) };
   }
   const row = await lookup(mint);
   return { statusCode: 200, headers: cors(), body: JSON.stringify(asJson(row)) };
