@@ -1,4 +1,4 @@
-/** Painted 16-bit full-body portraits from myth-cards-v044. Species from breedSig. */
+/** Painted 16-bit full-body portraits from myth-cards-v044. Species from breedSig. Studio cards use stored art. */
 import { MYTH_KIND, MYTH_NAME } from "./petHubMythSprites";
 import type { MythSprite } from "./petHubMythSprites";
 import { MYTH_IMG } from "./petHubMythImg";
@@ -43,19 +43,22 @@ export function nftSpriteOf(n: { id?: string; name?: string; species?: string; b
   return spriteOf(seedOf(n));
 }
 
-export function nftSpriteName(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite }) {
-  return MYTH_NAME[nftSpriteOf(n)];
+export function nftSpriteName(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite; source?: string }) {
+  if (n.source === "studio" && n.name) return n.name;
+  return MYTH_NAME[nftSpriteOf(n)] || n.name || "PAWLY";
 }
 
 export function mythArt(sprite: MythSprite) {
   return MYTH_IMG[sprite] || MYTH_IMG.fox || "";
 }
 
-export function nftPortrait(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite; kind?: string }) {
+export function nftPortrait(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite; kind?: string; art?: string }) {
+  if (n.art && n.art.indexOf("data:image") === 0) return n.art;
   return mythArt(nftSpriteOf(n));
 }
 
-export function nftSheet(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite }) {
+export function nftSheet(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite; art?: string }) {
+  if (n.art && n.art.indexOf("data:image") === 0) return n.art;
   return mythArt(nftSpriteOf(n));
 }
 

@@ -109,20 +109,31 @@ export function renderStudioCard(draft: StudioDraft): string {
   drawBody(ctx, draft.body, draft.colorA, draft.colorB);
   drawPattern(ctx, draft.pattern, draft.colorB);
   drawAcc(ctx, draft.acc, draft.colorB);
-  if (draft.doodle) {
-    const img = new Image();
-    img.src = draft.doodle;
-    try {
-      ctx.globalAlpha = 0.9;
-      ctx.drawImage(img, 0, 0, 160, 160);
-      ctx.globalAlpha = 1;
-    } catch { /* preview rerender */ }
-  }
   ctx.fillStyle = "#00ff9d";
   ctx.font = "bold 11px sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(cleanStudioName(draft.name) || "My Pet", 80, 150);
   return canvas.toDataURL("image/png");
+}
+
+export function paintStudioFinal(draft: StudioDraft, doodleUrl?: string): Promise<string> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 160; canvas.height = 160;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { resolve(""); return; }
+    const base = new Image();
+    base.onload = () => {
+      ctx.drawImage(base, 0, 0, 160, 160);
+      if (!doodleUrl) { resolve(canvas.toDataURL("image/png")); return; }
+      const d = new Image();
+      d.onload = () => { ctx.drawImage(d, 0, 0, 160, 160); resolve(canvas.toDataURL("image/png")); };
+      d.onerror = () => resolve(canvas.toDataURL("image/png"));
+      d.src = doodleUrl;
+    };
+    base.onerror = () => resolve(renderStudioCard(draft));
+    base.src = renderStudioCard({ ...draft, doodle: undefined });
+  });
 }
 
 export function studioSpecies(body: StudioBody) {
