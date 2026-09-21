@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply Pet Hub v0.4.19 title + feed persist before tsc."""
+"""Apply Pet Hub v0.4.19 title + PetRec.art before tsc."""
 from pathlib import Path
 root = Path(__file__).resolve().parent
 src = root / "src"
@@ -33,6 +33,11 @@ patch_path(src / "petHub.tsx", [
      "pet={{ species: p.species, level: Math.max(1, Number(p.level || 1)), emoji: p.emoji, name: p.name, art: p.art }}"),
     ("pet={{ species: p.species, level: Number(p.level || 0), emoji: p.emoji, name: p.name }}",
      "pet={{ species: p.species, level: Number(p.level || 0), emoji: p.emoji, name: p.name, art: p.art }}"),
+])
+
+patch_path(src / "petHubLib.ts", [
+    ("feedDay?: string; level?: number };",
+     "feedDay?: string; level?: number; art?: string };"),
 ])
 
 print("v0.4.19 patch done")

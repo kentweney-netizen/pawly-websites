@@ -23,7 +23,7 @@ export type PayCoin = "PAWLY" | "USDC" | "USDT" | "SOL";
 const SUPABASE_URL = "https://iqmyiqjgzrlwthilkeos.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbXlpcWpnenJsd3RoaWxrZW9zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTI0MjAsImV4cCI6MjA5NjIyODQyMH0.0kP2lz4vDS8E7E65cGj2Kny5DaK_TNVBuaQxVOr2Qf0";
 export type SceneId = "street" | "hospital" | "shelter" | "shop" | "hotel" | "groom" | "park";
-export type PetRec = { id: string; kind: string; species: string; name: string; emoji: string; hunger: number; health: number; streak: number; pricePawly?: number; sig?: string; feedsTotal?: number; feedsToday?: number; feedDay?: string; level?: number };
+export type PetRec = { id: string; kind: string; species: string; name: string; emoji: string; hunger: number; health: number; streak: number; pricePawly?: number; sig?: string; feedsTotal?: number; feedsToday?: number; feedDay?: string; level?: number; art?: string };
 export type CartKind = "adopt" | "rescue" | "service" | "food";
 export type CertJob = { title: string; amount: number; kind: CartKind; species?: string; emoji?: string; sig: string; certPng?: string; photoPng?: string };
 export type CartItem = { title: string; amount: number; kind: CartKind; species?: string; emoji?: string; petId?: string };
@@ -71,7 +71,7 @@ export const CLIP: Record<SceneId, string> = { street: "pet-hub-street-walk.mp4"
 function rosterHdr() {
   return { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json" };
 }
-type MintNft = { id: string; species: string; name: string; emoji?: string; parents?: string[]; breedSig?: string };
+type MintNft = { id: string; species: string; name: string; emoji?: string; parents?: string[]; breedSig?: string; art?: string };
 function localNfts(w: string): MintNft[] {
   if (!w) return [];
   try {
@@ -104,10 +104,16 @@ export function applyMinted(w: string, list: PetRec[]): PetRec[] {
   const ids = new Set(keep.map((p) => p.id));
   for (const n of nfts) {
     if (ids.has(n.id)) continue;
+    const old = (list || []).find((p) => p && p.id === n.id);
     keep.push({
       id: n.id, kind: "myth", species: n.species, name: n.name,
-      emoji: n.emoji || "\u2728", hunger: 80, health: 90, streak: 0,
-      feedsTotal: 10, level: 1, sig: n.breedSig,
+      emoji: n.emoji || "\u2728", hunger: old && old.hunger != null ? old.hunger : 80, health: old && old.health != null ? old.health : 90, streak: old && old.streak != null ? old.streak : 0,
+      feedsTotal: Number((old && old.feedsTotal) != null ? old.feedsTotal : 10),
+      feedsToday: Number((old && old.feedsToday) != null ? old.feedsToday : 0),
+      feedDay: (old && old.feedDay) || undefined,
+      level: Number((old && old.level) != null ? old.level : 1),
+      sig: n.breedSig,
+      art: n.art || (old && old.art) || undefined,
     });
     ids.add(n.id);
   }
