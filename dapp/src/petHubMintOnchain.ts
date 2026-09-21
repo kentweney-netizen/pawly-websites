@@ -7,6 +7,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
+import { Buffer } from "buffer";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
@@ -28,7 +29,7 @@ function memoIx(text: string) {
   return new TransactionInstruction({
     programId: MEMO,
     keys: [],
-    data: new TextEncoder().encode(text.slice(0, 120)),
+    data: Buffer.from(text.slice(0, 120), "utf8"),
   });
 }
 
@@ -42,14 +43,14 @@ export async function mintStudioToken(opts: {
   const conn = new Connection(RPC, "confirmed");
   const sponsor = new PublicKey(SPONSOR);
   const mintKp = Keypair.generate();
-  const rent = await conn.getMinimumBalanceForRentExemptMint();
+  const rent = await getMinimumBalanceForRentExemptMint(conn);
   const ata = await getAssociatedTokenAddress(mintKp.publicKey, opts.owner, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
   const { blockhash } = await conn.getLatestBlockhash("confirmed");
   const ixs = [
     SystemProgram.createAccount({
       fromPubkey: sponsor,
       newAccountPubkey: mintKp.publicKey,
-      lamports: rent || await getMinimumBalanceForRentExemptMint(conn),
+      lamports: rent,
       space: MINT_SIZE,
       programId: TOKEN_PROGRAM_ID,
     }),

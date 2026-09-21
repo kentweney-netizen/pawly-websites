@@ -35,8 +35,8 @@ export function StudioPanel(props: {
   const doodleRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const [body, setBody] = useState<StudioBody>("fox");
-  const [colorA, setColorA] = useState(STUDIO_COLORS[0]);
-  const [colorB, setColorB] = useState(STUDIO_COLORS[1]);
+  const [colorA, setColorA] = useState<string>(STUDIO_COLORS[0]);
+  const [colorB, setColorB] = useState<string>(STUDIO_COLORS[1]);
   const [pattern, setPattern] = useState<StudioPattern>("none");
   const [acc, setAcc] = useState<StudioAcc>("none");
   const [name, setName] = useState("My Pet");
