@@ -24,6 +24,18 @@
   force = true
 
 [[redirects]]
+  from = "/nft/*.json"
+  to = "/.netlify/functions/nft-meta?mint=:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/nft/*"
+  to = "/.netlify/functions/nft-meta?mint=:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/dapp/assets/*"
   to = "/dapp/dist/assets/:splat"
   status = 200
