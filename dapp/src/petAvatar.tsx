@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { spriteCandidates, isMythWalk } from "./petSprites";
+import { spriteCandidates, isMythWalk, mythKey } from "./petSprites";
+import { MYTH_IMG } from "./petHubMythImg";
 
 export type PetRigPet = {
   species: string;
   level: number;
   emoji?: string;
   name?: string;
+  art?: string;
 };
 
 function normSpecies(species: string) {
@@ -49,22 +51,23 @@ const FACE: Record<string, string> = {
 
 function FaceBadge(props: { face: string; size: number }) {
   return (
-    <div
-      className="pawly-rig"
-      style={{
-        width: props.size,
-        height: props.size,
-        borderRadius: "50%",
-        background: "transparent",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: Math.round(props.size * 0.78),
-        lineHeight: 1,
-        overflow: "visible",
-      }}
-    >
-      {props.face}
+    <div className="pawly-rig" style={{
+      width: props.size, height: props.size, borderRadius: "50%", background: "transparent",
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      fontSize: Math.round(props.size * 0.78), lineHeight: 1, overflow: "visible",
+    }}>{props.face}</div>
+  );
+}
+
+function ArtBadge(props: { src: string; name?: string; size: number; moving?: boolean }) {
+  return (
+    <div className={props.moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{
+      width: props.size, height: props.size, overflow: "hidden", display: "inline-block",
+      borderRadius: 10, background: "#081018", border: "1px solid rgba(0,255,157,0.35)",
+    }}>
+      <img alt={props.name || "pet"} src={props.src} draggable={false} style={{
+        width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", background: "transparent",
+      }} />
     </div>
   );
 }
@@ -72,44 +75,29 @@ function FaceBadge(props: { face: string; size: number }) {
 export function PetRig(props: { pet: PetRigPet; size?: number; moving?: boolean }) {
   const lv = Math.max(0, Number(props.pet.level || 0));
   const key = normSpecies(props.pet.species);
-  const cands = spriteCandidates(props.pet.species);
   const size = props.size || 36;
   const moving = !!props.moving;
-  const myth = isMythWalk(props.pet.species);
   const face = props.pet.emoji || FACE[key] || "\ud83d\udc3e";
+  const myth = mythKey(props.pet.species);
+  const cardArt = (props.pet.art && props.pet.art.length > 8)
+    ? props.pet.art
+    : (myth && MYTH_IMG[myth as keyof typeof MYTH_IMG]) || "";
+  if (lv >= 1 && cardArt) return <ArtBadge src={cardArt} name={props.pet.name} size={size} moving={moving} />;
+  const cands = spriteCandidates(props.pet.species);
   const [idx, setIdx] = useState(0);
   const src = cands[idx] || "";
-  if (lv <= 0 || !src) {
-    return <FaceBadge face={face} size={lv <= 0 ? Math.min(size, 36) : size} />;
-  }
-  const w = myth ? Math.round(size * 1.45) : size;
-  const h = myth ? Math.round(size * 0.95) : Math.round(size * 1.15);
+  if (lv <= 0 || !src) return <FaceBadge face={face} size={lv <= 0 ? Math.min(size, 36) : size} />;
+  const walkMyth = isMythWalk(props.pet.species);
+  const w = walkMyth ? Math.round(size * 1.45) : size;
+  const h = walkMyth ? Math.round(size * 0.95) : Math.round(size * 1.15);
   return (
-    <div
-      className={moving ? "pawly-rig pawly-bob" : "pawly-rig"}
-      style={{
-        width: w,
-        height: h,
-        overflow: "visible",
-        display: "inline-block",
-        background: "transparent",
-      }}
-    >
-      <img
-        alt={props.pet.name || key}
-        src={src}
-        draggable={false}
-        onError={() => setIdx((n) => n + 1)}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          objectPosition: "center bottom",
-          imageRendering: "pixelated",
-          background: "transparent",
-          mixBlendMode: myth ? "lighten" : "normal",
-        }}
-      />
+    <div className={moving ? "pawly-rig pawly-bob" : "pawly-rig"} style={{
+      width: w, height: h, overflow: "visible", display: "inline-block", background: "transparent",
+    }}>
+      <img alt={props.pet.name || key} src={src} draggable={false} onError={() => setIdx((n) => n + 1)} style={{
+        width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom",
+        imageRendering: "pixelated", background: "transparent", mixBlendMode: walkMyth ? "lighten" : "normal",
+      }} />
     </div>
   );
 }
