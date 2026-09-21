@@ -1,0 +1,37 @@
+name: restore-pethub-send
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/restore-pethub-send.yml"
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore full petHubSend.ts and add export alias
+        run: |
+          git show beedd4565adc7e3a2fb551cc65db471aa82bce50:dapp/src/petHubSend.ts > dapp/src/petHubSend.ts
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("dapp/src/petHubSend.ts")
+          t = p.read_text()
+          if "export const sponsorSignedTx" not in t:
+              t = t.replace(
+                  "} finally { window.clearTimeout(timer); }\n}\n\nexport async function userPartialSign",
+                  "} finally { window.clearTimeout(timer); }\n}\nexport const sponsorSignedTx = sponsorBroadcast;\n\nexport async function userPartialSign",
+                  1,
+              )
+              p.write_text(t)
+          print("bytes", p.stat().st_size)
+          PY
+          git config user.name kentweney-netizen
+          git config user.email kentweney@gmail.com
+          git add dapp/src/petHubSend.ts
+          git diff --cached --quiet && echo nochange && exit 0
+          git commit -m "fix(pet): restore petHubSend.ts and export sponsorSignedTx"
+          git push origin HEAD:main
