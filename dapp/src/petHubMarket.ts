@@ -1,10 +1,13 @@
 /**
  * PAWLY Pet Hub v0.3 net + v0.4 stall/NFT.
  * New species NFT = sacred/weird mythic, not real-world animals.
+ * Studio cards: player parts + doodle; art stays local, not pushed to cloud.
  */
 import type { PetRec, PayCoin } from "./petHubLib";
 import { mythicFrom } from "./petHubNftArt";
 import type { MythKind } from "./petHubNftArt";
+import { studioSpecies } from "./petHubStudioArt";
+import type { StudioBody } from "./petHubStudioArt";
 
 export const STALL_PAWLY = 200;
 export const BREED_PAWLY = 80;
@@ -28,6 +31,10 @@ export type NftRec = {
   pricePawly: number;
   highPrice: number;
   createdAt: string;
+  art?: string;
+  mint?: string;
+  memoSig?: string;
+  source?: "breed" | "studio";
 };
 export type RankRow = { wallet: string; name: string; species: string; highPrice: number; nftId: string };
 
@@ -73,13 +80,22 @@ export async function pullMarket(): Promise<{ stalls: StallRec[]; nfts: NftRec[]
   } catch { return { stalls: [], nfts: [] }; }
 }
 
+function slimNft(n: NftRec): NftRec {
+  return {
+    id: n.id, owner: n.owner, species: n.species, name: n.name, emoji: n.emoji, kind: n.kind,
+    parents: n.parents || [], gen: n.gen, breedSig: n.breedSig, listed: n.listed,
+    pricePawly: n.pricePawly, highPrice: n.highPrice, createdAt: n.createdAt,
+    mint: n.mint, memoSig: n.memoSig, source: n.source,
+  };
+}
+
 export async function pushMarketRow(w: string, stall: StallRec | null, nfts: NftRec[]) {
   if (!w) return;
   try {
     await fetch(SUPABASE_URL + "/rest/v1/pet_hub_market", {
       method: "POST",
       headers: { ...hdr(), Prefer: "resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify({ wallet: w, stall, nfts, updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ wallet: w, stall, nfts: nfts.map(slimNft), updated_at: new Date().toISOString() }),
     });
   } catch { /* local still works */ }
 }
@@ -108,6 +124,32 @@ export function makeNft(opts: { owner: string; a: PetRec; b: PetRec; sig: string
     pricePawly: 0,
     highPrice: 0,
     createdAt: new Date().toISOString(),
+    source: "breed",
+  };
+}
+
+export function makeStudioNft(opts: {
+  owner: string; body: StudioBody; name: string; art: string; paySig: string; mint?: string; memoSig?: string;
+}): NftRec {
+  const species = studioSpecies(opts.body);
+  return {
+    id: "studio_" + Date.now() + "_" + Math.floor(Math.random() * 9999),
+    owner: opts.owner,
+    species,
+    name: opts.name || species,
+    emoji: "\u2728",
+    kind: "sacred",
+    parents: ["studio", opts.body],
+    gen: 1,
+    breedSig: opts.paySig,
+    listed: false,
+    pricePawly: 0,
+    highPrice: 0,
+    createdAt: new Date().toISOString(),
+    art: opts.art,
+    mint: opts.mint || "",
+    memoSig: opts.memoSig || "",
+    source: "studio",
   };
 }
 
@@ -131,6 +173,7 @@ export function liveRoster(pets: PetRec[], nfts: NftRec[], spent: string[]): Pet
   const gone = new Set(spent);
   const need = new Map<string, number>();
   for (const n of nfts) {
+    if (n.source === "studio") continue;
     for (const sp of n.parents || []) need.set(sp, (need.get(sp) || 0) + 1);
   }
   const keep: PetRec[] = [];
