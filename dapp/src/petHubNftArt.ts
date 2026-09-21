@@ -1,4 +1,4 @@
-/** Painted 16-bit full-body portraits from myth-cards-v044. Species from breedSig. Studio cards use stored art. */
+/** Painted 16-bit full-body portraits from myth-cards-v044. Street and stall use the same jpg. */
 import { MYTH_KIND, MYTH_NAME } from "./petHubMythSprites";
 import type { MythSprite } from "./petHubMythSprites";
 import { MYTH_IMG } from "./petHubMythImg";
@@ -53,13 +53,15 @@ export function mythArt(sprite: MythSprite) {
 }
 
 export function nftPortrait(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite; kind?: string; art?: string }) {
-  if (n.art && n.art.indexOf("data:image") === 0) return n.art;
+  const art = String(n.art || "");
+  if (art.indexOf("/dapp/myth/") >= 0 || art.indexOf("http") === 0 && art.indexOf("data:") !== 0) {
+    if (art.indexOf("data:image") !== 0) return art.indexOf("data:") === 0 ? mythArt(nftSpriteOf(n)) : art;
+  }
   return mythArt(nftSpriteOf(n));
 }
 
 export function nftSheet(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite; art?: string }) {
-  if (n.art && n.art.indexOf("data:image") === 0) return n.art;
-  return mythArt(nftSpriteOf(n));
+  return nftPortrait(n);
 }
 
 export function nftIdleKind(n: { id?: string; name?: string; species?: string; breedSig?: string; sprite?: MythSprite }) {
